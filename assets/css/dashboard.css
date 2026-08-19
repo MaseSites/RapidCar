@@ -1787,6 +1787,8 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 .credit-chip:hover {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+    /* Links sind sonst unterstrichen; hier ist es ein Feld, kein Text */
+    text-decoration: none;
 }
 .credit-chip .icon { color: var(--primary); }
 
