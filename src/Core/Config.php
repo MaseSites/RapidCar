@@ -137,7 +137,9 @@ final class Config
 
     public static function isInstalled(): bool
     {
-        return is_file(BASE_PATH . '/config/config.php')
-            && is_file(BASE_PATH . '/storage/installed.lock');
+        // Die Konfiguration allein entscheidet. Die Sperrdatei unter
+        // /storage diente nur dem Installer und darf fehlen: /storage
+        // wird bei einer Bereitstellung bewusst nie mitgeliefert.
+        return is_file(BASE_PATH . '/config/config.php');
     }
 }

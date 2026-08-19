@@ -850,6 +850,29 @@ $cssSource = file_get_contents(BASE_PATH . '/assets/css/public.css');
 check('Umschalter ist eine Pille',
     substr_count($cssSource, 'border-radius: 999px') >= 2);
 
+echo "
+"; echo "Bereitstellung ohne Datenbank im Paket"; echo "
+";
+
+// Ein Update darf nie wieder Daten ueberschreiben: das Paket enthaelt
+// keine Datenbank mehr. Beim ersten Aufruf baut die Anwendung Schema,
+// Grunddaten und das Betreiberkonto aus der Konfiguration selbst auf.
+$configSource = file_get_contents(BASE_PATH . '/src/Core/Config.php');
+check('installiert heisst: Konfiguration vorhanden',
+    str_contains($configSource, "return is_file(BASE_PATH . '/config/config.php');")
+    && !str_contains($configSource, "installed.lock')"));
+
+$migratorSource3 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
+check('Heilung legt Grunddaten an', str_contains($migratorSource3, 'seedBaseline'));
+check('Betreiberkonto entsteht aus der Konfiguration',
+    str_contains($migratorSource3, "Config::get('operator'")
+    && str_contains($migratorSource3, "'password_hash'"));
+check('nur der Hash, nie das Passwort',
+    str_contains($migratorSource3, 'Nur der Hash'));
+check('fehlender operator-Block wird gemeldet',
+    str_contains($migratorSource3, 'kein operator-Block'));
+
+
 
 
 

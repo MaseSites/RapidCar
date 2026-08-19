@@ -373,12 +373,77 @@ final class Migrator
             }
         }
 
-        // Als Fehler protokolliert, damit es im Systemcheck sichtbar ist:
-        // die Daten von vorher sind weg, auch die Konten.
+        // Als Fehler protokolliert, damit es im Systemcheck sichtbar ist.
         Logger::error(
-            'Die Datenbank war leer. Das Schema wurde neu angelegt (' . $applied . ' Anweisungen). '
-            . 'Alle frueheren Daten und Konten fehlen; Konten muessen neu angelegt werden.'
+            'Die Datenbank war leer. Das Schema wurde neu angelegt (' . $applied . ' Anweisungen).'
         );
+
+        self::seedBaseline();
+    }
+
+    /**
+     * Grunddaten fuer eine frisch aufgebaute Datenbank: Vorlagen und
+     * Demo-Daten aus /database/seeds.php sowie das Betreiberkonto aus der
+     * Konfiguration (operator-Block). So entsteht aus dem blossen Hochladen
+     * der Dateien eine vollstaendig eingerichtete Anwendung.
+     */
+    private static function seedBaseline(): void
+    {
+        try {
+            if ((int) Database::scalar('SELECT COUNT(*) FROM users') > 0) {
+                return;
+            }
+
+            $seedsFile = BASE_PATH . '/database/seeds.php';
+            if (is_file($seedsFile)) {
+                require_once $seedsFile;
+                if (function_exists('rapidcar_run_seeds')) {
+                    rapidcar_run_seeds();
+                }
+            }
+
+            // Betreiberkonto aus der Konfiguration. Nur der Hash steht dort,
+            // nie das Passwort selbst.
+            $operator = Config::get('operator', []);
+            $email = is_array($operator) ? trim((string) ($operator['email'] ?? '')) : '';
+            $hash = is_array($operator) ? (string) ($operator['password_hash'] ?? '') : '';
+            if ($email === '' || $hash === '') {
+                Logger::error('Grunddaten angelegt, aber kein operator-Block in der Konfiguration: Betreiberkonto fehlt.');
+                return;
+            }
+            $exists = Database::scalar('SELECT COUNT(*) FROM users WHERE email = :e', ['e' => $email]);
+            if ((int) $exists > 0) {
+                return;
+            }
+
+            $now = Database::now();
+            $dealershipId = Database::insert('dealerships', [
+                'name'         => (string) ($operator['tenant_name'] ?? 'RapidCar'),
+                'account_type' => 'dealer',
+                'country'      => 'CH',
+                'currency'     => 'CHF',
+                'language'     => 'de',
+                'credits'      => (int) ($operator['credits'] ?? 100),
+                'created_at'   => $now,
+                'updated_at'   => $now,
+            ]);
+            Database::insert('users', [
+                'dealership_id'           => $dealershipId,
+                'first_name'              => (string) ($operator['first_name'] ?? 'Betreiber'),
+                'last_name'               => (string) ($operator['last_name'] ?? 'RapidCar'),
+                'email'                   => mb_strtolower($email),
+                'password_hash'           => $hash,
+                'role'                    => 'super_admin',
+                'is_active'               => 1,
+                'email_verified_at'       => $now,
+                'onboarding_completed_at' => $now,
+                'created_at'              => $now,
+                'updated_at'              => $now,
+            ]);
+            Logger::info('Betreiberkonto aus der Konfiguration angelegt: ' . $email);
+        } catch (\Throwable $e) {
+            Logger::error('Grunddaten konnten nicht angelegt werden: ' . $e->getMessage());
+        }
     }
 
     private static function tableExists(string $table): bool
