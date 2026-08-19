@@ -125,6 +125,21 @@ sobald die Domain öffentlich erreichbar ist, also genau ab jetzt.
 
 ## 6. Prüfen
 
+Die Anwendung prüft sich selbst. Im Browser aufrufen:
+
+```
+https://deine-domain.tld/systemcheck.php?key=<app.key>
+```
+
+Den Schlüssel findest du in `config/config.php` unter `app.key`. Die Seite
+zeigt PHP-Version, Erweiterungen, Schreibrechte, Datenbankverbindung, alle
+Tabellen und Spalten sowie die letzten Fehler aus dem Protokoll. Antwortet
+eine Seite mit Fehler 500, steht der Grund dort.
+
+Nach der Einrichtung `systemcheck.php` löschen.
+
+### Weitere Prüfungen von Hand
+
 - `https://deine-domain.tld/` zeigt die Startseite
 - Anmelden mit dem Betreiberkonto aus dem Installer
 - Ein Fahrzeug anlegen, Fotos hochladen, Inserat erzeugen

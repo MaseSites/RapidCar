@@ -130,6 +130,8 @@ return [
     'auth.register.title'     => 'Konto erstellen',
     'auth.register.lead'      => 'Starte kostenlos und erstelle dein erstes Inserat in wenigen Minuten.',
     'auth.register.submit'    => 'Konto erstellen',
+    'auth.register.failed'        => 'Das Konto konnte nicht angelegt werden. Bitte versuche es später erneut.',
+    'auth.register.done'          => 'Dein Konto wurde angelegt. Bitte melde dich an.',
     'auth.register.has_account' => 'Bereits ein Konto? Einloggen',
     'auth.first_name'         => 'Vorname',
     'auth.last_name'          => 'Nachname',

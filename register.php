@@ -47,27 +47,55 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             store_old_input($_POST);
             RateLimiter::hit('register', $ip);
         } else {
-            $userId = AuthService::register(
-                $v->value('first_name'),
-                $v->value('last_name'),
-                $v->value('email'),
-                (string) $_POST['password'],
-                $v->value('dealership_name'),
-                $v->value('phone'),
-                $v->value('country')
-            );
-            clear_old_input();
-            RateLimiter::clear('register', $ip);
-
-            if (EmailVerification::isEnabled()) {
-                EmailVerification::send($userId, $v->value('email'));
-                Session::flash('info', 'Bitte überprüfe deine E-Mail-Adresse, um dein Konto zu aktivieren.');
-                redirect('login.php');
+            // Schlaegt das Anlegen fehl, bekommt der Besucher eine klare
+            // Meldung statt einer weissen Fehlerseite. Die Einzelheiten
+            // landen im Protokoll, nicht auf dem Bildschirm.
+            try {
+                $userId = AuthService::register(
+                    $v->value('first_name'),
+                    $v->value('last_name'),
+                    $v->value('email'),
+                    (string) $_POST['password'],
+                    $v->value('dealership_name'),
+                    $v->value('phone'),
+                    $v->value('country')
+                );
+            } catch (\Throwable $e) {
+                \App\Core\Logger::error('Registrierung fehlgeschlagen: ' . $e->getMessage());
+                store_old_input($_POST);
+                RateLimiter::hit('register', $ip);
+                $errors['_general'] = t('auth.register.failed');
+                $userId = 0;
             }
 
-            // Direkt einloggen und ins Onboarding
-            AuthService::attempt($v->value('email'), (string) $_POST['password']);
-            redirect('dashboard/onboarding.php');
+            if ($userId > 0) {
+                clear_old_input();
+                RateLimiter::clear('register', $ip);
+
+                // Der Mailversand darf die Registrierung nicht scheitern
+                // lassen: das Konto besteht bereits.
+                $mailSent = false;
+                if (EmailVerification::isEnabled()) {
+                    try {
+                        EmailVerification::send($userId, $v->value('email'));
+                        $mailSent = true;
+                    } catch (\Throwable $e) {
+                        \App\Core\Logger::error('Bestaetigungsmail fehlgeschlagen: ' . $e->getMessage());
+                    }
+                }
+
+                if ($mailSent) {
+                    Session::flash('info', 'Bitte überprüfe deine E-Mail-Adresse, um dein Konto zu aktivieren.');
+                    redirect('login.php');
+                }
+
+                // Direkt einloggen und ins Onboarding
+                if (AuthService::attempt($v->value('email'), (string) $_POST['password'])) {
+                    redirect('dashboard/onboarding.php');
+                }
+                Session::flash('info', t('auth.register.done'));
+                redirect('login.php');
+            }
         }
     }
 }

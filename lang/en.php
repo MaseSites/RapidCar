@@ -122,6 +122,8 @@ return [
     'auth.register.title'     => 'Create account',
     'auth.register.lead'      => 'Start for free and create your first listing in minutes.',
     'auth.register.submit'    => 'Create account',
+    'auth.register.failed'        => 'The account could not be created. Please try again later.',
+    'auth.register.done'          => 'Your account has been created. Please sign in.',
     'auth.register.has_account' => 'Already have an account? Log in',
     'auth.first_name'         => 'First name',
     'auth.last_name'          => 'Last name',
