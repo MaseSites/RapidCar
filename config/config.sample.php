@@ -211,9 +211,14 @@ return [
     // Solange hier nichts hinterlegt ist, wird keine Zahlung vorgetäuscht:
     // Bestellungen bleiben offen und werden vom Betreiber im Admin freigegeben.
     'payment' => [
-        'provider' => '',   // z.B. stripe, saferpay, datatrans
-        'api_key'  => '',
-        'webhook_secret' => '',
+        'provider' => '',        // 'stripe' fuer die eingebaute Anbindung
+        'api_key'  => '',        // sk_live_... oder sk_test_...
+        'webhook_secret' => '',  // whsec_... des Webhook-Endpunkts
+        // Rechnung je Kauf ueber Stripe Invoicing (PDF am Beleg).
+        'invoices' => true,
+        // Mehrwertsteuer ueber Stripe Tax. Erst im Stripe-Dashboard
+        // einrichten (Steuerregistrierung), sonst lehnt Stripe ab.
+        'automatic_tax' => false,
     ],
 
     // Weitere Verkaufs- und Social-Kanäle (ChannelRegistry).

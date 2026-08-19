@@ -75,11 +75,40 @@ final class PaymentService
             'line_items[0][price_data][unit_amount]'               => (string) (int) round(((float) $order['price']) * 100),
             'line_items[0][price_data][product_data][name]'        => 'RapidCar Guthaben: ' . $label,
             'metadata[order_id]'        => (string) $orderId,
+
+            // Kunde in Stripe anlegen: Grundlage fuer Rechnungen, Steuer
+            // und die Kaufhistorie im Stripe-Dashboard.
+            'customer_creation'         => 'always',
         ];
+
+        // E-Mail des Kaeufers vorbefuellen: weniger Tipparbeit an der Kasse,
+        // Beleg und Rechnung kommen automatisch an die richtige Adresse.
+        $buyerEmail = self::orderBuyerEmail($order);
+        if ($buyerEmail !== '') {
+            $params['customer_email'] = $buyerEmail;
+        }
+
+        // Rechnung je Kauf (Stripe Invoicing). Kostenlos fuer Checkout-Kaeufe;
+        // die PDF haengt an der Stripe-Quittung und liegt im Dashboard.
+        if (filter_var(Config::get('payment.invoices', true), FILTER_VALIDATE_BOOL)) {
+            $params['invoice_creation[enabled]'] = 'true';
+        }
+
+        // Stripe Tax: Mehrwertsteuer automatisch berechnen und ausweisen.
+        // Erst einschalten, wenn Stripe Tax im Dashboard eingerichtet ist,
+        // sonst lehnt Stripe die Session ab.
+        if (filter_var(Config::get('payment.automatic_tax', false), FILTER_VALIDATE_BOOL)) {
+            $params['automatic_tax[enabled]'] = 'true';
+            $params['billing_address_collection'] = 'required';
+        }
+
         if ($method !== null && in_array($method, self::PAYMENT_METHODS, true)) {
             $params['payment_method_types[0]'] = $method;
         }
-        $response = self::stripeRequest('POST', '/checkout/sessions', $params);
+
+        // Idempotenz je Bestellung: Doppelklick oder Netzwiederholung erzeugt
+        // dieselbe Kasse noch einmal, nie eine zweite.
+        $response = self::stripeRequest('POST', '/checkout/sessions', $params, 'rapidcar-order-' . $orderId);
 
         $url = (string) ($response['url'] ?? '');
         if ($url === '') {
@@ -175,7 +204,31 @@ final class PaymentService
     }
 
     /** @return array<string, mixed> */
-    private static function stripeRequest(string $method, string $path, array $fields = []): array
+    /** E-Mail des Bestellers: erst der ausloesende Nutzer, sonst der Mandant. */
+    private static function orderBuyerEmail(array $order): string
+    {
+        $userId = (int) ($order['created_by'] ?? 0);
+        if ($userId > 0) {
+            $email = (string) (Database::scalar(
+                'SELECT email FROM users WHERE id = :id',
+                ['id' => $userId]
+            ) ?: '');
+            if ($email !== '') {
+                return $email;
+            }
+        }
+        return (string) (Database::scalar(
+            'SELECT email FROM dealerships WHERE id = :id',
+            ['id' => (int) ($order['dealership_id'] ?? 0)]
+        ) ?: '');
+    }
+
+    /**
+     * @param string|null $idempotencyKey Gleicher Schluessel = gleiche Antwort:
+     *                                    ein doppelt abgeschickter Kauf erzeugt
+     *                                    keine zweite Kasse.
+     */
+    private static function stripeRequest(string $method, string $path, array $fields = [], ?string $idempotencyKey = null): array
     {
         if (!function_exists('curl_init')) {
             throw new RuntimeException('Die PHP-Erweiterung cURL wird für Zahlungen benötigt.');
@@ -189,10 +242,10 @@ final class PaymentService
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => self::TIMEOUT_SECONDS,
             CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_HTTPHEADER     => [
+            CURLOPT_HTTPHEADER     => array_merge([
                 'Authorization: Bearer ' . $apiKey,
                 'Content-Type: application/x-www-form-urlencoded',
-            ],
+            ], $idempotencyKey !== null ? ['Idempotency-Key: ' . $idempotencyKey] : []),
         ]));
 
         $raw = curl_exec($ch);

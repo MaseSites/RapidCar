@@ -964,6 +964,33 @@ check('nur bekannte Zahlarten erreichen Stripe',
 check('Guthaben-Feld in der Kopfleiste',
     str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'credit-chip'));
 
+echo "
+"; echo "Stripe: Rechnungen, Steuer, Idempotenz"; echo "
+";
+
+$paymentSource2 = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
+check('Kaeufer-E-Mail wird vorbefuellt',
+    str_contains($paymentSource2, "customer_email")
+    && str_contains($paymentSource2, 'orderBuyerEmail'));
+check('Kunde wird in Stripe angelegt',
+    str_contains($paymentSource2, "'customer_creation'         => 'always'"));
+check('Rechnung je Kauf einschaltbar',
+    str_contains($paymentSource2, 'invoice_creation[enabled]')
+    && str_contains($paymentSource2, "payment.invoices"));
+check('Stripe Tax vorbereitet, standardmaessig aus',
+    str_contains($paymentSource2, 'automatic_tax[enabled]')
+    && str_contains($paymentSource2, "payment.automatic_tax")
+    && str_contains($paymentSource2, 'billing_address_collection'));
+check('Session-Erstellung ist idempotent',
+    str_contains($paymentSource2, 'Idempotency-Key')
+    && str_contains($paymentSource2, "rapidcar-order-"));
+
+$sample2 = require BASE_PATH . '/config/config.sample.php';
+check('Beispielkonfiguration kennt Rechnungen und Steuer',
+    array_key_exists('invoices', $sample2['payment'] ?? [])
+    && ($sample2['payment']['automatic_tax'] ?? true) === false);
+
+
 
 
 
