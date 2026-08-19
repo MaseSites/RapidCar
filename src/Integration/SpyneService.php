@@ -92,6 +92,9 @@ final class SpyneService
         if ($backgrounds === []) {
             $backgrounds[self::DEFAULT_BACKGROUND] = 'Studio (Standard)';
         }
+        // Achtung fuer Abnehmer: PHP fuehrt rein numerische Schluessel
+        // ('923') zwingend als Zahl. Wer den Schluessel an eine mit string
+        // typisierte Stelle weitergibt, muss ihn mit (string) wandeln.
         return $backgrounds;
     }
 

@@ -217,6 +217,51 @@ final class OpenAiProvider implements AIProviderInterface
     }
 
     /**
+     * Wertet ein PDF ohne Textebene aus (reiner Scan): das PDF geht als
+     * Datei an das Modell, OpenAI setzt die Seiten selbst in Bilder um.
+     * Teurer als der Textweg, deshalb nur als letzter Schritt.
+     */
+    public function extractDocumentPdf(string $absolutePath): array
+    {
+        $size = @filesize($absolutePath);
+        if ($size === false || $size <= 0) {
+            throw new AIException('Das Dokument konnte nicht gelesen werden.');
+        }
+        if ($size > 10 * 1024 * 1024) {
+            throw new AIException('Das PDF ist zu gross für die KI-Auswertung (mehr als 10 MB). Bitte ein Foto der wichtigsten Seite hochladen.');
+        }
+        $binary = (string) file_get_contents($absolutePath);
+
+        $response = $this->chat(
+            [
+                [
+                    'role'    => 'system',
+                    'content' => 'Du liest Fahrzeugdokumente und überträgst die dort schriftlich '
+                        . 'festgehaltenen Angaben. Du liest ausschliesslich ab und schätzt nie. '
+                        . 'Was im Dokument nicht steht, bleibt leer.',
+                ],
+                [
+                    'role'    => 'user',
+                    'content' => [
+                        ['type' => 'text', 'text' => $this->documentPrompt()],
+                        [
+                            'type' => 'file',
+                            'file' => [
+                                'filename'  => 'fahrzeugdokument.pdf',
+                                'file_data' => 'data:application/pdf;base64,' . base64_encode($binary),
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            $this->detectionSchema('vehicle_document'),
+            self::visionModel()
+        );
+
+        return $this->mapDetection($response);
+    }
+
+    /**
      * Wertet den bereits ausgelesenen TEXT eines Dokuments aus.
      *
      * Deutlich günstiger als der Bildweg: Ein paar tausend Zeichen Text kosten

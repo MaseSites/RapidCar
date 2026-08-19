@@ -74,15 +74,10 @@ try {
         $documentText = PdfTextExtractor::extract($pdfPath);
         $source = 'pdf';
 
-        if (trim($documentText) === '') {
-            // Eingescanntes PDF ohne Textebene
-            foreach ($tempPaths as $path) {
-                @unlink($path);
-            }
-            json_response(false, null,
-                'Dieses PDF enthält keinen auslesbaren Text, es ist vermutlich ein reiner Scan. '
-                . 'Bitte ein Foto des Dokuments hochladen, dann wird es als Bild ausgewertet.', 422);
-        }
+        // Eingescanntes PDF ohne Textebene: kein Abbruch mehr. Die KI
+        // wertet das PDF unten direkt aus, OpenAI setzt die Seiten selbst
+        // in Bilder um. Ohne KI-Zugang kommt weiter die ehrliche Meldung.
+        $isScannedPdf = trim($documentText) === '';
     } else {
         // Bild: erst normal verarbeiten (validiert und kodiert neu)
         try {
@@ -113,15 +108,20 @@ try {
         if (!AIService::isLiveReady()) {
             if ($fields === []) {
                 json_response(false, null,
-                    'Aus dem Dokument liessen sich keine Angaben lesen. Für die Auswertung per KI '
-                    . 'wird ein hinterlegter OpenAI-Schlüssel benötigt.', 422);
+                    'Dieses Dokument braucht die KI-Auswertung (vermutlich ein Scan ohne Textebene). '
+                    . 'Dafür wird ein gültiger OpenAI-Schlüssel in der Konfiguration benötigt.', 422);
             }
         } else {
             try {
-                $detection = $documentText !== ''
-                    // Der Text kostet einen Bruchteil eines Bildes
-                    ? AIService::provider()->extractDocumentText($documentText)
-                    : AIService::provider()->extractDocument($tempPaths[0]);
+                if ($isPdf && ($isScannedPdf ?? false)) {
+                    // Reiner Scan: das PDF geht als Datei an die KI
+                    $detection = AIService::provider()->extractDocumentPdf($tempPaths[0]);
+                } else {
+                    $detection = $documentText !== ''
+                        // Der Text kostet einen Bruchteil eines Bildes
+                        ? AIService::provider()->extractDocumentText($documentText)
+                        : AIService::provider()->extractDocument($tempPaths[0]);
+                }
                 // Regelbasierte Treffer haben Vorrang: sie stammen direkt aus dem Dokument
                 $fields = $fields + $detection['fields'];
                 $note = trim($note . ' ' . ($detection['note'] ?? ''));

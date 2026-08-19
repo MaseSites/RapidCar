@@ -1197,6 +1197,22 @@ check('Oberflaeche fragt nach und zeigt Fortschritt',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'spyne_status')
     && str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'background.spyne_wait'));
 
+// Numerische Hintergrund-Kennungen fuehrt PHP als Zahl: die Seite wandelt
+// beim Rendern, sonst stirbt sie am string-Typ (Live-Fehler 19.08.).
+check('Hintergrund-Kacheln wandeln den Schluessel in Text',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), '$bgThumb((string) $key'));
+
+// Gescannte PDFs (ohne Textebene) gehen als Datei an die KI statt
+// abgelehnt zu werden.
+check('Scan-PDF wird per KI ausgewertet',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/AI/OpenAiProvider.php'), 'extractDocumentPdf')
+    && str_contains((string) file_get_contents(BASE_PATH . '/api/ai/extract-document.php'), 'extractDocumentPdf'));
+check('Scan-PDF wird nicht mehr pauschal abgelehnt',
+    !str_contains((string) file_get_contents(BASE_PATH . '/api/ai/extract-document.php'), 'Bitte ein Foto des Dokuments hochladen, dann wird es als Bild ausgewertet'));
+check('PDF-Groesse ist begrenzt',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/AI/OpenAiProvider.php'), '10 * 1024 * 1024'));
+
+
 
 Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);
 $ccScenes = App\Integration\SpyneService::backgrounds();

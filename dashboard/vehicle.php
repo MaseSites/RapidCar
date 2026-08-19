@@ -573,7 +573,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                         <div class="bg-dialog-body">
                             <div class="bg-grid" data-pane="recommended">
                                 <?php foreach ($bgTemplates as $key => $template): ?>
-                                    <?= $bgThumb($key, $template['label'], $template['file'] !== '' ? base_url($template['file']) : '') ?>
+                                    <?= $bgThumb((string) $key, $template['label'], $template['file'] !== '' ? base_url($template['file']) : '') ?>
                                 <?php endforeach; ?>
                                 <?php if ($bgTemplates === []): ?>
                                     <div class="text-sm text-muted"><?= t('background.no_scenes') ?></div>
