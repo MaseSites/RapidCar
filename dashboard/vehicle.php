@@ -567,7 +567,12 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                         </div>
                         <div class="bg-tabs">
                             <button type="button" class="bg-tab is-active" data-tab="recommended"><?= t('background.tab_recommended') ?></button>
-                            <button type="button" class="bg-tab" data-tab="own"><?= t('background.tab_own') ?></button>
+                            <?php // Mit Spyne gibt es keine eigenen Hintergruende: die liegen
+                                  // ausschliesslich im Spyne-Konto des Betreibers, eine
+                                  // Upload-Schnittstelle bietet Spyne nicht an. ?>
+                            <?php if (!App\Service\BackgroundService::usesSpyne()): ?>
+                                <button type="button" class="bg-tab" data-tab="own"><?= t('background.tab_own') ?></button>
+                            <?php endif; ?>
                             <button type="button" class="bg-tab" data-tab="favorites"><?= t('background.tab_favorites') ?></button>
                         </div>
                         <?php if (App\Service\BackgroundService::usesSpyne()): ?>
@@ -601,6 +606,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                                     <div class="text-sm text-muted"><?= t('background.no_scenes') ?></div>
                                 <?php endif; ?>
                             </div>
+                            <?php if (!App\Service\BackgroundService::usesSpyne()): ?>
                             <div class="bg-grid" data-pane="own" style="display:none">
                                 <button type="button" class="bg-thumb bg-thumb-more" id="bgUploadBtn">
                                     <span class="bg-thumb-pick" style="display:flex;align-items:center;justify-content:center"><?= icon('upload', 18) ?></span>
@@ -611,6 +617,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                                 <?php endforeach; ?>
                                 <input type="file" id="bgUploadInput" accept="image/jpeg,image/png,image/webp" style="display:none">
                             </div>
+                            <?php endif; ?>
                             <div class="bg-grid" data-pane="favorites" style="display:none">
                                 <?php
                                 $renderedFavorites = 0;
@@ -1176,7 +1183,7 @@ $pageScripts = <<<HTML
             var pick = e.target.closest('.bg-thumb-pick');
             if (!pick) { return; }
             var holder = pick.closest('.bg-thumb');
-            if (holder.id === 'bgUploadBtn') { bgUploadInput.click(); return; }
+            if (holder.id === 'bgUploadBtn') { if (bgUploadInput) bgUploadInput.click(); return; }
             var dialog = document.getElementById('bgDialog');
             if (dialog.open) { dialog.close(); }
             applyBackgroundToAll(holder.dataset.bg, holder);
@@ -1236,7 +1243,7 @@ $pageScripts = <<<HTML
             });
         }
 
-        bgUploadInput.addEventListener('change', function () {
+        if (bgUploadInput) bgUploadInput.addEventListener('change', function () {
             if (!bgUploadInput.files.length) { return; }
             var formData = new FormData();
             formData.append('background', bgUploadInput.files[0]);
