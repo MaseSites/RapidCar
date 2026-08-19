@@ -185,6 +185,27 @@ Nach der Einrichtung `systemcheck.php` löschen.
 - Ein Fahrzeug anlegen, Fotos hochladen, Inserat erzeugen
 - `storage/logs/` auf Einträge prüfen, falls etwas hakt
 
+## Fehler 500 nach einem Umzug
+
+Rendert die Seite, aber Anmeldung und Registrierung enden im Fehler, ist fast
+immer die Datenbank die Ursache. Die Anwendung unterscheidet zwei Faelle:
+
+**Datenbank erreichbar, aber leer.** Passiert, wenn die Konfiguration
+mitkommt, die Daten aber nicht. Die Anwendung legt das Schema beim naechsten
+Seitenaufruf selbst neu an; danach funktioniert alles wieder. Die frueheren
+Daten und Konten sind damit nicht zurueck: Konten muessen neu erstellt
+werden, und im Protokoll steht ein entsprechender Hinweis.
+
+**Datenbank nicht erreichbar.** Falsche Zugangsdaten, falscher Host oder der
+PHP-Treiber fehlt. Besucher sehen dann eine Wartungsseite (503), keine
+anonyme Fehlermeldung. Die Ursache steht an zwei Stellen:
+
+- `systemcheck.php?key=<app.key>` nennt sie unter *Datenbankverbindung*
+- `storage/logs/app-<Datum>.log` enthaelt die vollstaendige Meldung
+
+Auch die gesperrte Installer-Seite (`/install/`) zeigt an, ob die Datenbank
+erreichbar ist, ohne Einzelheiten zu verraten.
+
 ## Sicherheit
 
 Die mitgelieferten `.htaccess`-Dateien sperren `config/`, `src/`,

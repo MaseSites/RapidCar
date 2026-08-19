@@ -59,6 +59,11 @@ final class Database
             $name = (string) Config::get('db.name', '');
             $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
+            // Jede MySQL/MariaDB-Installation hat einen anderen sql_mode.
+            // Ein fester Wert nimmt dem Hoster diese Stellschraube ab.
+            $options[PDO::MYSQL_ATTR_INIT_COMMAND] =
+                "SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'";
+
             return new PDO(
                 $dsn,
                 (string) Config::get('db.user', ''),
@@ -66,8 +71,10 @@ final class Database
                 $options
             );
         } catch (PDOException $e) {
+            // Die genaue Ursache (Zugang verweigert, unbekannte Datenbank,
+            // fehlender Treiber) steht nur im Protokoll, nie auf der Seite.
             Logger::error('Datenbankverbindung fehlgeschlagen: ' . $e->getMessage());
-            throw new RuntimeException('Datenbankverbindung fehlgeschlagen.', 0, $e);
+            throw new DatabaseUnavailableException('Datenbankverbindung fehlgeschlagen.', 0, $e);
         }
     }
 

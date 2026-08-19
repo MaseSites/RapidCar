@@ -56,6 +56,13 @@ set_exception_handler(static function (\Throwable $e) use ($debug): void {
         'file' => $e->getFile(),
         'line' => $e->getLine(),
     ]);
+    if ($e instanceof \App\Core\DatabaseUnavailableException && !$debug
+        && is_file(BASE_PATH . '/errors/503.php')) {
+        // Datenbank weg ist ein Serverzustand, kein Programmierfehler.
+        // Besucher bekommen eine ehrliche Wartungsseite.
+        require BASE_PATH . '/errors/503.php';
+        exit;
+    }
     http_response_code(500);
     if ($debug) {
         header('Content-Type: text/plain; charset=utf-8');

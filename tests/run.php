@@ -717,6 +717,40 @@ check('Installer schaltet die Bestaetigung nur mit Mailversand ein',
 $databaseSource = file_get_contents(BASE_PATH . '/src/Core/Database.php');
 check('Datenbankverbindung hat ein Zeitlimit', str_contains($databaseSource, 'PDO::ATTR_TIMEOUT'));
 
+// Faellt die Datenbank aus, ist das ein Serverzustand: Besucher bekommen
+// eine ehrliche Wartungsseite, keine anonyme Fehlermeldung. Und eine leere
+// Datenbank heilt sich beim naechsten Aufruf selbst.
+check('eigener Fehlertyp fuer die Datenbank',
+    class_exists('App\Core\DatabaseUnavailableException'));
+check('Datenbankausfall wirft den eigenen Typ',
+    str_contains($databaseSource, 'throw new DatabaseUnavailableException'));
+check('MySQL bekommt einen festen sql_mode',
+    str_contains($databaseSource, 'MYSQL_ATTR_INIT_COMMAND'));
+
+$bootstrapSource2 = file_get_contents(BASE_PATH . '/includes/bootstrap.php');
+check('Datenbankausfall zeigt die Wartungsseite',
+    str_contains($bootstrapSource2, "errors/503.php"));
+check('Wartungsseite vorhanden', is_file(BASE_PATH . '/errors/503.php'));
+check('Wartungsseite antwortet mit 503',
+    str_contains((string) file_get_contents(BASE_PATH . '/errors/503.php'), 'http_response_code(503)'));
+
+$migratorSource = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
+check('leere Datenbank heilt sich selbst',
+    str_contains($migratorSource, 'healEmptyDatabase'));
+check('Heilung laeuft vor den Migrationen',
+    strpos($migratorSource, 'self::healEmptyDatabase()') < strpos($migratorSource, 'self::installedVersion()'));
+check('Existenzpruefung ohne SHOW mit Platzhalter',
+    str_contains($migratorSource, 'information_schema.tables')
+    && str_contains($migratorSource, 'information_schema.columns')
+    && !str_contains($migratorSource, 'SHOW COLUMNS FROM {$table} LIKE'));
+check('Heilung protokolliert den Datenverlust',
+    str_contains($migratorSource, 'Konten muessen neu angelegt werden'));
+
+$installerSource2 = file_get_contents(BASE_PATH . '/install/index.php');
+check('gesperrter Installer zeigt den Datenbankzustand',
+    str_contains($installerSource2, 'Datenbank NICHT erreichbar'));
+
+
 
 
 echo "Spyne\n";

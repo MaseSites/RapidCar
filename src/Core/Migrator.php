@@ -100,6 +100,7 @@ final class Migrator
     public static function run(): void
     {
         try {
+            self::healEmptyDatabase();
             $installed = self::installedVersion();
             if ($installed >= self::CURRENT_VERSION) {
                 return;
@@ -329,6 +330,87 @@ final class Migrator
 
     // -----------------------------------------------------------------------
 
+    /**
+     * Ist die Anwendung installiert, die Datenbank aber leer, wird das
+     * Schema neu angelegt. Das passiert, wenn beim Umzug auf einen Server
+     * die Konfiguration mitkommt, die Datenbank aber nicht: SQLite legt
+     * dann eine leere Datei an, und bei MySQL zeigt der Zugang auf eine
+     * leere Datenbank. Ohne Heilung endet jede echte Abfrage im Fehler 500.
+     */
+    private static function healEmptyDatabase(): void
+    {
+        if (self::tableExists('users') && self::tableExists('settings')) {
+            return;
+        }
+
+        $isSqlite = Database::driver() === 'sqlite';
+        $file = BASE_PATH . '/database/schema.' . ($isSqlite ? 'sqlite' : 'mysql') . '.sql';
+        if (!is_file($file)) {
+            Logger::error('Datenbank ist leer und die Schema-Datei fehlt: ' . basename($file));
+            return;
+        }
+
+        $applied = 0;
+        foreach (self::splitSql((string) file_get_contents($file)) as $statement) {
+            try {
+                Database::run($statement);
+                $applied++;
+            } catch (\Throwable $e) {
+                Logger::error('Schema-Heilung, Anweisung fehlgeschlagen: ' . $e->getMessage());
+            }
+        }
+
+        // Als Fehler protokolliert, damit es im Systemcheck sichtbar ist:
+        // die Daten von vorher sind weg, auch die Konten.
+        Logger::error(
+            'Die Datenbank war leer. Das Schema wurde neu angelegt (' . $applied . ' Anweisungen). '
+            . 'Alle frueheren Daten und Konten fehlen; Konten muessen neu angelegt werden.'
+        );
+    }
+
+    private static function tableExists(string $table): bool
+    {
+        try {
+            if (Database::driver() === 'sqlite') {
+                $found = Database::scalar(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :t",
+                    ['t' => $table]
+                );
+                return $found !== false && $found !== null;
+            }
+            // information_schema statt SHOW: SHOW vertraegt sich nicht auf
+            // jedem Server mit echten Prepared Statements.
+            return (int) Database::scalar(
+                'SELECT COUNT(*) FROM information_schema.tables
+                 WHERE table_schema = DATABASE() AND table_name = :t',
+                ['t' => $table]
+            ) > 0;
+        } catch (\Throwable) {
+            // Verbindung kaputt: nicht heilen, der Fehler gehoert dem Aufrufer.
+            return true;
+        }
+    }
+
+    /**
+     * Zerlegt eine Schema-Datei in einzelne Anweisungen.
+     * Gleiches Vorgehen wie im Installer: Kommentarzeilen weg,
+     * dann am Semikolon am Zeilenende trennen.
+     *
+     * @return array<int, string>
+     */
+    private static function splitSql(string $sql): array
+    {
+        $clean = [];
+        foreach (preg_split('/\r?\n/', $sql) ?: [] as $line) {
+            if (preg_match('/^\s*--/', $line)) {
+                continue;
+            }
+            $clean[] = $line;
+        }
+        $statements = preg_split('/;\s*(?:\r?\n|$)/', implode("\n", $clean)) ?: [];
+        return array_values(array_filter(array_map('trim', $statements)));
+    }
+
     private static function installedVersion(): int
     {
         try {
@@ -385,8 +467,11 @@ final class Migrator
                 }
                 return false;
             }
-            $rows = Database::fetchAll("SHOW COLUMNS FROM {$table} LIKE :c", ['c' => $column]);
-            return $rows !== [];
+            return (int) Database::scalar(
+                'SELECT COUNT(*) FROM information_schema.columns
+                 WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c',
+                ['t' => $table, 'c' => $column]
+            ) > 0;
         } catch (\Throwable) {
             return true; // im Zweifel nicht anfassen
         }

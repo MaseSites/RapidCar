@@ -460,6 +460,33 @@ function install_render_locked(): void
     <h1 style="text-align:center">Installation bereits abgeschlossen</h1>
     <p style="text-align:center">Der Installer ist gesperrt. Aus Sicherheitsgründen sollte das Verzeichnis
     <code>/install</code> vom Server gelöscht werden.</p>
+    <?php
+    // Kurzer Zustandsbericht ohne Einzelheiten: hilft, wenn die Seite nach
+    // einem Umzug Fehler wirft. Zugangsdaten oder Tabellen werden nicht genannt.
+    $dbState = 'Datenbank erreichbar';
+    $dbHint = '';
+    try {
+        $usersReady = false;
+        if (\App\Core\Database::driver() === 'sqlite') {
+            $usersReady = \App\Core\Database::scalar(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+            ) !== false;
+        } else {
+            $usersReady = (int) \App\Core\Database::scalar(
+                "SELECT COUNT(*) FROM information_schema.tables
+                 WHERE table_schema = DATABASE() AND table_name = 'users'"
+            ) > 0;
+        }
+        if (!$usersReady) {
+            $dbState = 'Datenbank erreichbar, aber leer';
+            $dbHint = 'Beim naechsten Seitenaufruf legt die Anwendung das Schema selbst neu an. Konten muessen danach neu erstellt werden.';
+        }
+    } catch (\Throwable) {
+        $dbState = 'Datenbank NICHT erreichbar';
+        $dbHint = 'Zugangsdaten in config/config.php pruefen. Einzelheiten zeigt systemcheck.php?key=&lt;app.key&gt;.';
+    }
+    ?>
+    <div class="info"><strong><?= $dbState ?></strong><?= $dbHint !== '' ? '<br>' . $dbHint : '' ?></div>
     <a class="btn" href="../index.php">Zur Startseite</a>
     <?php
     install_render_footer();
