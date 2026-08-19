@@ -56,6 +56,12 @@ Options -Indexes
     Require all denied
 </FilesMatch>
 
+# Archive, Datenbanken und Protokolle sind nie zum Herunterladen gedacht.
+# Schuetzt auch ein versehentlich liegen gebliebenes Deploy-Paket.
+<FilesMatch "\.(zip|tar|gz|sql|sqlite|sqlite-wal|sqlite-shm|log|bak)$">
+    Require all denied
+</FilesMatch>
+
 # ---------------------------------------------------------------------------
 # Fehlerseiten (§67)
 # ---------------------------------------------------------------------------
