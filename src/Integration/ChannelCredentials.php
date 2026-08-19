@@ -74,7 +74,7 @@ final class ChannelCredentials
         // Die Rücksprungadresse ergibt sich aus der eigenen Domain. So muss der
         // Betreiber nur Kennung und Geheimnis der Plattform-App eintragen.
         if ($field === 'redirect_uri') {
-            return base_url('api/channels/callback.php?channel=' . $channel);
+            return base_url('api/channels/callback.php?channel=' . $channel, true);
         }
         return '';
     }

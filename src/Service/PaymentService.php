@@ -221,6 +221,37 @@ final class PaymentService
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Fragt bei Stripe ab, welche Zahlarten das Konto anbietet.
+     * Fuer die Selbstpruefung: zeigt dem Betreiber, was im Stripe-Dashboard
+     * noch freizuschalten ist (z.B. TWINT). Gibt [] zurueck, wenn Stripe
+     * nicht eingerichtet oder nicht erreichbar ist.
+     *
+     * @return array<string, string> Zahlart => 'on' | 'off'
+     */
+    public static function methodOverview(): array
+    {
+        if (!self::isStripeReady()) {
+            return [];
+        }
+        try {
+            $response = self::stripeRequest('GET', '/payment_method_configurations');
+        } catch (\Throwable) {
+            return [];
+        }
+        $config = $response['data'][0] ?? null;
+        if (!is_array($config)) {
+            return [];
+        }
+        $overview = [];
+        foreach (['card', 'twint', 'klarna', 'paypal', 'link', 'apple_pay', 'google_pay'] as $methodKey) {
+            if (isset($config[$methodKey]['display_preference']['value'])) {
+                $overview[$methodKey] = (string) $config[$methodKey]['display_preference']['value'];
+            }
+        }
+        return $overview;
+    }
+
     /** E-Mail des Bestellers: erst der ausloesende Nutzer, sonst der Mandant. */
     private static function orderBuyerEmail(array $order): string
     {
@@ -253,9 +284,8 @@ final class PaymentService
         $apiKey = trim((string) Config::get('payment.api_key', ''));
 
         $ch = curl_init(self::STRIPE_API . $path);
-        curl_setopt_array($ch, CaBundle::applyTo([
+        $options = [
             CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_POSTFIELDS     => http_build_query($fields),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => self::TIMEOUT_SECONDS,
             CURLOPT_CONNECTTIMEOUT => 15,
@@ -263,7 +293,11 @@ final class PaymentService
                 'Authorization: Bearer ' . $apiKey,
                 'Content-Type: application/x-www-form-urlencoded',
             ], $idempotencyKey !== null ? ['Idempotency-Key: ' . $idempotencyKey] : []),
-        ]));
+        ];
+        if ($method !== 'GET' || $fields !== []) {
+            $options[CURLOPT_POSTFIELDS] = http_build_query($fields);
+        }
+        curl_setopt_array($ch, CaBundle::applyTo($options));
 
         $raw = curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);

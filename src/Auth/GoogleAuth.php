@@ -34,7 +34,7 @@ final class GoogleAuth
     public static function redirectUri(): string
     {
         $configured = trim((string) Config::get('google.redirect_uri', ''));
-        return $configured !== '' ? $configured : base_url('google-callback.php');
+        return $configured !== '' ? $configured : base_url('google-callback.php', true);
     }
 
     /** Baut die Google-Anmelde-URL und legt den Zustandswert in die Session. */

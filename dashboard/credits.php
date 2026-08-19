@@ -167,6 +167,11 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <?php endif; ?>
             </form>
 
+            <div class="climate-note">
+                <?= icon('activity', 15) ?>
+                <span><?= t('credits.climate_note') ?></span>
+            </div>
+
         </div>
 
         <!-- ------------------------------------ Links: leise Randangaben -->

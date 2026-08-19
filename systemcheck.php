@@ -256,6 +256,27 @@ check(
         : ''
 );
 
+// Welche Zahlarten das Stripe-Konto anbietet: zeigt, was im Dashboard
+// noch freizuschalten ist (z.B. TWINT), ohne dort suchen zu muessen.
+$methodOverview = \App\Service\PaymentService::methodOverview();
+if ($methodOverview !== []) {
+    $onList = [];
+    $offList = [];
+    foreach ($methodOverview as $methodName => $state) {
+        if ($state === 'on') {
+            $onList[] = $methodName;
+        } else {
+            $offList[] = $methodName;
+        }
+    }
+    check(
+        'Stripe-Zahlarten',
+        !in_array('twint', $offList, true),
+        'aktiv: ' . implode(', ', $onList) . ($offList !== [] ? ' | inaktiv: ' . implode(', ', $offList) : ''),
+        'Im Stripe-Dashboard unter Einstellungen, Zahlungsmethoden freischalten (TWINT empfohlen).'
+    );
+}
+
 // ------------------------------------------------- Verbindungen nach draussen
 // Viele Hoster sperren ausgehende Verbindungen. Dann schlaegt nicht nur ein
 // git clone fehl, sondern auch jeder Aufruf der KI. Ein kurzer Versuch je

@@ -30,7 +30,12 @@ function t(string $key, array $replacements = []): string
  * Basis-URL der Anwendung (ohne abschliessenden Slash) + optionaler Pfad.
  * Nutzt app.url aus der Konfiguration; Fallback: aus dem Request ableiten.
  */
-function base_url(string $path = ''): string
+/**
+ * @param bool $keepExtension .php in der Adresse belassen. Noetig fuer
+ *                            OAuth-Ruecksprungadressen: die muessen exakt so
+ *                            lauten, wie sie beim Anbieter registriert sind.
+ */
+function base_url(string $path = '', bool $keepExtension = false): string
 {
     static $base = null;
     if ($base === null) {
@@ -79,6 +84,18 @@ function base_url(string $path = ''): string
             $base = $scheme . '://' . $host . rtrim($scriptDir, '/');
         }
     }
+    // Saubere Adressen: kein sichtbares .php. Die .htaccess bildet die
+    // endungslosen Pfade intern wieder auf die Dateien ab. Abschaltbar
+    // fuer Server ohne mod_rewrite (app.pretty_urls = false).
+    static $pretty = null;
+    if ($pretty === null) {
+        $pretty = (bool) filter_var(Config::get('app.pretty_urls', true), FILTER_VALIDATE_BOOL);
+    }
+    if ($pretty && !$keepExtension && $path !== '') {
+        $path = preg_replace('#(^|/)index\.php(?=$|\?)#', '$1', $path) ?? $path;
+        $path = preg_replace('#\.php(?=$|\?)#', '', $path) ?? $path;
+    }
+
     return $base . ($path !== '' ? '/' . ltrim($path, '/') : '');
 }
 

@@ -41,15 +41,38 @@ if (VehicleRepository::find($vehicleId, $dealershipId) === null) {
 // Ohne Guthaben geht keine Anfrage an die KI
 guard_ai_credits($dealershipId);
 
+// Das Guthaben wird beim Bau des Inserats belastet, nicht erst beim
+// Veroeffentlichen: der Wert (Text und Daten) entsteht hier und liesse
+// sich sonst gratis herauskopieren. Je Inserat nur einmal; erneutes
+// Erzeugen und das spaetere Veroeffentlichen kosten nichts mehr.
+// Demo-Konten bleiben aussen vor, sie schreiben nichts.
+$isDemoAccount = (int) ($currentUser['is_demo'] ?? 0) === 1;
+$chargedNow = false;
+$listing = null;
+if (!$isDemoAccount) {
+    $listing = ListingService::ensureForVehicle($vehicleId, $dealershipId);
+    $wasCharged = (int) ($listing['credit_charged'] ?? 0) === 1;
+    try {
+        \App\Service\CreditService::consumeForListing($dealershipId, (int) $listing['id'], (int) $currentUser['id']);
+    } catch (\RuntimeException $e) {
+        json_response(false, null, t('ai.no_credits'), 402);
+    }
+    $chargedNow = !$wasCharged;
+}
+
 try {
     $result = AIListingService::generate($vehicleId);
 } catch (AIException $e) {
+    // Belastet, aber nichts geliefert: das Guthaben kommt zurueck.
+    if ($chargedNow && $listing !== null) {
+        \App\Service\CreditService::refundForListing($dealershipId, (int) $listing['id'], (int) $currentUser['id']);
+    }
     json_response(false, null, $e->getMessage(), 422);
 }
 
 if ($save) {
     guard_demo_mode();
-    $listing = ListingService::ensureForVehicle($vehicleId, $dealershipId);
+    $listing = $listing ?? ListingService::ensureForVehicle($vehicleId, $dealershipId);
     $update = ['updated_at' => Database::now()];
 
     // Bestehende Texte werden nicht überschrieben: Handarbeit hat Vorrang.

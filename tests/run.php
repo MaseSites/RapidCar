@@ -974,6 +974,56 @@ check('nur bekannte Zahlarten kommen durch',
 check('leer heisst: die Kasse entscheidet',
     str_contains($paymentSource3, 'Leer = die Kasse zeigt'));
 
+echo "
+"; echo "Belastung beim Bau des Inserats"; echo "
+";
+
+// Der Wert entsteht beim Bau: dort wird das Guthaben belastet, einmal je
+// Inserat. Schlaegt die Erzeugung danach fehl, kommt das Guthaben zurueck.
+$generateSource = file_get_contents(BASE_PATH . '/api/ai/generate-listing.php');
+check('Belastung vor der KI-Erzeugung',
+    strpos($generateSource, 'consumeForListing') !== false
+    && strpos($generateSource, 'consumeForListing') < strpos($generateSource, 'AIListingService::generate'));
+check('ohne Guthaben Antwort 402',
+    str_contains($generateSource, "t('ai.no_credits'), 402"));
+check('Rueckerstattung bei fehlgeschlagener Erzeugung',
+    str_contains($generateSource, 'refundForListing'));
+check('Demo-Konten werden nicht belastet',
+    str_contains($generateSource, 'isDemoAccount'));
+check('Rueckerstattung setzt die Belastung zurueck',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Service/CreditService.php'),
+        "['credit_charged' => 0]"));
+
+echo "
+"; echo "Saubere Adressen"; echo "
+";
+
+check('base_url streicht .php', base_url('login.php') === base_url('') . '/login');
+check('index.php wird zum Ordner', str_ends_with(base_url('dashboard/index.php'), '/dashboard/'));
+check('Anfrageparameter bleiben erhalten', str_ends_with(base_url('dashboard/vehicle.php?id=3'), '/dashboard/vehicle?id=3'));
+check('Assets bleiben unberuehrt', str_ends_with(base_url('assets/css/base.css'), '/assets/css/base.css'));
+$htaccessSource = (string) file_get_contents(BASE_PATH . '/.htaccess');
+check('Endungslose Pfade werden intern abgebildet',
+    str_contains($htaccessSource, '%{DOCUMENT_ROOT}/$1.php'));
+check('.php-Adressen werden nur bei GET umgeleitet',
+    str_contains($htaccessSource, '%{REQUEST_METHOD} =GET'));
+check('Schnittstellen sind von der Umleitung ausgenommen',
+    str_contains($htaccessSource, '!^api/'));
+
+echo "
+"; echo "Klimaschutz und Zahlarten-Diagnose"; echo "
+";
+
+check('Klimaschutz-Hinweis unter dem Kaufknopf',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'climate-note')
+    && str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'CO2-Klimaschutz'));
+check('Systemcheck zeigt die Stripe-Zahlarten',
+    str_contains((string) file_get_contents(BASE_PATH . '/systemcheck.php'), 'methodOverview'));
+check('Zahlarten-Abfrage nur mit eingerichtetem Stripe',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Service/PaymentService.php'),
+        'payment_method_configurations'));
+
+
 check('Guthaben-Feld in der Kopfleiste',
     str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'credit-chip'));
 
@@ -1252,7 +1302,7 @@ check('Basis-URL zeigt auf die Listing-Creation-API',
 check('AutoScout24 braucht keine Plattform-Zugangsdaten',
     ChannelRegistry::isConfigured('autoscout24') === true);
 check('eigene Verbindungsseite statt OAuth-Redirect',
-    str_contains(ChannelRegistry::connectUrl('autoscout24'), 'dashboard/autoscout.php'));
+    str_contains(ChannelRegistry::connectUrl('autoscout24'), 'dashboard/autoscout'));
 check('ohne Verbindung: nicht verbunden',
     AutoScoutService::status(999999) === 'disconnected' && AutoScoutService::credentials(999999) === null);
 check('leere Zugangsdaten werden abgelehnt', (static function (): bool {

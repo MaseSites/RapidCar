@@ -1790,3 +1790,18 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 }
 .credit-chip .icon { color: var(--primary); }
 
+/* Klimaschutz-Hinweis unter dem Kaufknopf: auffaellig, aber freundlich. */
+.climate-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 13.5px;
+    font-weight: 600;
+}
+.climate-note .icon { flex-shrink: 0; }
+

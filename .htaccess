@@ -16,6 +16,18 @@ Options -Indexes
     # Hochgeladene Dateien laufen nie als Skript, egal was jemand hochlaedt
     RewriteRule ^uploads/.+\.(php|phtml|phar|pl|py|cgi|sh)$ - [F,L,NC]
 
+    # -----------------------------------------------------------------------
+    # Saubere Adressen: kein sichtbares .php.
+    # Getippte .php-Adressen werden (nur bei GET) auf die endungslose Form
+    # umgeleitet; Formulare und Schnittstellen (POST, /api/) bleiben unberuehrt,
+    # eine Umleitung wuerde deren Daten verwerfen.
+    # -----------------------------------------------------------------------
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{THE_REQUEST} \s/+([^?\s]+)\.php[?\s]
+    RewriteCond %1 !^api/
+    RewriteCond %1 !^install/
+    RewriteRule ^ /%1 [R=301,L]
+
     # Versteckte Dateien (.env, .git, …) sperren
     RewriteRule (^|/)\.(?!well-known) - [F,L]
 
@@ -53,6 +65,13 @@ Options -Indexes
     RewriteRule ^admin/vehicles/?$ admin/vehicles.php [L]
     RewriteRule ^admin/activity/?$ admin/activity.php [L]
     RewriteRule ^admin/settings/?$ admin/settings.php [L]
+
+    # Alles Endungslose auf die passende .php-Datei abbilden (fuer alle
+    # uebrigen Seiten und die Schnittstellen unter /api/)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+    RewriteRule ^(.+?)/?$ $1.php [L,QSA]
 </IfModule>
 
 # Fallback ohne mod_rewrite: Verzeichnisschutz über FilesMatch

@@ -25,6 +25,10 @@ return [
         // alle Zeitangaben im Dashboard verschoben.
         'timezone' => 'Europe/Zurich',
 
+        // Saubere Adressen ohne .php (Standard). Nur abschalten, wenn der
+        // Server kein mod_rewrite hat und Links deshalb ins Leere laufen.
+        'pretty_urls' => true,
+
         // Leitet http auf https um. Nur einschalten, wenn ein gueltiges
         // Zertifikat vorhanden ist, sonst entsteht eine Weiterleitungsschleife.
         // Auf Plesk erledigt das ueblicherweise schon die Domain-Einstellung.

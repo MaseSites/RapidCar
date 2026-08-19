@@ -134,6 +134,23 @@ final class CreditService
         return $balance;
     }
 
+    /**
+     * Macht die Belastung eines Inserats rueckgaengig, etwa wenn die
+     * KI-Erzeugung nach der Belastung fehlschlaegt: Das Guthaben kommt
+     * zurueck, und das Inserat gilt wieder als unbelastet.
+     */
+    public static function refundForListing(int $dealershipId, int $listingId, ?int $userId = null): void
+    {
+        Database::update('listings', $listingId, ['credit_charged' => 0]);
+        self::grant(
+            $dealershipId,
+            1,
+            self::REASON_REFUND,
+            'Rueckerstattung: Inserat #' . $listingId . ' konnte nicht erzeugt werden',
+            $userId
+        );
+    }
+
     /** Zentrale Buchung: Kontostand aktualisieren und Bewegung protokollieren. */
     private static function book(
         int $dealershipId,
