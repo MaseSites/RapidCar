@@ -26,6 +26,9 @@ final class SpyneService
 {
     public const PROVIDER = 'spyne';
 
+    /** Von Spyne dokumentierte Standard-Hintergrund-Kennung. */
+    public const DEFAULT_BACKGROUND = '923';
+
     private const SUBMIT_URL = 'https://api.spyne.ai/api/pv1/image/replace-bg';
     private const RESULT_URL = 'https://api.spyne.ai/api/pv1/sku/get-ready-images/v2';
 
@@ -54,15 +57,40 @@ final class SpyneService
      */
     public static function backgrounds(): array
     {
-        $configured = Config::get('background.scenes', []);
+        // Drei Quellen, in dieser Reihenfolge zusammengefuehrt:
+        //   1. Vom Betreiber im Admin gepflegte Szenen (Einstellungen)
+        //   2. Szenen aus der Konfigurationsdatei
+        //   3. Rueckfall: die von Spyne dokumentierte Standard-Kennung 923,
+        //      damit der Hintergrundwechsel sofort funktioniert. Eine Liste
+        //      der Konto-Hintergruende bietet Spyne per API nicht an; die
+        //      Kennungen kommen aus dem Spyne-Konto (Darkroom).
         $backgrounds = [];
+
+        $stored = \App\Service\SettingsService::get('spyne_scenes');
+        if ($stored !== null) {
+            $decoded = json_decode($stored, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $id => $label) {
+                    $id = trim((string) $id);
+                    if ($id !== '') {
+                        $backgrounds[$id] = trim((string) $label) !== '' ? (string) $label : $id;
+                    }
+                }
+            }
+        }
+
+        $configured = Config::get('background.scenes', []);
         if (is_array($configured)) {
             foreach ($configured as $id => $label) {
                 $id = trim((string) $id);
-                if ($id !== '') {
+                if ($id !== '' && !isset($backgrounds[$id])) {
                     $backgrounds[$id] = trim((string) $label) !== '' ? (string) $label : $id;
                 }
             }
+        }
+
+        if ($backgrounds === []) {
+            $backgrounds[self::DEFAULT_BACKGROUND] = 'Studio (Standard)';
         }
         return $backgrounds;
     }

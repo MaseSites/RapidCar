@@ -20,6 +20,33 @@ require_super_admin();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
+    if ($action === 'spyne_scene_add') {
+        $sceneId = trim((string) ($_POST['scene_id'] ?? ''));
+        $sceneLabel = trim((string) ($_POST['scene_label'] ?? ''));
+        if ($sceneId === '' || !preg_match('/^[0-9a-zA-Z_-]{1,40}$/', $sceneId)) {
+            Session::flash('danger', 'Die Kennung darf nur Zahlen und Buchstaben enthalten.');
+        } else {
+            $scenes = json_decode((string) SettingsService::get('spyne_scenes'), true);
+            $scenes = is_array($scenes) ? $scenes : [];
+            $scenes[$sceneId] = $sceneLabel !== '' ? $sceneLabel : $sceneId;
+            SettingsService::set('spyne_scenes', (string) json_encode($scenes));
+            ActivityLogger::log((int) $currentUser['id'], 'admin.spyne_scene_added', 'Spyne-Hintergrund hinzugefuegt: ' . $sceneId);
+            Session::flash('success', 'Hintergrund gespeichert.');
+        }
+        redirect('admin/settings.php');
+    }
+
+    if ($action === 'spyne_scene_remove') {
+        $sceneId = trim((string) ($_POST['scene_id'] ?? ''));
+        $scenes = json_decode((string) SettingsService::get('spyne_scenes'), true);
+        $scenes = is_array($scenes) ? $scenes : [];
+        unset($scenes[$sceneId]);
+        SettingsService::set('spyne_scenes', (string) json_encode($scenes));
+        ActivityLogger::log((int) $currentUser['id'], 'admin.spyne_scene_removed', 'Spyne-Hintergrund entfernt: ' . $sceneId);
+        Session::flash('success', 'Hintergrund entfernt.');
+        redirect('admin/settings.php');
+    }
+
     if ($action === 'ai_mode') {
         $mode = ($_POST['ai_mode'] ?? 'mock') === 'live' ? 'live' : 'mock';
 
@@ -47,6 +74,47 @@ require BASE_PATH . '/includes/layout/admin-header.php';
 
 <div class="grid-2">
     <div class="card">
+        <div class="card-header"><h2>Spyne-Hintergründe</h2></div>
+        <div class="card-body">
+            <?php if (!\App\Integration\SpyneService::isConfigured()): ?>
+                <p class="text-sm text-muted">Spyne ist nicht eingerichtet (background.api_key in der Konfiguration).</p>
+            <?php else: ?>
+                <p class="text-sm text-secondary mb-2">
+                    Diese Hintergründe stehen beim Fotos-Freistellen zur Wahl. Die Kennungen
+                    findest du in deinem Spyne-Konto (Darkroom) oder bekommst sie von deinem
+                    Spyne-Ansprechpartner. Ohne Eintrag gilt der Spyne-Standard (923).
+                </p>
+                <?php $spyneScenes = \App\Integration\SpyneService::backgrounds(); ?>
+                <div class="mb-2">
+                    <?php foreach ($spyneScenes as $sceneId => $sceneLabel): ?>
+                        <form method="post" style="display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:6px 10px;border:1px solid var(--border);border-radius:999px">
+                            <?= App\Core\Csrf::field() ?>
+                            <input type="hidden" name="action" value="spyne_scene_remove">
+                            <input type="hidden" name="scene_id" value="<?= e((string) $sceneId) ?>">
+                            <span class="text-sm fw-600"><?= e($sceneLabel) ?></span>
+                            <span class="text-xs text-muted"><?= e((string) $sceneId) ?></span>
+                            <button class="icon-btn" type="submit" title="Entfernen" style="width:22px;height:22px"><?= icon('x', 12) ?></button>
+                        </form>
+                    <?php endforeach; ?>
+                </div>
+                <form method="post" class="flex gap-1" style="flex-wrap:wrap;align-items:flex-end">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="action" value="spyne_scene_add">
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Kennung (von Spyne)</label>
+                        <input class="form-control" type="text" name="scene_id" placeholder="z.B. 923" required>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Anzeigename</label>
+                        <input class="form-control" type="text" name="scene_label" placeholder="z.B. Studio hell">
+                    </div>
+                    <button class="btn btn-primary" type="submit"><?= icon('plus', 15) ?> Hinzufügen</button>
+                </form>
+            <?php endif; ?>
+        </div>
+</div>
+
+<div class="card mb-3">
         <div class="card-header"><h2>KI-Modus (§54)</h2></div>
         <div class="card-body">
             <p class="text-secondary mb-2">

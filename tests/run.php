@@ -1164,7 +1164,23 @@ Config::set('background.api_key', 'TESTSCHLUESSEL');
 check('mit Zugang ist Spyne an', App\Integration\SpyneService::isConfigured() === true);
 check('Hintergrundwechsel laeuft ueber Spyne', App\Service\BackgroundService::usesSpyne() === true);
 
-Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);
+// Ohne gepflegte Szenen muss der dokumentierte Spyne-Standard kommen,
+// sonst steht der Nutzer vor einer leeren Auswahl.
+Config::set('background.scenes', []);
+$fallbackScenes = App\Integration\SpyneService::backgrounds();
+check('ohne Szenen gilt der Spyne-Standard 923',
+    isset($fallbackScenes['923']) && count($fallbackScenes) >= 1);
+check('Standard ist als Konstante hinterlegt',
+    App\Integration\SpyneService::DEFAULT_BACKGROUND === '923');
+
+// Im Admin gepflegte Szenen haben Vorrang und lassen sich verwalten
+check('Admin kann Szenen pflegen',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_scene_add')
+    && str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_scene_remove'));
+check('Szenen aus den Einstellungen werden gelesen',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php'), "SettingsService::get('spyne_scenes')"));
+
+Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);
 $ccScenes = App\Integration\SpyneService::backgrounds();
 check('Szenen kommen aus der Konfiguration', count($ccScenes) === 2);
 check('Szene wird erkannt', App\Integration\SpyneService::isBackground('923'));
