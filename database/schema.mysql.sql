@@ -563,4 +563,18 @@ CREATE TABLE IF NOT EXISTS channel_remote_listings (
         REFERENCES dealerships (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------- sent_emails
+-- Protokoll aller automatisch versendeten E-Mails
+CREATE TABLE IF NOT EXISTS sent_emails (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    recipient  VARCHAR(190) NOT NULL,
+    subject    VARCHAR(255) NOT NULL,
+    body       TEXT DEFAULT NULL,
+    driver     VARCHAR(10)  NOT NULL,
+    was_sent   TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_sent_emails_recipient (recipient)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 15;
+    private const CURRENT_VERSION = 16;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -147,6 +147,9 @@ final class Migrator
             }
             if ($installed < 15) {
                 self::migrateToVersion15();
+            }
+            if ($installed < 16) {
+                self::migrateToVersion16();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -341,6 +344,29 @@ final class Migrator
     {
         $isSqlite = Database::driver() === 'sqlite';
         self::addColumn('dealerships', 'account_type', ($isSqlite ? 'TEXT' : 'VARCHAR(10)') . " NOT NULL DEFAULT 'dealer'");
+    }
+
+    /**
+     * Version 16: Protokoll aller automatisch versendeten E-Mails, damit der
+     * Betreiber je Kunde nachsehen kann, was wann hinausging und ob der
+     * Versand geklappt hat.
+     */
+    private static function migrateToVersion16(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        $intType = $isSqlite ? 'INTEGER' : 'INT';
+        self::createTable('sent_emails', "
+            id         {$intType} " . ($isSqlite ? 'PRIMARY KEY AUTOINCREMENT' : 'UNSIGNED NOT NULL AUTO_INCREMENT') . ",
+            recipient  " . ($isSqlite ? 'TEXT' : 'VARCHAR(190)') . " NOT NULL,
+            subject    " . ($isSqlite ? 'TEXT' : 'VARCHAR(255)') . " NOT NULL,
+            body       TEXT DEFAULT NULL,
+            driver     " . ($isSqlite ? 'TEXT' : 'VARCHAR(10)') . " NOT NULL,
+            was_sent   " . ($isSqlite ? 'INTEGER' : 'TINYINT(1)') . " NOT NULL DEFAULT 0,
+            created_at " . ($isSqlite ? 'TEXT' : 'DATETIME') . " NOT NULL
+            " . ($isSqlite ? '' : ', PRIMARY KEY (id), KEY idx_sent_emails_recipient (recipient)'));
+        if ($isSqlite) {
+            Database::run('CREATE INDEX IF NOT EXISTS idx_sent_emails_recipient ON sent_emails (recipient)');
+        }
     }
 
     /**

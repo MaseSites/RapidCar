@@ -808,7 +808,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 15', str_contains($migratorSource2, 'CURRENT_VERSION = 15'));
+check('Schema-Version 16', str_contains($migratorSource2, 'CURRENT_VERSION = 16'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));
@@ -1075,6 +1075,18 @@ check('Gutschrift sofort beim Ruecksprung',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'PaymentService::confirmOrder'));
 check('unbestaetigte Zahlung wird ehrlich gemeldet',
     str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'credits.purchase_pending'));
+
+// Jede automatische E-Mail landet im Protokoll, sichtbar je Kunde im Admin.
+check('Mailer protokolliert jeden Versand',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Core/Mailer.php'), "Database::insert('sent_emails'"));
+check('Protokollfehler bricht den Versand nicht ab',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Core/Mailer.php'), 'E-Mail-Protokoll fehlgeschlagen'));
+check('Kundenseite im Admin zeigt die E-Mails',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/user.php'), 'FROM sent_emails WHERE recipient'));
+check('beide Schemata kennen das Protokoll',
+    str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'sent_emails')
+    && str_contains((string) file_get_contents(BASE_PATH . '/database/schema.sqlite.sql'), 'sent_emails'));
+
 
 
 

@@ -1807,3 +1807,27 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 }
 .climate-note .icon { flex-shrink: 0; }
 
+/* E-Mail-Verlauf auf der Admin-Kundenseite */
+.mail-log-entry {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+}
+.mail-log-entry summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+}
+.mail-log-entry summary::-webkit-details-marker { display: none; }
+.mail-log-entry summary .text-xs { margin-left: auto; }
+.mail-log-body {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+

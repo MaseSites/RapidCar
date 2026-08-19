@@ -236,6 +236,37 @@ require BASE_PATH . '/includes/layout/admin-header.php';
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-header"><h2>E-Mails an dieses Konto</h2></div>
+    <div class="card-body">
+        <?php
+        $sentEmails = Database::fetchAll(
+            'SELECT * FROM sent_emails WHERE recipient = :r ORDER BY id DESC LIMIT 25',
+            ['r' => mb_strtolower((string) $user['email'])]
+        );
+        ?>
+        <?php if ($sentEmails === []): ?>
+            <p class="text-sm text-muted">Noch keine E-Mails an dieses Konto versendet.</p>
+        <?php else: ?>
+            <p class="text-sm text-secondary mb-2">Alle automatisch versendeten E-Mails, neueste zuerst (maximal 25).</p>
+            <?php foreach ($sentEmails as $sentEmail): ?>
+                <details class="mail-log-entry">
+                    <summary>
+                        <span class="badge <?= (int) $sentEmail['was_sent'] === 1 ? 'badge-success' : 'badge-danger' ?>">
+                            <?= (int) $sentEmail['was_sent'] === 1 ? 'versendet' : 'fehlgeschlagen' ?>
+                        </span>
+                        <span class="fw-600 text-sm"><?= e((string) $sentEmail['subject']) ?></span>
+                        <span class="text-xs text-muted"><?= e(format_datetime((string) $sentEmail['created_at'])) ?></span>
+                    </summary>
+                    <div class="mail-log-body text-sm">
+                        <?= nl2br(e(trim(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], "\n", (string) $sentEmail['body']))))) ?>
+                    </div>
+                </details>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
 <?php if ((string) $user['role'] !== App\Auth\AuthService::ROLE_SUPER_ADMIN && (int) $user['id'] !== (int) $currentUser['id']): ?>
 <div class="card mb-3" style="border-color:#f2c1bd">
     <div class="card-header"><h2 style="color:var(--danger)">Konto löschen</h2></div>

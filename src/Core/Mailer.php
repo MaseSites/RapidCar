@@ -43,14 +43,38 @@ final class Mailer
         $driver = (string) Config::get('mail.driver', 'mail');
 
         try {
-            return match ($driver) {
+            $sent = match ($driver) {
                 'mail' => self::sendViaMail($to, $subject, $htmlBody),
                 'smtp' => self::sendViaSmtp($to, $subject, $htmlBody),
                 default => self::sendViaLog($to, $subject, $htmlBody),
             };
         } catch (\Throwable $e) {
             Logger::error('E-Mail-Versand fehlgeschlagen: ' . $e->getMessage(), ['to' => $to, 'subject' => $subject]);
-            return false;
+            $sent = false;
+        }
+
+        self::record($to, $subject, $htmlBody, $driver, $sent);
+        return $sent;
+    }
+
+    /**
+     * Protokolliert jede Mail in der Datenbank: der Betreiber sieht je
+     * Kunde, was wann hinausging und ob der Versand geklappt hat.
+     * Ein Fehler hier darf den Versand nie scheitern lassen.
+     */
+    private static function record(string $to, string $subject, string $htmlBody, string $driver, bool $sent): void
+    {
+        try {
+            Database::insert('sent_emails', [
+                'recipient'  => mb_strtolower(trim($to)),
+                'subject'    => mb_substr($subject, 0, 255),
+                'body'       => mb_substr($htmlBody, 0, 20000),
+                'driver'     => $driver,
+                'was_sent'   => $sent ? 1 : 0,
+                'created_at' => Database::now(),
+            ]);
+        } catch (\Throwable $e) {
+            Logger::warning('E-Mail-Protokoll fehlgeschlagen: ' . $e->getMessage());
         }
     }
 

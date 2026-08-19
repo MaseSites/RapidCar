@@ -370,3 +370,15 @@ CREATE TABLE IF NOT EXISTS settings (
     setting_value TEXT,
     updated_at    TEXT NOT NULL
 );
+
+-- ---------------------------------------------------------------- sent_emails
+CREATE TABLE IF NOT EXISTS sent_emails (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipient  TEXT NOT NULL,
+    subject    TEXT NOT NULL,
+    body       TEXT DEFAULT NULL,
+    driver     TEXT NOT NULL,
+    was_sent   INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sent_emails_recipient ON sent_emails (recipient);
