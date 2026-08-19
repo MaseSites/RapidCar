@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/csrf.php';
 use App\Auth\AuthService;
 use App\Auth\EmailVerification;
 use App\Auth\RateLimiter;
+use App\Core\Session;
 use App\Core\Validator;
 
 if (AuthService::check()) {
@@ -44,12 +45,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif (EmailVerification::isEnabled() && $user['email_verified_at'] === null) {
             AuthService::logout();
             // Direkt einen frischen Link senden statt nur zu mahnen; gedrosselt,
-            // damit niemand fremde Postfaecher fluten kann.
+            // damit niemand fremde Postfaecher fluten kann. Danach auf die
+            // Bestaetigungsseite, dort steht alles Weitere.
+            $state = '';
             if (!RateLimiter::tooManyAttempts('verify_resend', (string) $user['email'])) {
                 RateLimiter::hit('verify_resend', (string) $user['email']);
-                EmailVerification::send((int) $user['id'], (string) $user['email']);
+                try {
+                    $state = EmailVerification::send((int) $user['id'], (string) $user['email']) ? 'sent' : 'failed';
+                } catch (\Throwable $e) {
+                    \App\Core\Logger::error('Bestaetigungsmail fehlgeschlagen: ' . $e->getMessage());
+                    $state = 'failed';
+                }
             }
-            $error = t('auth.login.unverified', ['email' => (string) $user['email']]);
+            Session::set('verify_email', (string) $user['email']);
+            Session::set('verify_state', $state);
+            redirect('confirm-email.php');
         } else {
             RateLimiter::clear('login', $login);
             RateLimiter::clear('login', $ip);

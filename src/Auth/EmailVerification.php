@@ -44,7 +44,23 @@ final class EmailVerification
         $token = bin2hex(random_bytes(32));
         $now = Database::now();
 
-        Database::run('DELETE FROM email_verifications WHERE user_id = :uid', ['uid' => $userId]);
+        // Aeltere Links bleiben gueltig: wer zwei Mails bekommt (etwa weil die
+        // Anmeldeseite automatisch nachschickt), darf auch die erste oeffnen.
+        // Erst die erfolgreiche Bestaetigung raeumt alle Links weg. Abgelaufene
+        // fliegen raus, und mehr als fuenf offene gibt es nie.
+        Database::run(
+            'DELETE FROM email_verifications WHERE user_id = :uid AND expires_at < :now',
+            ['uid' => $userId, 'now' => $now]
+        );
+        Database::run(
+            'DELETE FROM email_verifications WHERE user_id = :uid AND id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM email_verifications WHERE user_id = :uid2
+                    ORDER BY id DESC LIMIT 4
+                ) AS keepers
+            )',
+            ['uid' => $userId, 'uid2' => $userId]
+        );
         Database::insert('email_verifications', [
             'user_id'    => $userId,
             'token_hash' => hash('sha256', $token),

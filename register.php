@@ -83,14 +83,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     } catch (\Throwable $e) {
                         \App\Core\Logger::error('Bestaetigungsmail fehlgeschlagen: ' . $e->getMessage());
                     }
-                    if ($mailSent) {
-                        Session::flash('info', 'Fast geschafft: Wir haben dir eine E-Mail geschickt. Bitte bestätige deine Adresse, danach kannst du dich anmelden.');
-                    } else {
-                        // Ehrlich bleiben: kein "pruefe dein Postfach", wenn
-                        // nichts angekommen sein kann.
-                        Session::flash('info', 'Dein Konto wurde angelegt, aber die Bestätigungs-E-Mail konnte gerade nicht verschickt werden. Melde dich in ein paar Minuten an, dann senden wir automatisch einen neuen Link.');
-                    }
-                    redirect('login.php');
+                    // Eigene Seite statt beilaeufiger Mitteilung. Die Adresse
+                    // wandert ueber die Session, nie ueber die URL.
+                    Session::set('verify_email', mb_strtolower(trim($v->value('email'))));
+                    Session::set('verify_state', $mailSent ? 'sent' : 'failed');
+                    redirect('confirm-email.php');
                 }
 
                 // Ohne Bestaetigungspflicht: direkt einloggen und ins Onboarding

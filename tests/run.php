@@ -766,7 +766,32 @@ check('Registrierung loggt mit Pflicht niemanden automatisch ein',
     strpos($registerSource, 'EmailVerification::isEnabled()') !== false
     && strpos($registerSource, 'EmailVerification::isEnabled()') < strpos($registerSource, 'AuthService::attempt('));
 check('gescheiterter Versand wird ehrlich gemeldet',
-    str_contains($registerSource, 'konnte gerade nicht verschickt werden'));
+    str_contains($registerSource, "'verify_state', \$mailSent ? 'sent' : 'failed'")
+    && str_contains((string) file_get_contents(BASE_PATH . '/confirm-email.php'), 'Der Versand hat gerade nicht geklappt'));
+
+// Die Pflicht hat eine eigene Seite. Die Adresse laeuft ueber die Session,
+// nie ueber die URL, und aeltere Links bleiben gueltig, bis einer benutzt wird.
+$confirmSource = (string) file_get_contents(BASE_PATH . '/confirm-email.php');
+check('eigene Bestaetigungsseite vorhanden', is_file(BASE_PATH . '/confirm-email.php'));
+check('Registrierung fuehrt auf die Bestaetigungsseite',
+    str_contains($registerSource, "redirect('confirm-email.php')"));
+check('Anmeldung fuehrt Unbestaetigte auf die Bestaetigungsseite',
+    str_contains((string) file_get_contents(BASE_PATH . '/login.php'), "redirect('confirm-email.php')"));
+check('Adresse kommt aus der Session, nicht aus der URL',
+    str_contains($confirmSource, "Session::get('verify_email'")
+    && !str_contains($confirmSource, '\$_GET[' . chr(39) . 'email'));
+check('erneut senden ist gedrosselt',
+    str_contains($confirmSource, "tooManyAttempts('verify_resend'"));
+check('unbekannte Adresse verraet sich nicht',
+    str_contains($confirmSource, 'gleiche Anzeige wie beim Erfolg'));
+check('aeltere Links bleiben gueltig',
+    str_contains($verificationSource, 'expires_at < :now')
+    // In send() darf kein pauschales Loeschen mehr stehen; das Aufraeumen
+    // aller Links gehoert allein in verify().
+    && substr_count(
+        substr($verificationSource, 0, (int) strpos($verificationSource, 'public static function verify')),
+        "DELETE FROM email_verifications WHERE user_id = :uid'"
+    ) === 0);
 
 $loginSource = file_get_contents(BASE_PATH . '/login.php');
 check('Anmeldung weist unbestaetigte Konten ab',

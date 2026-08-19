@@ -28,6 +28,7 @@ Options -Indexes
     RewriteRule ^contact/?$ contact.php [L]
     RewriteRule ^login/?$ login.php [L]
     RewriteRule ^register/?$ register.php [L]
+    RewriteRule ^confirm-email/?$ confirm-email.php [L]
     RewriteRule ^privacy/?$ privacy.php [L]
     RewriteRule ^imprint/?$ imprint.php [L]
 

@@ -23,9 +23,9 @@ require BASE_PATH . '/includes/layout/public-header.php';
             <p class="lead">Dein Konto ist jetzt aktiviert. Du kannst dich einloggen.</p>
             <a class="btn btn-primary btn-block" href="<?= base_url('login.php') ?>"><?= t('auth.login.title') ?></a>
         <?php else: ?>
-            <h1>Link ungültig oder abgelaufen</h1>
-            <p class="lead">Der Bestätigungslink ist nicht mehr gültig. Bitte melde dich an, um einen neuen Link anzufordern.</p>
-            <a class="btn btn-primary btn-block" href="<?= base_url('login.php') ?>">Zum Login</a>
+            <h1>Dieser Link ist nicht mehr gültig</h1>
+            <p class="lead">Vielleicht wurde deine Adresse schon bestätigt, etwa über einen Link aus einer anderen E-Mail. Versuche einfach, dich anzumelden: Ist noch etwas offen, senden wir dir automatisch einen neuen Link.</p>
+            <a class="btn btn-primary btn-block" href="<?= base_url('login.php') ?>">Zur Anmeldung</a>
         <?php endif; ?>
     </div>
 </div>
