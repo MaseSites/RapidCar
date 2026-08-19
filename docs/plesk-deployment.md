@@ -94,6 +94,19 @@ Installer weist am Ende selbst darauf hin.
 Ohne echten Mailversand (`driver => 'log'`) bleibt die Bestätigung von
 E-Mail-Adressen abgeschaltet, damit sich niemand aussperrt.
 
+### Wenn Links auf localhost zeigen
+
+Steht in `config/config.php` unter `app.url` noch eine Adresse mit
+`localhost`, merkt die Anwendung das und baut die Links stattdessen aus der
+Adresse, unter der die Anfrage ankam. Die Seite bleibt also bedienbar.
+
+Trage trotzdem die richtige Adresse ein, denn E-Mails und die Rücksprung-
+adressen der Kanäle entstehen ohne Anfrage und brauchen den festen Wert:
+
+```php
+'url' => 'https://deine-domain.tld',
+```
+
 ## 5. Freistellen der Fotos
 
 Auf dem Server steht rembg nicht zur Verfügung. Für das Freistellen brauchst

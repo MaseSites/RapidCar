@@ -35,6 +35,23 @@ function base_url(string $path = ''): string
     static $base = null;
     if ($base === null) {
         $configured = (string) Config::get('app.url', '');
+
+        // Eine hinterlegte Adresse, die auf den eigenen Rechner zeigt, taugt
+        // auf einem Server nicht: alle Links wuerden dorthin fuehren. In dem
+        // Fall gilt die Adresse, unter der die Anfrage tatsaechlich ankam.
+        if ($configured !== '' && ($_SERVER['HTTP_HOST'] ?? '') !== '') {
+            $configuredHost = strtolower((string) parse_url($configured, PHP_URL_HOST));
+            $requestHost = strtolower(explode(':', (string) $_SERVER['HTTP_HOST'])[0]);
+            $isLocal = $configuredHost === 'localhost'
+                || str_starts_with($configuredHost, '127.')
+                || $configuredHost === '::1'
+                || str_ends_with($configuredHost, '.local')
+                || str_ends_with($configuredHost, '.test');
+            if ($isLocal && $configuredHost !== $requestHost) {
+                $configured = '';
+            }
+        }
+
         if ($configured !== '') {
             $base = rtrim($configured, '/');
         } else {

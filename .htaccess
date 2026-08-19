@@ -1,4 +1,4 @@
-# VehicleAI — Apache-Konfiguration
+# RapidCar, Apache-Konfiguration
 # Funktioniert auf Apache und LiteSpeed (Hosttime). Die Anwendung bleibt auch
 # ohne mod_rewrite voll funktionsfähig (physische .php-Dateien).
 
@@ -35,13 +35,13 @@ Options -Indexes
     RewriteRule ^dashboard/vehicles/?$ dashboard/vehicles.php [L]
     RewriteRule ^dashboard/vehicles/create/?$ dashboard/create-vehicle.php [L]
     RewriteRule ^dashboard/vehicles/([0-9]+)/?$ dashboard/vehicle.php?id=$1 [L,QSA]
-    RewriteRule ^dashboard/listings/?$ dashboard/listings.php [L]
     RewriteRule ^dashboard/leads/?$ dashboard/leads.php [L]
     RewriteRule ^dashboard/leads/([0-9]+)/?$ dashboard/lead.php?id=$1 [L,QSA]
     RewriteRule ^dashboard/social/?$ dashboard/social.php [L]
-    RewriteRule ^dashboard/analytics/?$ dashboard/analytics.php [L]
     RewriteRule ^dashboard/tasks/?$ dashboard/tasks.php [L]
     RewriteRule ^dashboard/settings/?$ dashboard/settings.php [L]
+    RewriteRule ^dashboard/credits/?$ dashboard/credits.php [L]
+    RewriteRule ^dashboard/channels/?$ dashboard/channels.php [L]
 
     RewriteRule ^admin/?$ admin/index.php [L]
     RewriteRule ^admin/users/?$ admin/users.php [L]

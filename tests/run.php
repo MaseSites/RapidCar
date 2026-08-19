@@ -656,6 +656,20 @@ check('Händler ohne Verbindung: getrennt, nicht verbunden',
 Config::set('instagram.client_id', $igSavedId);
 Config::set('instagram.client_secret', $igSavedSecret);
 
+echo "Adressen der Anwendung"; echo "\n";
+// Eine hinterlegte localhost-Adresse darf auf einem Server nicht dazu fuehren,
+// dass alle Links dorthin zeigen. Die Pruefung steckt in base_url().
+$functionsSource = file_get_contents(BASE_PATH . '/includes/functions.php');
+check('base_url erkennt oertliche Adressen',
+    str_contains($functionsSource, 'str_starts_with($configuredHost, ' . "'127.'" . ')'));
+check('base_url vergleicht mit der Anfrage',
+    str_contains($functionsSource, '$configuredHost !== $requestHost'));
+check('Weiterleitungen bauen ueber base_url',
+    str_contains($functionsSource, 'base_url($path)'));
+check('Adressen ohne Konfiguration entstehen aus der Anfrage',
+    str_contains($functionsSource, 'HTTP_HOST'));
+
+
 echo "Spyne\n";
 $ccSavedProvider = (string) Config::get('background.provider', '');
 $ccSavedKey = (string) Config::get('background.api_key', '');
