@@ -402,6 +402,7 @@ return [
     'background.cutout_done'  => 'Fahrzeug freigestellt. Jetzt Hintergrund wählen.',
     'background.upload'       => 'Eigener',
     'background.reset'        => 'Originalfoto wiederherstellen',
+    'background.spyne_wait'   => 'Spyne verarbeitet das Foto, das dauert bis zu zwei Minuten',
     'background.applied'      => 'Hintergrund gesetzt.',
     'background.reset_done'   => 'Originalfoto wiederhergestellt.',
 

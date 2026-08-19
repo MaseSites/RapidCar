@@ -1031,6 +1031,7 @@ $jsDocReading    = $js('document.reading');
 $jsDocDone       = $js('document.done', ['count' => '{COUNT}']);
 $jsDocNothing    = $js('document.nothing');
 $jsUploadFailed  = $js('create.upload_failed');
+$jsBgSpyneWait   = $js('background.spyne_wait');
 $pageScripts = <<<HTML
 <script>
 (function () {
@@ -1261,6 +1262,39 @@ $pageScripts = <<<HTML
                 method: 'POST',
                 body: { action: 'apply', image_id: id, background: key }
             }).then(function (res) {
+                // Spyne arbeitet im Hintergrund: der Server hat nur
+                // angestossen, hier wird alle paar Sekunden nachgefragt.
+                if (res.success && res.data && res.data.pending) {
+                    bgSetHint({$jsBgSpyneWait} + ' (' + pos + '/' + total + ')');
+                    var tries = 0;
+                    var poll = function () {
+                        tries++;
+                        if (tries > 45) {
+                            bgMarkWorking(id, false);
+                            showToast({$jsUploadFailed}, 'danger');
+                            cb(false);
+                            return;
+                        }
+                        setTimeout(function () {
+                            apiFetch('api/vehicles/image-background.php', {
+                                method: 'POST',
+                                body: { action: 'spyne_status', image_id: id, background: key, job: res.data.job }
+                            }).then(function (st) {
+                                if (st.success && st.data && st.data.pending) { poll(); return; }
+                                bgMarkWorking(id, false);
+                                if (st.success) {
+                                    if (item) { item.dataset.cutout = '1'; }
+                                    refreshImage(st.data, id);
+                                } else {
+                                    showToast(st.error || {$jsUploadFailed}, 'danger');
+                                }
+                                cb(!!st.success);
+                            });
+                        }, 4000);
+                    };
+                    poll();
+                    return;
+                }
                 bgMarkWorking(id, false);
                 if (res.success) {
                     if (item) { item.dataset.cutout = '1'; }

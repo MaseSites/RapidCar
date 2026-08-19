@@ -94,6 +94,48 @@ switch ($action) {
         ActivityLogger::log((int) $currentUser['id'], 'image.cutout', "Foto #{$imageId} freigestellt", 'vehicle', $vehicleId, $dealershipId);
         json_response(true, ['already' => false, 'cutout' => upload_url($relative)]);
 
+    case 'spyne_status':
+        // Holt das Ergebnis eines frueher angestossenen Spyne-Auftrags ab.
+        $key = (string) ($input['background'] ?? '');
+        $job = (string) ($input['job'] ?? '');
+        if (!preg_match('/^[a-f0-9-]{8,64}$/i', $job)) {
+            json_response(false, null, 'Unbekannter Auftrag.', 422);
+        }
+        if (!BackgroundService::isTemplate($key)) {
+            json_response(false, null, 'Unbekannter Hintergrund.', 422);
+        }
+        try {
+            $binary = App\Integration\SpyneService::checkJob($job);
+        } catch (\Throwable $e) {
+            json_response(false, null, $e->getMessage(), 422);
+        }
+        if ($binary === null) {
+            json_response(true, ['pending' => true, 'job' => $job]);
+        }
+
+        $relative = 'vehicles/' . $vehicleId . '/sp-' . bin2hex(random_bytes(8)) . '.jpg';
+        $target = ImageService::uploadPath($relative);
+        if (!is_dir(dirname($target))) {
+            mkdir(dirname($target), 0755, true);
+        }
+        if (file_put_contents($target, $binary) === false) {
+            json_response(false, null, 'Das Ergebnis konnte nicht gespeichert werden.', 500);
+        }
+        $paths = store_display_variants($image, $relative);
+        Database::update('vehicle_images', $imageId, ['background_key' => $key]);
+        ActivityLogger::log(
+            (int) $currentUser['id'],
+            'image.background',
+            "Foto #{$imageId} über Spyne gesetzt",
+            'vehicle',
+            $vehicleId,
+            $dealershipId
+        );
+        json_response(true, [
+            'card_url'  => upload_url($paths['card']),
+            'thumb_url' => upload_url($paths['thumb']),
+        ]);
+
     case 'apply':
         $key = (string) ($input['background'] ?? '');
         if ($key === BackgroundService::KEY_ORIGINAL) {
@@ -108,8 +150,11 @@ switch ($action) {
         // Schatten selbst setzt. Eigene Hintergrundbilder kennt Spyne nicht:
         // dafür bleibt der eigene Weg zuständig.
         if (BackgroundService::usesSpyne() && BackgroundService::ownId($key) === null) {
+            // Nur anstossen und sofort antworten: Shared Hosting kappt
+            // Anfragen nach wenigen Sekunden, Spyne braucht aber bis zu
+            // zwei Minuten. Die Oberflaeche fragt per spyne_status nach.
             try {
-                $binary = App\Integration\SpyneService::compose(
+                $job = App\Integration\SpyneService::submitJob(
                     upload_url((string) $image['file_path']),
                     $key,
                     'Fahrzeug-' . $vehicleId
@@ -117,26 +162,9 @@ switch ($action) {
             } catch (\Throwable $e) {
                 json_response(false, null, $e->getMessage(), 422);
             }
-
-            $relative = 'vehicles/' . $vehicleId . '/sp-' . bin2hex(random_bytes(8)) . '.jpg';
-            $target = ImageService::uploadPath($relative);
-            if (!is_dir(dirname($target))) {
-                mkdir(dirname($target), 0755, true);
-            }
-            if (file_put_contents($target, $binary) === false) {
-                json_response(false, null, 'Das Ergebnis konnte nicht gespeichert werden.', 500);
-            }
-
-            $paths = store_display_variants($image, $relative);
-            Database::update('vehicle_images', $imageId, ['background_key' => $key]);
-            ActivityLogger::log(
-                (int) $currentUser['id'],
-                'image.background',
-                "Foto #{$imageId} über Spyne gesetzt",
-                'vehicle',
-                $vehicleId,
-                $dealershipId
-            );
+            json_response(true, ['pending' => true, 'job' => $job]);
+        }
+        if (false) {
             json_response(true, [
                 'card_url'  => upload_url($paths['card']),
                 'thumb_url' => upload_url($paths['thumb']),

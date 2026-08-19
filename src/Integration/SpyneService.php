@@ -126,6 +126,49 @@ final class SpyneService
         return self::download($outputUrl);
     }
 
+    /**
+     * Stösst die Verarbeitung an und liefert sofort die Auftragsnummer.
+     * Shared Hosting kappt lange Anfragen nach wenigen Sekunden; deshalb
+     * wartet der Server nie selbst, sondern die Oberfläche fragt über
+     * checkJob() in Abständen nach.
+     */
+    public static function submitJob(string $imageUrl, string $backgroundId, string $skuName): string
+    {
+        if (!self::isConfigured()) {
+            throw new RuntimeException('Für Spyne ist kein Zugang hinterlegt.');
+        }
+        if (!function_exists('curl_init')) {
+            throw new RuntimeException('Die PHP-Erweiterung cURL wird für Spyne benötigt.');
+        }
+        if (!preg_match('#^https?://#i', $imageUrl)) {
+            throw new RuntimeException('Spyne holt die Fotos selbst ab. Dafür muss die Anwendung öffentlich erreichbar sein.');
+        }
+        return self::submit($imageUrl, $backgroundId, $skuName);
+    }
+
+    /**
+     * Fragt EINMAL nach dem Ergebnis eines Auftrags.
+     * Fertig: die Bilddaten. Noch in Arbeit: null. Abgelehnt: Ausnahme.
+     */
+    public static function checkJob(string $skuId): ?string
+    {
+        $authKey = trim((string) Config::get('background.api_key', ''));
+        $url = self::RESULT_URL . '?' . http_build_query(['auth_key' => $authKey, 'sku_id' => $skuId]);
+        $response = self::request($url, null);
+
+        foreach ((array) ($response['image_data'] ?? []) as $entry) {
+            $output = (string) ($entry['output_image'] ?? '');
+            if ($output !== '') {
+                return self::download($output);
+            }
+            $reject = (string) ($entry['reject_reason'] ?? '');
+            if ($reject !== '') {
+                throw new RuntimeException('Spyne hat das Foto abgelehnt: ' . $reject);
+            }
+        }
+        return null;
+    }
+
     /** Meldet das Foto zur Verarbeitung an und gibt die SKU zurück. */
     private static function submit(string $imageUrl, string $backgroundId, string $skuName): string
     {

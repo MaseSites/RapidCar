@@ -1180,6 +1180,24 @@ check('Admin kann Szenen pflegen',
 check('Szenen aus den Einstellungen werden gelesen',
     str_contains((string) file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php'), "SettingsService::get('spyne_scenes')"));
 
+// Shared Hosting kappt lange Anfragen: Spyne wird nur angestossen, die
+// Oberflaeche fragt in Abstaenden nach dem Ergebnis.
+$spyneSource = file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php');
+check('Spyne-Auftrag wird nur angestossen',
+    str_contains($spyneSource, 'public static function submitJob')
+    && str_contains($spyneSource, 'public static function checkJob'));
+$bgEndpoint = file_get_contents(BASE_PATH . '/api/vehicles/image-background.php');
+check('apply antwortet sofort mit dem Auftrag',
+    str_contains($bgEndpoint, "'pending' => true")
+    && str_contains($bgEndpoint, 'submitJob'));
+check('spyne_status holt das Ergebnis ab',
+    str_contains($bgEndpoint, "case 'spyne_status':")
+    && str_contains($bgEndpoint, 'checkJob'));
+check('Oberflaeche fragt nach und zeigt Fortschritt',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'spyne_status')
+    && str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'background.spyne_wait'));
+
+
 Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);
 $ccScenes = App\Integration\SpyneService::backgrounds();
 check('Szenen kommen aus der Konfiguration', count($ccScenes) === 2);
