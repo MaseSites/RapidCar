@@ -29,8 +29,11 @@ final class SpyneService
     /** Von Spyne dokumentierte Standard-Hintergrund-Kennung. */
     public const DEFAULT_BACKGROUND = '923';
 
-    private const SUBMIT_URL = 'https://api.spyne.ai/api/pv1/image/replace-bg';
-    private const RESULT_URL = 'https://api.spyne.ai/api/pv1/sku/get-ready-images/v2';
+    // Neue Spyne-API (Bearer-Schluessel aus dem Entwicklerhub der Konsole).
+    // Die alte replace-bg-Schnittstelle nahm nur die alten auth_key-Schluessel
+    // an und lehnte die neuen mit HTTP 400 ab.
+    private const SUBMIT_URL = 'https://api.spyne.ai/api/pv1/merchandise/process';
+    private const RESULT_URL = 'https://api.spyne.ai/api/pv1/merchandise';
 
     /** Verarbeitung läuft im Hintergrund; so lange wird darauf gewartet. */
     private const MAX_WAIT_SECONDS = 150;
@@ -123,10 +126,8 @@ final class SpyneService
             throw new RuntimeException('Spyne holt die Fotos selbst ab. Dafür muss die Anwendung öffentlich erreichbar sein.');
         }
 
-        $skuId = self::submit($imageUrl, $backgroundId, $skuName);
-        $outputUrl = self::waitForResult($skuId);
-
-        return self::download($outputUrl);
+        $jobId = self::submit($imageUrl, $backgroundId, $skuName);
+        return self::waitForResult($jobId);
     }
 
     /**
@@ -153,80 +154,96 @@ final class SpyneService
      * Fragt EINMAL nach dem Ergebnis eines Auftrags.
      * Fertig: die Bilddaten. Noch in Arbeit: null. Abgelehnt: Ausnahme.
      */
-    public static function checkJob(string $skuId): ?string
+    public static function checkJob(string $jobId): ?string
     {
-        $authKey = trim((string) Config::get('background.api_key', ''));
-        $url = self::RESULT_URL . '?' . http_build_query(['auth_key' => $authKey, 'sku_id' => $skuId]);
+        $url = self::RESULT_URL . '?' . http_build_query(['dealerVinId' => $jobId]);
         $response = self::request($url, null);
 
-        foreach ((array) ($response['image_data'] ?? []) as $entry) {
-            $output = (string) ($entry['output_image'] ?? '');
+        $image = $response['mediaData']['image'] ?? ($response['data']['mediaData']['image'] ?? []);
+        $status = strtoupper((string) ($image['aiStatus'] ?? ''));
+        if ($status === 'FAILED') {
+            throw new RuntimeException('Spyne konnte das Foto nicht verarbeiten.');
+        }
+
+        foreach ((array) ($image['imageData'] ?? []) as $entry) {
+            $output = (string) ($entry['outputImage'] ?? '');
             if ($output !== '') {
                 return self::download($output);
-            }
-            $reject = (string) ($entry['reject_reason'] ?? '');
-            if ($reject !== '') {
-                throw new RuntimeException('Spyne hat das Foto abgelehnt: ' . $reject);
             }
         }
         return null;
     }
 
-    /** Meldet das Foto zur Verarbeitung an und gibt die SKU zurück. */
+    /** Meldet das Foto zur Verarbeitung an und gibt die Auftragsnummer zurück. */
     private static function submit(string $imageUrl, string $backgroundId, string $skuName): string
     {
+        // Jede Einreichung bekommt eine eigene Kennung: dieselbe wuerde bei
+        // Spyne denselben Fahrzeugeintrag fortschreiben, und der Abruf faende
+        // alte Ergebnisse statt des neuen.
+        $reference = preg_replace('/[^A-Za-z0-9-]/', '', $skuName) . '-' . bin2hex(random_bytes(4));
+
         $payload = [
-            'auth_key'        => trim((string) Config::get('background.api_key', '')),
-            'sku_name'        => $skuName,
-            'category_id'     => 'Automobile',
-            'background_type' => 'legacy',
-            'background'      => $backgroundId !== '' ? $backgroundId : '923',
-            'image_data'      => [[
-                'category'   => 'Exterior',
-                'image_urls' => [$imageUrl],
-            ]],
+            'vin'   => $reference,
+            'media' => [
+                // Nur Bilder: 360-Spin und Videos nehmen die
+                // Verkaufsplattformen nicht an.
+                'image'        => true,
+                'spin'         => false,
+                'featureVideo' => false,
+            ],
+            'mediaInput' => [
+                'imageData' => [
+                    ['url' => $imageUrl],
+                ],
+            ],
+            'processingDetails' => [
+                'backgroundId'    => $backgroundId !== '' ? $backgroundId : self::DEFAULT_BACKGROUND,
+                'numberPlateLogo' => (bool) Config::get('background.blur_license_plate', false) ? '1' : '0',
+                'image'           => [
+                    'backgroundType' => 'legacy',
+                ],
+            ],
         ];
 
-        // Kennzeichen unkenntlich machen: 1 setzt eine weisse Fläche darüber
-        if ((bool) Config::get('background.blur_license_plate', false)) {
-            $payload['number_plate_logo'] = '1';
+        $response = self::request(self::SUBMIT_URL, $payload);
+
+        // Spyne kann mit Erfolgs-Status antworten und die Anfrage trotzdem
+        // ablehnen (validationSummary). Ohne diese Pruefung wuerde ewig auf
+        // ein Ergebnis gewartet, das nie kommt.
+        $summary = $response['data']['validationSummary'] ?? [];
+        if (!empty($summary['isRequestRejected'])) {
+            $reason = (string) ($summary['displayError']['message'] ?? 'kein Grund genannt');
+            if (stripos($reason, 'BackgroundId') !== false) {
+                throw new RuntimeException(
+                    'Spyne kennt diesen Hintergrund in deinem Konto nicht. '
+                    . 'Trage im Admin unter Einstellungen die Hintergrund-Kennungen '
+                    . 'aus deiner Spyne-Konsole ein.'
+                );
+            }
+            throw new RuntimeException('Spyne hat die Anfrage abgelehnt: ' . $reason);
         }
 
-        $response = self::request(self::SUBMIT_URL, $payload);
-        $skuId = (string) ($response['data']['sku_id'] ?? '');
-        if ($skuId === '') {
+        $jobId = (string) ($response['data']['dealerVinID'] ?? ($response['data']['dealerVinId'] ?? ''));
+        if ($jobId === '') {
             throw new RuntimeException('Spyne hat die Verarbeitung nicht angenommen.');
         }
-        return $skuId;
+        return $jobId;
     }
 
     /**
      * Wartet, bis das Ergebnis bereitliegt, und gibt dessen Adresse zurück.
      * Spyne verarbeitet im Hintergrund, deshalb wird in Abständen nachgefragt.
      */
-    private static function waitForResult(string $skuId): string
+    private static function waitForResult(string $jobId): string
     {
         $deadline = time() + self::MAX_WAIT_SECONDS;
-        $authKey = trim((string) Config::get('background.api_key', ''));
-
         while (time() < $deadline) {
-            $url = self::RESULT_URL . '?' . http_build_query(['auth_key' => $authKey, 'sku_id' => $skuId]);
-            $response = self::request($url, null);
-
-            foreach ((array) ($response['image_data'] ?? []) as $entry) {
-                $output = (string) ($entry['output_image'] ?? '');
-                if ($output !== '') {
-                    return $output;
-                }
-                $reject = (string) ($entry['reject_reason'] ?? '');
-                if ($reject !== '') {
-                    throw new RuntimeException('Spyne hat das Foto abgelehnt: ' . $reject);
-                }
+            $binary = self::checkJob($jobId);
+            if ($binary !== null) {
+                return $binary;
             }
-
             sleep(self::POLL_INTERVAL_SECONDS);
         }
-
         throw new RuntimeException('Spyne war nicht rechtzeitig fertig. Bitte später erneut versuchen.');
     }
 
@@ -258,16 +275,17 @@ final class SpyneService
      */
     private static function request(string $url, ?array $payload): array
     {
+        $bearer = 'Authorization: Bearer ' . trim((string) Config::get('background.api_key', ''));
         $options = [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => self::TIMEOUT_SECONDS,
             CURLOPT_CONNECTTIMEOUT => 20,
-            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+            CURLOPT_HTTPHEADER     => ['Accept: application/json', $bearer],
         ];
         if ($payload !== null) {
             $options[CURLOPT_POST] = true;
             $options[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_SLASHES);
-            $options[CURLOPT_HTTPHEADER] = ['Content-Type: application/json', 'Accept: application/json'];
+            $options[CURLOPT_HTTPHEADER] = ['Content-Type: application/json', 'Accept: application/json', $bearer];
         }
 
         $ch = curl_init($url);
@@ -285,8 +303,17 @@ final class SpyneService
             throw new RuntimeException('Spyne hat den Schlüssel abgelehnt.');
         }
         if ($status >= 400) {
-            Logger::error('Spyne hat abgelehnt', ['status' => $status]);
-            throw new RuntimeException('Spyne hat die Anfrage abgelehnt (HTTP ' . $status . ').');
+            // Den Grund mitgeben: Spyne nennt fehlende oder falsche Felder
+            // in der Antwort, ohne ihn liesse sich nichts beheben.
+            $decodedError = json_decode((string) $raw, true);
+            $reason = '';
+            if (is_array($decodedError)) {
+                $reason = (string) ($decodedError['message'] ?? ($decodedError['error'] ?? ''));
+            }
+            Logger::error('Spyne hat abgelehnt', ['status' => $status, 'antwort' => mb_substr((string) $raw, 0, 500)]);
+            throw new RuntimeException(
+                'Spyne hat die Anfrage abgelehnt (HTTP ' . $status . ($reason !== '' ? ': ' . $reason : '') . ').'
+            );
         }
 
         $decoded = json_decode((string) $raw, true);

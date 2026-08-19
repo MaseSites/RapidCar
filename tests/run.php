@@ -1212,6 +1212,20 @@ check('Scan-PDF wird nicht mehr pauschal abgelehnt',
 check('PDF-Groesse ist begrenzt',
     str_contains((string) file_get_contents(BASE_PATH . '/src/AI/OpenAiProvider.php'), '10 * 1024 * 1024'));
 
+// Neue Spyne-API: Bearer-Schluessel, Ablehnungen im Erfolgsmantel erkennen
+$spyneSource2 = file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php');
+check('Spyne nutzt die neue merchandise-API mit Bearer',
+    str_contains($spyneSource2, 'merchandise/process')
+    && str_contains($spyneSource2, 'Authorization: Bearer')
+    && !str_contains($spyneSource2, 'replace-bg'));
+check('Ablehnung trotz Erfolgsstatus wird erkannt',
+    str_contains($spyneSource2, 'isRequestRejected')
+    && str_contains($spyneSource2, 'Spyne-Konsole'));
+check('Ergebnis kommt aus outputImage',
+    str_contains($spyneSource2, "'outputImage'")
+    && str_contains($spyneSource2, "'FAILED'"));
+
+
 
 
 Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);Config::set('background.scenes', ['923' => 'Studio hell', '924' => 'Showroom']);

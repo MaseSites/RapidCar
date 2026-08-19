@@ -80,9 +80,10 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                 <p class="text-sm text-muted">Spyne ist nicht eingerichtet (background.api_key in der Konfiguration).</p>
             <?php else: ?>
                 <p class="text-sm text-secondary mb-2">
-                    Diese Hintergründe stehen beim Fotos-Freistellen zur Wahl. Die Kennungen
-                    findest du in deinem Spyne-Konto (Darkroom) oder bekommst sie von deinem
-                    Spyne-Ansprechpartner. Ohne Eintrag gilt der Spyne-Standard (923).
+                    Diese Hintergründe stehen beim Fotos-Freistellen zur Wahl. Wichtig:
+                    Es funktionieren nur Kennungen, die deinem Spyne-Konto zugeordnet sind.
+                    Du findest sie in der Spyne-Konsole (console.spyne.ai) bei den
+                    Hintergründen, oder du bekommst sie von deinem Spyne-Ansprechpartner.
                 </p>
                 <?php $spyneScenes = \App\Integration\SpyneService::backgrounds(); ?>
                 <div class="mb-2">
