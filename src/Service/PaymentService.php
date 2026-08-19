@@ -8,6 +8,7 @@ use App\Core\CaBundle;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Logger;
+use App\Service\SettingsService;
 use RuntimeException;
 
 /**
@@ -102,10 +103,13 @@ final class PaymentService
             $params['billing_address_collection'] = 'required';
         }
 
-        // Feste Vorgabe der Zahlarten aus der Konfiguration (payment.methods).
-        // Leer = die Kasse zeigt, was im Stripe-Konto freigeschaltet ist.
-        // Mit z.B. ['card', 'twint'] erscheinen genau Karte und TWINT;
-        // Apple Pay und Google Pay laufen ueber 'card' und kommen von selbst.
+        // Zahlarten der Kasse. Reihenfolge der Entscheidung:
+        //   1. payment.methods aus der Konfiguration, wenn gesetzt
+        //   2. sonst automatisch: Karte, plus TWINT sobald es im Stripe-Konto
+        //      freigeschaltet ist. Klarna und anderes, was Stripe von sich aus
+        //      dazuschaltet, erscheint damit bewusst nicht.
+        // Apple Pay und Google Pay laufen ueber 'card' und kommen von selbst,
+        // je nachdem, was Geraet und Browser des Kaeufers koennen.
         $configured = Config::get('payment.methods', []);
         $pinned = [];
         if (is_array($configured)) {
@@ -115,6 +119,9 @@ final class PaymentService
                     $pinned[] = $entry;
                 }
             }
+        }
+        if ($pinned === []) {
+            $pinned = self::autoMethods();
         }
         if ($method !== null && in_array($method, self::PAYMENT_METHODS, true)) {
             $pinned = [$method];
@@ -221,6 +228,42 @@ final class PaymentService
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Automatische Zahlarten: Karte immer, TWINT sobald das Stripe-Konto es
+     * anbietet. Die Abfrage bei Stripe wird sechs Stunden zwischengespeichert,
+     * damit nicht jeder Kauf eine zusaetzliche Anfrage kostet.
+     *
+     * @return array<int, string>
+     */
+    private static function autoMethods(): array
+    {
+        $cached = SettingsService::get('stripe_auto_methods');
+        if ($cached !== null) {
+            $entry = json_decode($cached, true);
+            if (is_array($entry)
+                && time() - (int) ($entry['checked_at'] ?? 0) < 6 * 3600
+                && is_array($entry['methods'] ?? null)
+            ) {
+                return $entry['methods'];
+            }
+        }
+
+        $methods = ['card'];
+        $overview = self::methodOverview();
+        if (($overview['twint'] ?? '') === 'on') {
+            $methods[] = 'twint';
+        }
+        if ($overview !== []) {
+            // Nur speichern, wenn Stripe geantwortet hat: eine leere Antwort
+            // (nicht erreichbar) soll den naechsten Versuch nicht blockieren.
+            SettingsService::set('stripe_auto_methods', (string) json_encode([
+                'checked_at' => time(),
+                'methods'    => $methods,
+            ]));
+        }
+        return $methods;
+    }
+
     /**
      * Fragt bei Stripe ab, welche Zahlarten das Konto anbietet.
      * Fuer die Selbstpruefung: zeigt dem Betreiber, was im Stripe-Dashboard
