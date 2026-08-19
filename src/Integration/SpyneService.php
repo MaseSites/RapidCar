@@ -136,7 +136,13 @@ final class SpyneService
      * wartet der Server nie selbst, sondern die Oberfläche fragt über
      * checkJob() in Abständen nach.
      */
-    public static function submitJob(string $imageUrl, string $backgroundId, string $skuName): string
+    /**
+     * @param array{plate?: string, banner_url?: string} $options
+     *        plate: '0' (nichts), '1' (weisse Flaeche) oder eine Logo-Adresse,
+     *               die Spyne auf das Kennzeichen setzt.
+     *        banner_url: Bildadresse, die Spyne als Banner auf das Foto legt.
+     */
+    public static function submitJob(string $imageUrl, string $backgroundId, string $skuName, array $options = []): string
     {
         if (!self::isConfigured()) {
             throw new RuntimeException('Für Spyne ist kein Zugang hinterlegt.');
@@ -147,7 +153,7 @@ final class SpyneService
         if (!preg_match('#^https?://#i', $imageUrl)) {
             throw new RuntimeException('Spyne holt die Fotos selbst ab. Dafür muss die Anwendung öffentlich erreichbar sein.');
         }
-        return self::submit($imageUrl, $backgroundId, $skuName);
+        return self::submit($imageUrl, $backgroundId, $skuName, $options);
     }
 
     /**
@@ -175,7 +181,7 @@ final class SpyneService
     }
 
     /** Meldet das Foto zur Verarbeitung an und gibt die Auftragsnummer zurück. */
-    private static function submit(string $imageUrl, string $backgroundId, string $skuName): string
+    private static function submit(string $imageUrl, string $backgroundId, string $skuName, array $options = []): string
     {
         // Jede Einreichung bekommt eine eigene Kennung: dieselbe wuerde bei
         // Spyne denselben Fahrzeugeintrag fortschreiben, und der Abruf faende
@@ -198,12 +204,24 @@ final class SpyneService
             ],
             'processingDetails' => [
                 'backgroundId'    => $backgroundId !== '' ? $backgroundId : self::DEFAULT_BACKGROUND,
-                'numberPlateLogo' => (bool) Config::get('background.blur_license_plate', false) ? '1' : '0',
+                // '0' nichts, '1' weisse Flaeche, oder die Adresse eines
+                // Logos, das Spyne auf das Kennzeichen setzt.
+                'numberPlateLogo' => (string) ($options['plate']
+                    ?? ((bool) Config::get('background.blur_license_plate', false) ? '1' : '0')),
                 'image'           => [
                     'backgroundType' => 'legacy',
                 ],
             ],
         ];
+
+        // Banner (z.B. das Haendlerlogo) direkt auf das Foto legen
+        $bannerUrl = trim((string) ($options['banner_url'] ?? ''));
+        if ($bannerUrl !== '' && preg_match('#^https?://#i', $bannerUrl)) {
+            $payload['mediaInput']['imageData'][0]['clientMetaData'] = [
+                'banner_urls' => [$bannerUrl],
+                'banner_copy' => '0',
+            ];
+        }
 
         $response = self::request(self::SUBMIT_URL, $payload);
 

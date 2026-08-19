@@ -153,11 +153,32 @@ switch ($action) {
             // Nur anstossen und sofort antworten: Shared Hosting kappt
             // Anfragen nach wenigen Sekunden, Spyne braucht aber bis zu
             // zwei Minuten. Die Oberflaeche fragt per spyne_status nach.
+            // Kennzeichen und Banner nach den Betreiber-Einstellungen:
+            // 'logo' setzt das Logo des jeweiligen Autohauses aufs Kennzeichen.
+            $plateSetting = (string) (\App\Service\SettingsService::get('spyne_plate') ?? 'off');
+            $plate = '0';
+            if ($plateSetting === 'white') {
+                $plate = '1';
+            } elseif ($plateSetting === 'logo') {
+                $logoPath = (string) (App\Core\Database::scalar(
+                    'SELECT logo_path FROM dealerships WHERE id = :d',
+                    ['d' => $dealershipId]
+                ) ?: '');
+                // Ohne Logo bleibt die weisse Flaeche: besser als ein leerer Link.
+                $plate = $logoPath !== '' ? upload_url($logoPath) : '1';
+            }
+            $spyneOptions = ['plate' => $plate];
+            $bannerUrl = trim((string) (\App\Service\SettingsService::get('spyne_banner_url') ?? ''));
+            if ($bannerUrl !== '') {
+                $spyneOptions['banner_url'] = $bannerUrl;
+            }
+
             try {
                 $job = App\Integration\SpyneService::submitJob(
                     upload_url((string) $image['file_path']),
                     $key,
-                    'Fahrzeug-' . $vehicleId
+                    'Fahrzeug-' . $vehicleId,
+                    $spyneOptions
                 );
             } catch (\Throwable $e) {
                 json_response(false, null, $e->getMessage(), 422);

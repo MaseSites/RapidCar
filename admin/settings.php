@@ -20,6 +20,23 @@ require_super_admin();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
+    if ($action === 'spyne_options') {
+        $plate = (string) ($_POST['spyne_plate'] ?? 'off');
+        if (!in_array($plate, ['off', 'white', 'logo'], true)) {
+            $plate = 'off';
+        }
+        SettingsService::set('spyne_plate', $plate);
+        $bannerUrl = trim((string) ($_POST['spyne_banner_url'] ?? ''));
+        if ($bannerUrl !== '' && !preg_match('#^https://#i', $bannerUrl)) {
+            Session::flash('danger', 'Die Banner-Adresse muss mit https:// beginnen.');
+            redirect('admin/settings.php');
+        }
+        SettingsService::set('spyne_banner_url', $bannerUrl);
+        ActivityLogger::log((int) $currentUser['id'], 'admin.spyne_options', 'Spyne-Optionen gespeichert');
+        Session::flash('success', 'Spyne-Optionen gespeichert.');
+        redirect('admin/settings.php');
+    }
+
     if ($action === 'spyne_scene_add') {
         $sceneId = trim((string) ($_POST['scene_id'] ?? ''));
         $sceneLabel = trim((string) ($_POST['scene_label'] ?? ''));
@@ -98,6 +115,27 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                         </form>
                     <?php endforeach; ?>
                 </div>
+                <?php
+                $spynePlate = (string) (\App\Service\SettingsService::get('spyne_plate') ?? 'off');
+                $spyneBanner = (string) (\App\Service\SettingsService::get('spyne_banner_url') ?? '');
+                ?>
+                <form method="post" class="mb-2" style="padding:12px 14px;border:1px solid var(--border);border-radius:12px">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="action" value="spyne_options">
+                    <div class="form-group">
+                        <label class="form-label">Kennzeichen auf den Fotos</label>
+                        <label class="form-check"><input type="radio" name="spyne_plate" value="off" <?= $spynePlate === 'off' ? 'checked' : '' ?>> <span>Unverändert lassen</span></label>
+                        <label class="form-check"><input type="radio" name="spyne_plate" value="white" <?= $spynePlate === 'white' ? 'checked' : '' ?>> <span>Weiss überdecken</span></label>
+                        <label class="form-check"><input type="radio" name="spyne_plate" value="logo" <?= $spynePlate === 'logo' ? 'checked' : '' ?>> <span>Logo des Autohauses aufs Kennzeichen setzen (ohne Logo: weiss)</span></label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Banner auf dem Foto <span class="optional">(optional)</span></label>
+                        <input class="form-control" type="url" name="spyne_banner_url" value="<?= e($spyneBanner) ?>" placeholder="https://... (Bildadresse, z.B. ein Logo-Banner)">
+                        <div class="form-hint">Spyne legt dieses Bild auf jedes verarbeitete Foto. Leer lassen = kein Banner.</div>
+                    </div>
+                    <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Optionen speichern</button>
+                </form>
+
                 <form method="post" class="flex gap-1" style="flex-wrap:wrap;align-items:flex-end">
                     <?= App\Core\Csrf::field() ?>
                     <input type="hidden" name="action" value="spyne_scene_add">

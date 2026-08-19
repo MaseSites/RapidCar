@@ -1225,6 +1225,19 @@ check('Ergebnis kommt aus outputImage',
     str_contains($spyneSource2, "'outputImage'")
     && str_contains($spyneSource2, "'FAILED'"));
 
+// Kennzeichen-Logo und Banner: einstellbar im Admin, angewandt je Auftrag
+check('Kennzeichen kann Logo des Autohauses tragen',
+    str_contains((string) file_get_contents(BASE_PATH . '/api/vehicles/image-background.php'), "spyne_plate")
+    && str_contains((string) file_get_contents(BASE_PATH . '/api/vehicles/image-background.php'), 'logo_path'));
+check('Banner wird als clientMetaData uebergeben',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php'), 'banner_urls'));
+check('Admin bietet die Spyne-Optionen an',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_options')
+    && str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_banner_url'));
+check('Banner-Adresse nur mit https',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'muss mit https:// beginnen'));
+
+
 
 
 
