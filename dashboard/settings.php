@@ -124,6 +124,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
         <form method="post" enctype="multipart/form-data">
             <?= App\Core\Csrf::field() ?>
             <input type="hidden" name="action" value="save_dealership">
+            <?php if (!$isPrivate): ?>
             <div class="flex-center gap-2 mb-2">
                 <?php if (!empty($dealership['logo_path'])): ?>
                     <img src="<?= e(upload_url((string) $dealership['logo_path'])) ?>" alt="Logo" style="height:52px;border-radius:10px">
@@ -133,6 +134,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                     <input class="form-control" type="file" name="logo" accept="image/jpeg,image/png,image/webp">
                 </div>
             </div>
+            <?php endif; ?>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label"><?= t('auth.dealership_name') ?></label>

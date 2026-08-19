@@ -833,6 +833,24 @@ check('Onboarding spricht Privatkonten richtig an',
 check('Einstellungen sprechen Privatkonten richtig an',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/settings.php'), "'Verkäuferprofil'"));
 
+// Privatkonten sehen keine Autohaus-Felder: kein Logo, keine
+// Oeffnungszeiten, keine Website. Der Umschalter ist eine weiche Pille.
+$onboardingSource2 = file_get_contents(BASE_PATH . '/dashboard/onboarding.php');
+foreach (['Logo', 'Website', 'ffnungszeiten'] as $feld) {
+    $pos = strpos($onboardingSource2, $feld . ' <span');
+    check('Onboarding blendet ' . $feld . ' fuer Privat aus',
+        $pos !== false
+        && strrpos(substr($onboardingSource2, 0, (int) $pos), 'if (!$isPrivate)') !== false);
+}
+check('Einstellungen blenden das Logo fuer Privat aus',
+    substr_count((string) file_get_contents(BASE_PATH . '/dashboard/settings.php'), 'if (!$isPrivate)') >= 1);
+check('Inseratvorschau sagt Verkaeufer statt Autohaus',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/listing-editor.php'), "'Verkäufer'"));
+$cssSource = file_get_contents(BASE_PATH . '/assets/css/public.css');
+check('Umschalter ist eine Pille',
+    substr_count($cssSource, 'border-radius: 999px') >= 2);
+
+
 
 
 

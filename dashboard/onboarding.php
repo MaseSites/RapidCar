@@ -148,10 +148,12 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
                     <label class="form-label"><?= $isPrivate ? 'Anzeigename' : t('auth.dealership_name') ?></label>
                     <input class="form-control" type="text" name="name" value="<?= e($dealership['name'] ?? '') ?>" required>
                 </div>
+                <?php if (!$isPrivate): ?>
                 <div class="form-group">
                     <label class="form-label">Logo <span class="optional">(optional, JPG/PNG)</span></label>
                     <input class="form-control" type="file" name="logo" accept="image/jpeg,image/png,image/webp">
                 </div>
+                <?php endif; ?>
                 <div class="form-group">
                     <label class="form-label"><?= t('settings.address') ?></label>
                     <input class="form-control" type="text" name="address" value="<?= e($dealership['address'] ?? '') ?>" placeholder="Strasse Nr.">
@@ -176,6 +178,7 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
                         <input class="form-control" type="email" name="email" value="<?= e($dealership['email'] ?? '') ?>">
                     </div>
                 </div>
+                <?php if (!$isPrivate): ?>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Website <span class="optional">(optional)</span></label>
@@ -186,10 +189,13 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
                         <input class="form-control" type="text" name="instagram" value="<?= e($dealership['instagram'] ?? '') ?>" placeholder="@deinautohaus">
                     </div>
                 </div>
+                <?php endif; ?>
+                <?php if (!$isPrivate): ?>
                 <div class="form-group">
                     <label class="form-label">Öffnungszeiten <span class="optional">(optional)</span></label>
                     <textarea class="form-control" name="opening_hours" rows="2" placeholder="Mo bis Fr 08:00 bis 18:00&#10;Sa 09:00 bis 16:00"><?= e($dealership['opening_hours'] ?? '') ?></textarea>
                 </div>
+                <?php endif; ?>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label"><?= t('settings.currency') ?></label>

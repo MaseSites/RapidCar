@@ -130,7 +130,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             <?php endif; ?>
 
             <div class="preview-block preview-dealer">
-                <h3><?= t('header.dealership') ?></h3>
+                <h3><?= (($dealership['account_type'] ?? 'dealer') === 'private') ? 'Verkäufer' : t('header.dealership') ?></h3>
                 <div class="fw-600"><?= e((string) ($dealership['name'] ?? '')) ?></div>
                 <div class="text-sm text-secondary">
                     <?= e(trim(((string) ($dealership['zip'] ?? '')) . ' ' . ((string) ($dealership['city'] ?? '')))) ?>
