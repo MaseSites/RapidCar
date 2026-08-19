@@ -50,13 +50,7 @@ $flashes = Session::pullFlashes();
                 <?= icon('car') ?> Fahrzeuge
             </a>
             <a class="nav-item <?= $activeNav === 'orders' ? 'active' : '' ?>" href="<?= base_url('admin/orders.php') ?>">
-                <?= icon('tag') ?> <?= t('credits.orders') ?>
-                <?php
-                $pendingOrders = (int) \App\Core\Database::scalar(
-                    "SELECT COUNT(*) FROM credit_orders WHERE status = 'pending'"
-                );
-                ?>
-                <?php if ($pendingOrders > 0): ?><span class="count"><?= $pendingOrders ?></span><?php endif; ?>
+                <?= icon('tag') ?> Bestellverlauf
             </a>
             <a class="nav-item <?= $activeNav === 'activity' ? 'active' : '' ?>" href="<?= base_url('admin/activity.php') ?>">
                 <?= icon('activity') ?> Aktivitätsprotokoll

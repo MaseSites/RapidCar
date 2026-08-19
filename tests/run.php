@@ -910,8 +910,9 @@ $creditsPage = file_get_contents(BASE_PATH . '/dashboard/credits.php');
 check('Testkauf ohne Zahlung ist abgeschafft',
     !str_contains($creditsPage, 'card_number')
     && !str_contains($creditsPage, 'completeOrder(' . chr(36) . 'orderId, (int) ' . chr(36) . 'currentUser'));
-check('ohne Anbieter bleibt die Bestellung offen',
-    str_contains($creditsPage, "t('credits.order_recorded')"));
+check('ohne Stripe gibt es keinen Kauf',
+    str_contains($creditsPage, "t('credits.payment_unavailable')")
+    && str_contains($creditsPage, 'CreditService::cancelOrder($orderId)'));
 
 $paymentSource = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
 check('Preis kommt aus der Bestellung, nie vom Kaeufer',
@@ -1089,6 +1090,18 @@ check('beide Schemata kennen das Protokoll',
 check('auch spaete Zahlungen (Bankueberweisung) schreiben gut',
     str_contains((string) file_get_contents(BASE_PATH . '/src/Service/PaymentService.php'),
         'checkout.session.async_payment_succeeded'));
+
+// Die manuelle Freigabe ist abgeschafft: der Admin zeigt nur noch den
+// Bestellverlauf, gutgeschrieben wird ausschliesslich durch Stripe.
+$ordersSource = file_get_contents(BASE_PATH . '/admin/orders.php');
+check('keine Freigabe mehr im Admin',
+    !str_contains($ordersSource, 'mark_paid')
+    && !str_contains($ordersSource, 'Freigeben'));
+check('Bestellverlauf zeigt den Zahlzeitpunkt',
+    str_contains($ordersSource, 'Bezahlt am'));
+check('manuelle Gutschrift bleibt als Werkzeug',
+    str_contains($ordersSource, "'grant'"));
+
 
 
 

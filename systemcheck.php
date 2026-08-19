@@ -248,9 +248,7 @@ check(
     true,
     $paymentProvider === 'stripe' && $paymentKey && $paymentHook
         ? 'Stripe aktiv'
-        : ($paymentProvider === 'stripe'
-            ? 'Stripe vorbereitet, Schluessel fehlen (Freigabe von Hand im Admin)'
-            : 'Freigabe von Hand im Admin'),
+        : 'Stripe nicht eingerichtet: Kauf ist deaktiviert',
     $paymentProvider === 'stripe' && (!$paymentKey || !$paymentHook)
         ? 'payment.api_key (sk_...) und payment.webhook_secret (whsec_...) in config/config.php eintragen.'
         : ''

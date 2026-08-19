@@ -1,9 +1,10 @@
 <?php
 /**
- * Admin: Guthaben-Bestellungen freigeben und Guthaben gutschreiben.
+ * Admin: Bestellverlauf aller Konten.
  *
- * Solange kein Zahlungsanbieter angebunden ist, gibt der Betreiber das
- * Guthaben hier manuell frei. Es wird keine Zahlung vorgetäuscht.
+ * Reine Ansicht: Zahlungen laufen vollstaendig ueber Stripe, gutgeschrieben
+ * wird automatisch beim Zahlungseingang. Es gibt nichts freizugeben.
+ * Einzig die manuelle Gutschrift (Kulanz) bleibt als Werkzeug.
  */
 
 declare(strict_types=1);
@@ -24,21 +25,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
     $adminId = (int) $currentUser['id'];
 
-    if ($action === 'mark_paid') {
-        $orderId = (int) ($_POST['order_id'] ?? 0);
-        try {
-            CreditService::completeOrder($orderId, $adminId);
-            ActivityLogger::log($adminId, 'admin.order_paid', "Bestellung #{$orderId} als bezahlt markiert, Guthaben gutgeschrieben", 'credit_order', $orderId);
-            Session::flash('success', 'Bestellung freigegeben und Guthaben gutgeschrieben.');
-        } catch (\RuntimeException $e) {
-            Session::flash('danger', $e->getMessage());
-        }
-    } elseif ($action === 'cancel') {
-        $orderId = (int) ($_POST['order_id'] ?? 0);
-        CreditService::cancelOrder($orderId);
-        ActivityLogger::log($adminId, 'admin.order_cancelled', "Bestellung #{$orderId} storniert", 'credit_order', $orderId);
-        Session::flash('success', 'Bestellung storniert.');
-    } elseif ($action === 'grant') {
+    if ($action === 'grant') {
         $dealershipId = (int) ($_POST['dealership_id'] ?? 0);
         $amount = (int) ($_POST['amount'] ?? 0);
         if ($dealershipId > 0 && $amount > 0 && $amount <= 1000) {
@@ -56,9 +43,8 @@ $orders = Database::fetchAll(
     'SELECT o.*, d.name AS dealership_name, d.credits AS current_credits
      FROM credit_orders o
      INNER JOIN dealerships d ON d.id = o.dealership_id
-     ORDER BY CASE o.status WHEN :pending THEN 0 ELSE 1 END, o.id DESC
-     LIMIT 100',
-    ['pending' => 'pending']
+     ORDER BY o.id DESC
+     LIMIT 100'
 );
 
 $dealerships = Database::fetchAll('SELECT id, name, credits FROM dealerships ORDER BY name');
@@ -71,11 +57,7 @@ require BASE_PATH . '/includes/layout/admin-header.php';
 <div class="page-head">
     <div>
         <h1><?= t('credits.orders') ?></h1>
-        <div class="sub">
-            <?php if (!CreditService::paymentConfigured()): ?>
-                <?= t('credits.payment_not_connected') ?>
-            <?php endif; ?>
-        </div>
+        <div class="sub">Zahlungen laufen automatisch über Stripe. Diese Seite ist nur der Verlauf.</div>
     </div>
 </div>
 
@@ -93,7 +75,7 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                     <tr>
                         <th>ID</th><th><?= t('common.date') ?></th><th><?= t('settings.dealership') ?></th>
                         <th><?= t('credits.balance_unit') ?></th><th><?= t('common.price') ?></th>
-                        <th><?= t('common.status') ?></th><th><?= t('common.actions') ?></th>
+                        <th><?= t('common.status') ?></th><th>Bezahlt am</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,25 +105,8 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                                 ?>
                                 <span class="badge <?= $badge ?>"><?= e($label) ?></span>
                             </td>
-                            <td>
-                                <?php if ($status === 'pending'): ?>
-                                    <div class="flex gap-1">
-                                        <form method="post" data-confirm="Bestellung freigeben und Guthaben gutschreiben?" data-confirm-tone="success">
-                                            <?= App\Core\Csrf::field() ?>
-                                            <input type="hidden" name="action" value="mark_paid">
-                                            <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                            <button class="btn btn-primary btn-sm" type="submit"><?= icon('check', 14) ?> Freigeben</button>
-                                        </form>
-                                        <form method="post">
-                                            <?= App\Core\Csrf::field() ?>
-                                            <input type="hidden" name="action" value="cancel">
-                                            <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-                                            <button class="btn btn-secondary btn-sm" type="submit"><?= t('common.cancel') ?></button>
-                                        </form>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-muted">-</span>
-                                <?php endif; ?>
+                            <td class="text-muted" style="white-space:nowrap">
+                                <?= $order['paid_at'] !== null ? e(format_datetime((string) $order['paid_at'])) : '-' ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

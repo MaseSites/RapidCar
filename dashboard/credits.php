@@ -68,10 +68,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         exit;
     }
 
-    // Ohne Zahlungsanbieter wird nichts gutgeschrieben: die Bestellung
-    // bleibt offen, bis der Betreiber den Zahlungseingang im Admin bestaetigt.
-    // Einen Kauf ohne Zahlung gibt es nicht (Paragraf 72).
-    Session::flash('info', t('credits.order_recorded'));
+    // Ohne eingerichtetes Stripe gibt es keinen Kauf: eine manuelle
+    // Freigabe existiert nicht mehr, und vorgetaeuscht wird nichts
+    // (Paragraf 72). Die eben angelegte Bestellung wird storniert.
+    CreditService::cancelOrder($orderId);
+    Session::flash('danger', t('credits.payment_unavailable'));
     redirect('dashboard/credits.php');
 }
 
@@ -183,7 +184,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                     <?= t('credits.buy') ?> · <span id="creditCtaAmount"></span>
                 </button>
                 <?php if (!$stripeReady): ?>
-                    <div class="form-hint" style="margin-top:8px"><?= t('credits.order_notice') ?></div>
+                    <div class="form-hint" style="margin-top:8px"><?= t('credits.payment_unavailable') ?></div>
                 <?php endif; ?>
             </form>
 
