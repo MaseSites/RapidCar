@@ -53,6 +53,12 @@ function base_url(string $path = ''): string
         }
 
         if ($configured !== '') {
+            // Kommt die Anfrage ueber HTTPS, die Konfiguration nennt aber http,
+            // wuerden alle Links den Besucher aus der sicheren Verbindung
+            // hinauswerfen. Das Schema der Anfrage gilt.
+            if (str_starts_with($configured, 'http://') && \App\Core\Session::isHttps()) {
+                $configured = 'https://' . substr($configured, 7);
+            }
             $base = rtrim($configured, '/');
         } else {
             $scheme = \App\Core\Session::isHttps() ? 'https' : 'http';

@@ -69,30 +69,70 @@ Installer weist am Ende selbst darauf hin.
 
 ## 4. Konfiguration ergänzen
 
-`config/config.php` im Dateimanager öffnen und eintragen:
+Der Installer schreibt bereits Adresse, Schlüssel, Datenbank, Zeitzone und den
+Mailversand. Von Hand kommt nur dazu, was der Installer nicht wissen kann: die
+Zugänge zu den Diensten.
+
+`config/config.php` im Dateimanager öffnen und ergänzen:
 
 ```php
-'app' => [
-    'url'   => 'https://deine-domain.tld',
-    'debug' => false,            // im Betrieb immer false
-],
-
 'ai' => [
     'mode'         => 'live',
     'api_key'      => 'sk-...',  // OpenAI
     'model'        => 'gpt-4o-mini',
     'vision_model' => 'gpt-5.5',
 ],
+```
 
+Diese Werte gehören dem Betreiber. Ein Autohaus muss nie eine Serverdatei
+anfassen: es meldet sich an und verbindet seine Kanäle im Dashboard.
+
+### Was der Installer setzt
+
+| Schlüssel | Wert | Bedeutung |
+|---|---|---|
+| `app.url` | die Adresse der Anfrage | Links in E-Mails und Rücksprungadressen |
+| `app.debug` | `false` | keine internen Angaben auf der Fehlerseite |
+| `app.timezone` | Zeitzone des Servers | ein Server steht sonst auf UTC |
+| `app.force_https` | `false` | Weiterleitung erledigt Plesk |
+| `db.driver` | `mysql` | SQLite ist nur für den Entwicklungsrechner |
+| `mail.driver` | `mail`, sonst `log` | je nachdem, ob `mail()` erlaubt ist |
+| `mail.contact` | dein Betreiberkonto | Empfänger des Kontaktformulars |
+| `features.email_verification` | wie `mail.driver` | ohne Versand aus, sonst an |
+
+### Mailversand
+
+`mail` nutzt die Mailfunktion des Servers und genügt auf Plesk meistens.
+Landen die Nachrichten im Spam, ist SMTP der zuverlässigere Weg:
+
+```php
 'mail' => [
-    'driver'    => 'mail',       // Plesk liefert lokal aus
-    'from'      => 'noreply@deine-domain.tld',
-    'from_name' => 'RapidCar',
+    'driver'     => 'smtp',
+    'host'       => 'mail.deine-domain.tld',
+    'port'       => 587,
+    'username'   => 'noreply@deine-domain.tld',
+    'password'   => '...',
+    'encryption' => 'tls',
+    'from'       => 'noreply@deine-domain.tld',
 ],
 ```
 
-Ohne echten Mailversand (`driver => 'log'`) bleibt die Bestätigung von
-E-Mail-Adressen abgeschaltet, damit sich niemand aussperrt.
+Bleibt der Treiber auf `log`, wird nichts verschickt. Die Anwendung merkt das
+und schaltet die Bestätigung von E-Mail-Adressen ab, damit sich niemand
+aussperrt. Sie täuscht keinen Versand vor.
+
+### https erzwingen
+
+Normalerweise übernimmt das Plesk unter Hosting-Einstellungen mit
+*Permanente SEO-sichere 301-Umleitung von HTTP zu HTTPS*. Geht das nicht,
+erledigt es die Anwendung:
+
+```php
+'app' => ['force_https' => true],
+```
+
+Nur einschalten, wenn ein gültiges Zertifikat vorhanden ist. Sonst entsteht
+eine Weiterleitungsschleife.
 
 ### Wenn Links auf localhost zeigen
 

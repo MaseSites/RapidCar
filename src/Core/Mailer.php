@@ -12,9 +12,35 @@ namespace App\Core;
  */
 final class Mailer
 {
+    /**
+     * Absenderadresse. Ohne Eintrag entsteht sie aus der eigenen Domain,
+     * damit Mails nicht mit einer fremden Adresse hinausgehen und am
+     * Spamfilter hängen bleiben.
+     */
+    private static function fromAddress(): string
+    {
+        $configured = trim((string) Config::get('mail.from', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+        $host = (string) parse_url((string) base_url(), PHP_URL_HOST);
+        return 'noreply@' . ($host !== '' ? $host : 'localhost');
+    }
+
+    /**
+     * Name, mit dem sich der Server beim Mailserver meldet.
+     */
+    private static function heloHost(): string
+    {
+        $host = (string) parse_url((string) base_url(), PHP_URL_HOST);
+        return $host !== '' ? $host : 'localhost';
+    }
+
     public static function send(string $to, string $subject, string $htmlBody): bool
     {
-        $driver = (string) Config::get('mail.driver', 'log');
+        // Auf einem Server ist der Versand ueber die Mailfunktion die Vorgabe.
+        // 'log' bleibt moeglich, muss aber ausdruecklich gesetzt werden.
+        $driver = (string) Config::get('mail.driver', 'mail');
 
         try {
             return match ($driver) {
@@ -48,7 +74,7 @@ final class Mailer
 
     private static function sendViaMail(string $to, string $subject, string $htmlBody): bool
     {
-        $from = (string) Config::get('mail.from', 'noreply@localhost');
+        $from = self::fromAddress();
         $fromName = (string) Config::get('mail.from_name', 'RapidCar');
 
         $headers = [
@@ -67,7 +93,7 @@ final class Mailer
         $username = (string) Config::get('mail.username', '');
         $password = (string) Config::get('mail.password', '');
         $encryption = (string) Config::get('mail.encryption', 'tls'); // tls (STARTTLS) | ssl | none
-        $from = (string) Config::get('mail.from', $username);
+        $from = self::fromAddress();
         $fromName = (string) Config::get('mail.from_name', 'RapidCar');
 
         if ($host === '') {
@@ -103,7 +129,7 @@ final class Mailer
         };
 
         $expect($read(), [220]);
-        $write('EHLO ' . (parse_url((string) Config::get('app.url', 'localhost'), PHP_URL_HOST) ?: 'localhost'));
+        $write('EHLO ' . self::heloHost());
         $expect($read(), [250]);
 
         if ($encryption === 'tls') {
@@ -113,7 +139,7 @@ final class Mailer
                 fclose($socket);
                 throw new \RuntimeException('STARTTLS fehlgeschlagen.');
             }
-            $write('EHLO ' . (parse_url((string) Config::get('app.url', 'localhost'), PHP_URL_HOST) ?: 'localhost'));
+            $write('EHLO ' . self::heloHost());
             $expect($read(), [250]);
         }
 

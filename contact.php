@@ -1,6 +1,7 @@
 <?php
 /**
- * Kontaktformular — Nachricht wird per Mailer versendet (Log-Treiber in Entwicklung).
+ * Kontaktformular. Die Nachricht geht an die Betreiberadresse: entweder an
+ * mail.contact aus der Konfiguration oder an das erste Betreiberkonto.
  */
 
 declare(strict_types=1);
@@ -10,6 +11,7 @@ require_once __DIR__ . '/includes/csrf.php';
 
 use App\Auth\RateLimiter;
 use App\Core\Config;
+use App\Core\Database;
 use App\Core\Mailer;
 use App\Core\Validator;
 
@@ -30,14 +32,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $error = 'Zu viele Nachrichten. Bitte versuche es später erneut.';
     } else {
         RateLimiter::hit('contact', $ip);
-        $to = (string) Config::get('mail.from', 'noreply@localhost');
-        Mailer::send(
-            $to,
-            'Kontaktanfrage von ' . $v->value('name'),
-            '<p><strong>Name:</strong> ' . e($v->value('name')) . '</p>'
-            . '<p><strong>E-Mail:</strong> ' . e($v->value('email')) . '</p>'
-            . '<p>' . nl2br(e($v->value('message'))) . '</p>'
-        );
+        $to = trim((string) Config::get('mail.contact', ''));
+        if ($to === '') {
+            // Ohne festen Eintrag geht die Nachricht an den Betreiber.
+            $stmt = Database::connection()->query(
+                "SELECT email FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id LIMIT 1"
+            );
+            $to = (string) ($stmt->fetchColumn() ?: '');
+        }
+        if ($to === '') {
+            $to = (string) Config::get('mail.from', '');
+        }
+        if ($to !== '') {
+            Mailer::send(
+                $to,
+                'Kontaktanfrage von ' . $v->value('name'),
+                '<p><strong>Name:</strong> ' . e($v->value('name')) . '</p>'
+                . '<p><strong>E-Mail:</strong> ' . e($v->value('email')) . '</p>'
+                . '<p>' . nl2br(e($v->value('message'))) . '</p>'
+            );
+        }
         clear_old_input();
         $sent = true;
     }

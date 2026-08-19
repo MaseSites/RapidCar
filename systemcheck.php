@@ -89,6 +89,20 @@ check(
 );
 
 check(
+    'Zeitzone',
+    date_default_timezone_get() !== 'UTC' || (string) Config::get('app.timezone', '') === 'UTC',
+    date_default_timezone_get(),
+    'In config/config.php app.timezone setzen, z.B. Europe/Zurich.'
+);
+
+check(
+    'Sichere Verbindung',
+    $isCli || \App\Core\Session::isHttps(),
+    $isCli ? '(Kommandozeile)' : (\App\Core\Session::isHttps() ? 'https' : 'http'),
+    'Zertifikat in Plesk aktivieren und die Domain auf https umleiten.'
+);
+
+check(
     'Verschlüsselungsschlüssel gesetzt',
     trim((string) Config::get('app.key', '')) !== '',
     '',
@@ -202,12 +216,27 @@ if ($dbOk) {
 }
 
 // ------------------------------------------------------------------ E-Mail
-$mailDriver = (string) Config::get('mail.driver', 'log');
+$mailDriver = (string) Config::get('mail.driver', 'mail');
+$mailAvailable = function_exists('mail')
+    && !in_array('mail', array_map('trim', explode(',', (string) ini_get('disable_functions'))), true);
 check(
     'E-Mail-Versand',
-    true,
-    $mailDriver === 'log' ? 'log (kein Versand, Bestaetigung abgeschaltet)' : $mailDriver,
-    ''
+    $mailDriver !== 'log' && ($mailDriver !== 'mail' || $mailAvailable),
+    $mailDriver === 'log'
+        ? 'log (kein Versand, Bestaetigung abgeschaltet)'
+        : ($mailDriver === 'mail' && !$mailAvailable ? 'mail (aber mail() ist gesperrt)' : $mailDriver),
+    $mailDriver === 'log'
+        ? 'In config/config.php mail.driver auf mail setzen, damit Bestaetigungen ankommen.'
+        : 'mail() ist auf diesem Server gesperrt. In config/config.php mail.driver auf smtp setzen und die Zugangsdaten des Postfachs eintragen.'
+);
+
+$wanted = (bool) Config::get('features.email_verification', false);
+$effective = \App\Auth\EmailVerification::isEnabled();
+check(
+    'Bestaetigung der E-Mail-Adresse',
+    $wanted === $effective,
+    $effective ? 'eingeschaltet' : ($wanted ? 'gewuenscht, aber ohne Versand nicht moeglich' : 'ausgeschaltet'),
+    'Ohne echten Mailversand bleibt die Bestaetigung aus, sonst kaeme niemand hinein.'
 );
 
 // ------------------------------------------------------------------- Ausgabe

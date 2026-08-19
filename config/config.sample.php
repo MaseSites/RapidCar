@@ -1,17 +1,39 @@
 <?php
 /**
- * Beispielkonfiguration — wird vom Installer als /config/config.php erzeugt.
- * Diese Datei NIEMALS mit echten Zugangsdaten ins Versionssystem einchecken.
+ * Konfiguration für den Serverbetrieb.
+ *
+ * Der Installer erzeugt daraus /config/config.php und trägt Datenbank,
+ * Adresse und Schlüssel selbst ein. Alle Vorgaben hier sind auf einen
+ * echten Server ausgelegt, nicht auf einen Entwicklungsrechner.
+ *
+ * Diese Datei niemals mit echten Zugangsdaten ins Versionssystem einchecken.
  */
 
 return [
     'app' => [
-        'url'   => 'https://example.com',   // Basis-URL ohne abschliessenden Slash
-        'key'   => '',                       // base64-kodierter 32-Byte-Schlüssel (vom Installer generiert)
-        'debug' => false,                    // true nur in der Entwicklung
+        // Leer lassen ist der sichere Weg: die Anwendung nimmt dann die
+        // Adresse, unter der die Anfrage ankam. Ein fester Wert wird nur
+        // gebraucht, damit Links in E-Mails und die Rücksprungadressen der
+        // Kanäle stimmen; die entstehen ohne Anfrage.
+        'url'   => '',
+        'key'   => '',        // 32 Byte, base64. Der Installer erzeugt ihn.
+        'debug' => false,     // Auf einem Server immer false: sonst stehen
+                              // interne Angaben auf der Fehlerseite.
         'name'  => 'RapidCar',
+
+        // Zeitzone des Betriebs. Ein Server steht meist auf UTC, dann waeren
+        // alle Zeitangaben im Dashboard verschoben.
+        'timezone' => 'Europe/Zurich',
+
+        // Leitet http auf https um. Nur einschalten, wenn ein gueltiges
+        // Zertifikat vorhanden ist, sonst entsteht eine Weiterleitungsschleife.
+        // Auf Plesk erledigt das ueblicherweise schon die Domain-Einstellung.
+        'force_https' => false,
     ],
 
+    // Für den Betrieb ist MySQL oder MariaDB vorgesehen. SQLite ist nur für
+    // einen Entwicklungsrechner gedacht: es verträgt keine gleichzeitigen
+    // Schreibzugriffe, wie sie auf einem Server normal sind.
     'db' => [
         'driver'      => 'mysql',            // mysql | sqlite
         'host'        => 'localhost',
@@ -22,15 +44,21 @@ return [
         'sqlite_path' => __DIR__ . '/../storage/database.sqlite', // nur bei driver=sqlite
     ],
 
+    // 'mail' nutzt die Mailfunktion des Servers und genügt auf Plesk meist.
+    // 'smtp' ist zuverlässiger, wenn die Domain SPF und DKIM gesetzt hat.
+    // 'log' schreibt nur ins Protokoll und verschickt nichts; damit bleibt
+    // die Bestätigung der Adresse abgeschaltet, sonst käme niemand hinein.
     'mail' => [
-        'driver'     => 'log',               // log | mail | smtp
+        'driver'     => 'mail',              // mail | smtp | log
         'host'       => '',
         'port'       => 587,
         'username'   => '',
         'password'   => '',
         'encryption' => 'tls',               // tls | ssl | none
-        'from'       => 'noreply@example.com',
+        'from'       => '',                  // leer = noreply@<Domain>
         'from_name'  => 'RapidCar',
+        'contact'    => '',                  // Empfaenger des Kontaktformulars,
+                                             // leer = erstes Betreiberkonto
     ],
 
     'features' => [

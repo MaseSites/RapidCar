@@ -106,6 +106,15 @@ final class Session
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
             return true;
         }
-        return ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+        // Plesk und die meisten Hoster stellen einen nginx davor. Dann kommt
+        // die Anfrage intern als http an, und nur diese Kopfzeilen verraten,
+        // dass der Besucher ueber HTTPS gekommen ist.
+        if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
+            return true;
+        }
+        if (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on') {
+            return true;
+        }
+        return (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
     }
 }

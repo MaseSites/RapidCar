@@ -24,7 +24,13 @@ final class EmailVerification
         // Mit dem Treiber "log" landen Mails nur in einer Protokolldatei und
         // erreichen niemanden. Die Pflicht wuerde jeden aussperren, deshalb
         // greift sie erst, wenn echter Versand (mail/smtp) eingerichtet ist.
-        $canDeliver = strtolower((string) Config::get('mail.driver', 'log')) !== 'log';
+        $driver = strtolower((string) Config::get('mail.driver', 'mail'));
+        $canDeliver = $driver !== 'log';
+        // Manche Hoster sperren mail(). Dann kaeme ebenfalls nichts an.
+        if ($driver === 'mail') {
+            $canDeliver = function_exists('mail')
+                && !in_array('mail', array_map('trim', explode(',', (string) ini_get('disable_functions'))), true);
+        }
         return $enabled && $canDeliver;
     }
 

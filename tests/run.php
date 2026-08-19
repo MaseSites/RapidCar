@@ -669,6 +669,55 @@ check('Weiterleitungen bauen ueber base_url',
 check('Adressen ohne Konfiguration entstehen aus der Anfrage',
     str_contains($functionsSource, 'HTTP_HOST'));
 
+check('base_url hebt http auf https, wenn die Anfrage sicher ist',
+    str_contains($functionsSource, 'str_starts_with($configured, ' . "'http://'" . ')'));
+
+echo "
+"; echo "Serverbetrieb"; echo "
+";
+
+// Die Vorgaben muessen auf einen echten Server passen, nicht auf einen
+// Entwicklungsrechner. Sonst schreibt eine frische Installation Mails ins
+// Protokoll statt sie zu verschicken.
+$mailerSource = file_get_contents(BASE_PATH . '/src/Core/Mailer.php');
+check('Mailversand ist die Vorgabe, nicht das Protokoll',
+    str_contains($mailerSource, "Config::get('mail.driver', 'mail')"));
+check('Absender entsteht aus der eigenen Domain',
+    str_contains($mailerSource, 'private static function fromAddress'));
+check('kein noreply@localhost mehr im Versand',
+    !str_contains($mailerSource, "noreply@localhost'"));
+
+$sampleSource = file_get_contents(BASE_PATH . '/config/config.sample.php');
+$sample = require BASE_PATH . '/config/config.sample.php';
+check('Beispielkonfiguration ohne feste Adresse', ($sample['app']['url'] ?? 'x') === '');
+check('Beispielkonfiguration ohne Fehleranzeige', ($sample['app']['debug'] ?? true) === false);
+check('Beispielkonfiguration mit Zeitzone', ($sample['app']['timezone'] ?? '') !== '');
+check('Beispielkonfiguration kennt die https-Weiterleitung',
+    array_key_exists('force_https', $sample['app'] ?? []));
+check('Beispielkonfiguration verschickt Mails', ($sample['mail']['driver'] ?? '') === 'mail');
+check('Beispielkonfiguration nennt MySQL', ($sample['db']['driver'] ?? '') === 'mysql');
+check('Beispielkonfiguration hat einen Kontaktempfaenger',
+    array_key_exists('contact', $sample['mail'] ?? []));
+
+$bootstrapSource = file_get_contents(BASE_PATH . '/includes/bootstrap.php');
+check('Zeitzone wird gesetzt', str_contains($bootstrapSource, 'date_default_timezone_set'));
+check('Ordner werden bei Bedarf angelegt', str_contains($bootstrapSource, "BASE_PATH . '/storage/logs'"));
+check('https laesst sich erzwingen', str_contains($bootstrapSource, "app.force_https"));
+check('HSTS nur ueber https', str_contains($bootstrapSource, 'Strict-Transport-Security'));
+
+$sessionSource = file_get_contents(BASE_PATH . '/src/Core/Session.php');
+check('https hinter einem Proxy wird erkannt',
+    str_contains($sessionSource, 'HTTP_X_FORWARDED_SSL') && str_contains($sessionSource, 'SERVER_PORT'));
+
+$installerSource = file_get_contents(BASE_PATH . '/install/index.php');
+check('Installer prueft den Mailversand', str_contains($installerSource, '$canSendMail'));
+check('Installer schaltet die Bestaetigung nur mit Mailversand ein',
+    str_contains($installerSource, "'email_verification' => $canSendMail"));
+
+$databaseSource = file_get_contents(BASE_PATH . '/src/Core/Database.php');
+check('Datenbankverbindung hat ein Zeitlimit', str_contains($databaseSource, 'PDO::ATTR_TIMEOUT'));
+
+
 
 echo "Spyne\n";
 $ccSavedProvider = (string) Config::get('background.provider', '');

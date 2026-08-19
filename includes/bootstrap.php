@@ -32,10 +32,24 @@ use App\Core\Session;
 error_reporting(E_ALL);
 
 Config::load();
+
+// Auf einem frisch aufgesetzten Server gibt es diese Ordner noch nicht. Ohne
+// sie schreibt PHP das Fehlerprotokoll ins Leere, und genau dann braucht man
+// es am dringendsten.
+foreach ([BASE_PATH . '/storage', BASE_PATH . '/storage/logs', BASE_PATH . '/uploads'] as $required) {
+    if (!is_dir($required)) {
+        @mkdir($required, 0775, true);
+    }
+}
+
 $debug = (bool) filter_var(Config::get('app.debug', false), FILTER_VALIDATE_BOOL);
 ini_set('display_errors', $debug ? '1' : '0');
 ini_set('log_errors', '1');
 ini_set('error_log', BASE_PATH . '/storage/logs/php-errors.log');
+
+// Ein Server steht meist auf UTC. Ohne diese Zeile waeren alle Zeitstempel
+// im Dashboard um ein bis zwei Stunden verschoben.
+date_default_timezone_set((string) Config::get('app.timezone', 'Europe/Zurich'));
 
 set_exception_handler(static function (\Throwable $e) use ($debug): void {
     Logger::error(get_class($e) . ': ' . $e->getMessage(), [
@@ -69,12 +83,29 @@ register_shutdown_function(static function () use ($debug): void {
 });
 
 // ---------------------------------------------------------------------------
+// HTTPS erzwingen, sofern in der Konfiguration verlangt. Standard ist aus,
+// damit eine Domain ohne Zertifikat nicht in einer Schleife landet.
+// ---------------------------------------------------------------------------
+if (!Session::isHttps()
+    && filter_var(Config::get('app.force_https', false), FILTER_VALIDATE_BOOL)
+    && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
+    && PHP_SAPI !== 'cli'
+    && !headers_sent()
+) {
+    header('Location: https://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+    exit;
+}
+
+// ---------------------------------------------------------------------------
 // Sicherheits-Header
 // ---------------------------------------------------------------------------
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: same-origin');
+    if (Session::isHttps()) {
+        header('Strict-Transport-Security: max-age=31536000');
+    }
     // Seiten enthalten ihr Skript inline und aendern sich mit jedem
     // Speichern. Ohne diese Angabe zeigen manche Browser nach dem
     // Zurueckspringen eine alte Fassung samt altem Skript.

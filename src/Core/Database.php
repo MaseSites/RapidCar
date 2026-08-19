@@ -40,6 +40,9 @@ final class Database
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
+            // Antwortet der Datenbankserver nicht, soll die Seite nach zehn
+            // Sekunden mit einem Fehler enden statt endlos zu haengen.
+            PDO::ATTR_TIMEOUT            => 10,
         ];
 
         try {

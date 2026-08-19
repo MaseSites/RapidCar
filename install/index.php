@@ -285,12 +285,21 @@ function install_finalize(array $state, bool $withDemo): true|string
     $basePath = preg_replace('#/install/?$#', '', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
     $appUrl = $scheme . '://' . $host . rtrim(str_replace('\\', '/', (string) $basePath), '/');
 
+    // Kann der Server E-Mails verschicken? Nur dann wird die Bestaetigung
+    // der Adresse eingeschaltet, sonst sperrt sich der erste Nutzer aus.
+    $canSendMail = function_exists('mail')
+        && !in_array('mail', array_map('trim', explode(',', (string) ini_get('disable_functions'))), true);
+    $mailDomain = strtolower(explode(':', $host)[0]);
+
     $config = [
         'app' => [
             'url'   => $appUrl,
             'key'   => $appKey,
             'debug' => false,
             'name'  => 'RapidCar',
+            'timezone' => date_default_timezone_get() ?: 'Europe/Zurich',
+            // Weiterleitung auf https uebernimmt normalerweise der Hoster.
+            'force_https' => false,
         ],
         'db' => [
             'driver'      => $db['driver'],
@@ -302,10 +311,12 @@ function install_finalize(array $state, bool $withDemo): true|string
             'sqlite_path' => BASE_PATH . '/storage/database.sqlite',
         ],
         'mail' => [
-            'driver' => 'log', 'host' => '', 'port' => 587, 'username' => '', 'password' => '',
-            'encryption' => 'tls', 'from' => 'noreply@' . $host, 'from_name' => 'RapidCar',
+            'driver' => $canSendMail ? 'mail' : 'log',
+            'host' => '', 'port' => 587, 'username' => '', 'password' => '',
+            'encryption' => 'tls', 'from' => 'noreply@' . $mailDomain, 'from_name' => 'RapidCar',
+            'contact' => $admin['email'],
         ],
-        'features' => ['email_verification' => false],
+        'features' => ['email_verification' => $canSendMail],
         'ai' => ['mode' => 'mock', 'api_url' => '', 'api_key' => '', 'model' => ''],
         'autoscout' => [
             'client_id' => '', 'client_secret' => '', 'redirect_uri' => '',
