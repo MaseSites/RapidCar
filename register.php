@@ -72,24 +72,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 clear_old_input();
                 RateLimiter::clear('register', $ip);
 
-                // Der Mailversand darf die Registrierung nicht scheitern
-                // lassen: das Konto besteht bereits.
-                $mailSent = false;
+                // Mit Bestaetigungspflicht gibt es keinen Weg an der E-Mail
+                // vorbei: kein automatisches Einloggen, auch nicht wenn der
+                // Versand scheitert. Die Anmeldeseite verschickt bei Bedarf
+                // einen frischen Link.
                 if (EmailVerification::isEnabled()) {
+                    $mailSent = false;
                     try {
-                        EmailVerification::send($userId, $v->value('email'));
-                        $mailSent = true;
+                        $mailSent = EmailVerification::send($userId, $v->value('email'));
                     } catch (\Throwable $e) {
                         \App\Core\Logger::error('Bestaetigungsmail fehlgeschlagen: ' . $e->getMessage());
                     }
-                }
-
-                if ($mailSent) {
-                    Session::flash('info', 'Bitte überprüfe deine E-Mail-Adresse, um dein Konto zu aktivieren.');
+                    if ($mailSent) {
+                        Session::flash('info', 'Fast geschafft: Wir haben dir eine E-Mail geschickt. Bitte bestätige deine Adresse, danach kannst du dich anmelden.');
+                    } else {
+                        // Ehrlich bleiben: kein "pruefe dein Postfach", wenn
+                        // nichts angekommen sein kann.
+                        Session::flash('info', 'Dein Konto wurde angelegt, aber die Bestätigungs-E-Mail konnte gerade nicht verschickt werden. Melde dich in ein paar Minuten an, dann senden wir automatisch einen neuen Link.');
+                    }
                     redirect('login.php');
                 }
 
-                // Direkt einloggen und ins Onboarding
+                // Ohne Bestaetigungspflicht: direkt einloggen und ins Onboarding
                 if (AuthService::attempt($v->value('email'), (string) $_POST['password'])) {
                     redirect('dashboard/onboarding.php');
                 }

@@ -34,8 +34,12 @@ final class EmailVerification
         return $enabled && $canDeliver;
     }
 
-    /** Erstellt ein Token und versendet den Verifizierungslink. */
-    public static function send(int $userId, string $email): void
+    /**
+     * Erstellt ein Token und versendet den Verifizierungslink.
+     * Gibt zurueck, ob der Versand tatsaechlich geklappt hat: wer die
+     * Bestaetigung verlangt, darf keinen Erfolg vortaeuschen (Paragraf 72).
+     */
+    public static function send(int $userId, string $email): bool
     {
         $token = bin2hex(random_bytes(32));
         $now = Database::now();
@@ -57,7 +61,7 @@ final class EmailVerification
             . '<p>' . e($link) . '</p>'
             . '<p>Der Link ist ' . self::EXPIRY_HOURS . ' Stunden gültig.</p>';
 
-        Mailer::send($email, 'RapidCar: E-Mail-Adresse bestätigen', $body);
+        return Mailer::send($email, 'RapidCar: E-Mail-Adresse bestätigen', $body);
     }
 
     /** Verifiziert das Token; gibt die Benutzer-ID zurück oder null. */

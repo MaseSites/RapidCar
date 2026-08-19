@@ -750,6 +750,32 @@ $installerSource2 = file_get_contents(BASE_PATH . '/install/index.php');
 check('gesperrter Installer zeigt den Datenbankzustand',
     str_contains($installerSource2, 'Datenbank NICHT erreichbar'));
 
+echo "
+"; echo "Bestaetigungspflicht"; echo "
+";
+
+// Wer die Bestaetigung verlangt, darf keinen Weg daran vorbei lassen und
+// keinen Versand vortaeuschen, der nicht stattfand.
+$verificationSource = file_get_contents(BASE_PATH . '/src/Auth/EmailVerification.php');
+check('send() meldet den tatsaechlichen Versand',
+    str_contains($verificationSource, 'public static function send(int $userId, string $email): bool')
+    && str_contains($verificationSource, 'return Mailer::send('));
+
+$registerSource = file_get_contents(BASE_PATH . '/register.php');
+check('Registrierung loggt mit Pflicht niemanden automatisch ein',
+    strpos($registerSource, 'EmailVerification::isEnabled()') !== false
+    && strpos($registerSource, 'EmailVerification::isEnabled()') < strpos($registerSource, 'AuthService::attempt('));
+check('gescheiterter Versand wird ehrlich gemeldet',
+    str_contains($registerSource, 'konnte gerade nicht verschickt werden'));
+
+$loginSource = file_get_contents(BASE_PATH . '/login.php');
+check('Anmeldung weist unbestaetigte Konten ab',
+    str_contains($loginSource, "email_verified_at'] === null")
+    && str_contains($loginSource, 'AuthService::logout()'));
+check('Anmeldung schickt gedrosselt einen frischen Link',
+    str_contains($loginSource, "verify_resend"));
+
+
 
 
 
