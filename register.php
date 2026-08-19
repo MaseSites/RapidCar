@@ -27,16 +27,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $errors['_general'] = 'Zu viele Registrierungsversuche. Bitte warte '
             . RateLimiter::retryAfterMinutes('register', $ip) . ' Minuten.';
     } else {
+        // Kontoart zuerst: Autohaus braucht einen Firmennamen, eine
+        // Privatperson nicht. Der Mandant dahinter ist derselbe.
+        $accountType = ($_POST['account_type'] ?? 'dealer') === 'private' ? 'private' : 'dealer';
+
         $v = new Validator($_POST);
         $v->required('first_name', 'Vorname')->maxLength('first_name', 'Vorname', 100)
           ->required('last_name', 'Nachname')->maxLength('last_name', 'Nachname', 100)
           ->required('email', 'E-Mail')->email('email', 'E-Mail')->maxLength('email', 'E-Mail', 190)
           ->required('password', 'Passwort')->minLength('password', 'Passwort', 8)
           ->matches('password_confirm', 'password', 'Die Passwort-Wiederholung')
-          ->required('dealership_name', 'Name des Autohauses')->maxLength('dealership_name', 'Name des Autohauses', 190)
           ->required('phone', 'Telefonnummer')->maxLength('phone', 'Telefonnummer', 50)
           ->required('country', 'Land')->in('country', 'Land', ['CH', 'DE', 'AT', 'LI', 'FR', 'IT'])
           ->checked('terms', 'Bitte stimme der Datenschutzerklärung und den AGB zu.');
+        if ($accountType === 'dealer') {
+            $v->required('dealership_name', 'Name des Autohauses')->maxLength('dealership_name', 'Name des Autohauses', 190);
+        }
 
         if ($v->passes() && AuthService::emailExists($v->value('email'))) {
             $v->addError('email', 'Diese E-Mail-Adresse ist bereits registriert.');
@@ -51,14 +57,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             // Meldung statt einer weissen Fehlerseite. Die Einzelheiten
             // landen im Protokoll, nicht auf dem Bildschirm.
             try {
+                // Privatpersonen: der Mandant heisst wie sie selbst.
+                $tenantName = $accountType === 'private'
+                    ? trim($v->value('first_name') . ' ' . $v->value('last_name'))
+                    : $v->value('dealership_name');
                 $userId = AuthService::register(
                     $v->value('first_name'),
                     $v->value('last_name'),
                     $v->value('email'),
                     (string) $_POST['password'],
-                    $v->value('dealership_name'),
+                    $tenantName,
                     $v->value('phone'),
-                    $v->value('country')
+                    $v->value('country'),
+                    $accountType
                 );
             } catch (\Throwable $e) {
                 \App\Core\Logger::error('Registrierung fehlgeschlagen: ' . $e->getMessage());
@@ -115,6 +126,22 @@ require BASE_PATH . '/includes/layout/public-header.php';
 
         <form method="post" action="<?= base_url('register.php') ?>" novalidate>
             <?= App\Core\Csrf::field() ?>
+            <?php $oldType = (App\Core\Session::get('_old_input', [])['account_type'] ?? 'dealer') === 'private' ? 'private' : 'dealer'; ?>
+            <div class="form-group">
+                <div class="account-switch" role="tablist" aria-label="Kontoart">
+                    <label class="<?= $oldType === 'private' ? 'active' : '' ?>">
+                        <input type="radio" name="account_type" value="private" <?= $oldType === 'private' ? 'checked' : '' ?>>
+                        <span>Privat</span>
+                    </label>
+                    <label class="<?= $oldType === 'dealer' ? 'active' : '' ?>">
+                        <input type="radio" name="account_type" value="dealer" <?= $oldType === 'dealer' ? 'checked' : '' ?>>
+                        <span>Autohaus</span>
+                    </label>
+                </div>
+                <div class="form-hint" id="account-hint"><?= $oldType === 'private'
+                    ? 'Für den privaten Verkauf deiner Fahrzeuge.'
+                    : 'Für Händler mit eigenem Bestand und Team.' ?></div>
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="first_name"><?= t('auth.first_name') ?></label>
@@ -145,9 +172,9 @@ require BASE_PATH . '/includes/layout/public-header.php';
                     <?php if (isset($errors['password_confirm'])): ?><div class="form-error"><?= e($errors['password_confirm']) ?></div><?php endif; ?>
                 </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="dealership-name-group" <?= $oldType === 'private' ? 'hidden' : '' ?>>
                 <label class="form-label" for="dealership_name"><?= t('auth.dealership_name') ?></label>
-                <input class="form-control" type="text" id="dealership_name" name="dealership_name" value="<?= old('dealership_name') ?>" required>
+                <input class="form-control" type="text" id="dealership_name" name="dealership_name" value="<?= old('dealership_name') ?>">
                 <?php if (isset($errors['dealership_name'])): ?><div class="form-error"><?= e($errors['dealership_name']) ?></div><?php endif; ?>
             </div>
             <div class="form-row">
@@ -189,4 +216,25 @@ require BASE_PATH . '/includes/layout/public-header.php';
         </div>
     </div>
 </div>
+<script>
+(function () {
+    var group = document.getElementById('dealership-name-group');
+    var hint = document.getElementById('account-hint');
+    var radios = document.querySelectorAll('.account-switch input[type=radio]');
+    function apply() {
+        var isPrivate = document.querySelector('.account-switch input[value=private]').checked;
+        // Aktive Flaeche per Klasse markieren: manche Browser werten
+        // :checked mit Geschwister-Selektor beim Umschalten nicht neu aus.
+        document.querySelectorAll('.account-switch label').forEach(function (l) {
+            l.classList.toggle('active', l.querySelector('input').checked);
+        });
+        group.hidden = isPrivate;
+        hint.textContent = isPrivate
+            ? 'Für den privaten Verkauf deiner Fahrzeuge.'
+            : 'Für Händler mit eigenem Bestand und Team.';
+    }
+    radios.forEach(function (r) { r.addEventListener('change', apply); });
+    apply();
+})();
+</script>
 <?php require BASE_PATH . '/includes/layout/public-footer.php'; ?>

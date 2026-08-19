@@ -800,6 +800,40 @@ check('Anmeldung weist unbestaetigte Konten ab',
 check('Anmeldung schickt gedrosselt einen frischen Link',
     str_contains($loginSource, "verify_resend"));
 
+echo "
+"; echo "Kontoarten (Privat und Autohaus)"; echo "
+";
+
+// Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
+// Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
+$migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
+check('Schema-Version 15', str_contains($migratorSource2, 'CURRENT_VERSION = 15'));
+check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
+check('MySQL-Schema kennt die Kontoart',
+    str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));
+check('SQLite-Schema kennt die Kontoart',
+    str_contains((string) file_get_contents(BASE_PATH . '/database/schema.sqlite.sql'), 'account_type'));
+
+$authSource = file_get_contents(BASE_PATH . '/src/Auth/AuthService.php');
+check('Registrierung im Service kennt die Kontoart',
+    str_contains($authSource, '$accountType') && str_contains($authSource, "'account_type' => \$accountType"));
+
+$registerSource2 = file_get_contents(BASE_PATH . '/register.php');
+check('Umschalter Privat oder Autohaus vorhanden',
+    str_contains($registerSource2, 'account-switch')
+    && str_contains($registerSource2, '>Privat<') && str_contains($registerSource2, '>Autohaus<'));
+check('Firmenname nur fuer Autohaeuser Pflicht',
+    str_contains($registerSource2, "if (\$accountType === 'dealer') {"));
+check('Privatkonto heisst wie die Person',
+    str_contains($registerSource2, "trim(\$v->value('first_name') . ' ' . \$v->value('last_name'))"));
+
+$onboardingSource = file_get_contents(BASE_PATH . '/dashboard/onboarding.php');
+check('Onboarding spricht Privatkonten richtig an',
+    str_contains($onboardingSource, "'Anzeigename'") && str_contains($onboardingSource, '$isPrivate'));
+check('Einstellungen sprechen Privatkonten richtig an',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/settings.php'), "'Verkäuferprofil'"));
+
+
 
 
 

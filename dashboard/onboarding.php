@@ -30,6 +30,8 @@ if ($currentUser['onboarding_completed_at'] !== null) {
 }
 
 $dealership = Database::fetch('SELECT * FROM dealerships WHERE id = :id', ['id' => $dealershipId]);
+// Privatkonten sehen ihre eigenen Worte, kein "Autohaus".
+$isPrivate = ($dealership['account_type'] ?? 'dealer') === 'private';
 $step = max(1, min(3, (int) ($_GET['step'] ?? 1)));
 $error = null;
 
@@ -39,7 +41,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     if ($postStep === 2) {
         $v = new Validator($_POST);
-        $v->required('name', 'Autohausname')->maxLength('name', 'Autohausname', 190)
+        $nameLabel = $isPrivate ? 'Anzeigename' : 'Autohausname';
+        $v->required('name', $nameLabel)->maxLength('name', $nameLabel, 190)
           ->maxLength('address', 'Adresse', 255)
           ->maxLength('city', 'Ort', 120)
           ->maxLength('zip', 'PLZ', 20)
@@ -134,13 +137,15 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
             <a class="btn btn-accent btn-lg btn-block" href="?step=2"><?= t('onboarding.start') ?></a>
 
         <?php elseif ($step === 2): ?>
-            <h1 style="font-size:22px"><?= t('onboarding.profile_title') ?></h1>
-            <p class="text-secondary mt-1 mb-3"><?= t('onboarding.profile_lead') ?></p>
+            <h1 style="font-size:22px"><?= $isPrivate ? 'Dein Profil' : t('onboarding.profile_title') ?></h1>
+            <p class="text-secondary mt-1 mb-3"><?= $isPrivate
+                ? 'Diese Angaben erscheinen in deinen Inseraten. Alles lässt sich später ändern.'
+                : t('onboarding.profile_lead') ?></p>
             <form method="post" action="?step=2" enctype="multipart/form-data" novalidate>
                 <?= Csrf::field() ?>
                 <input type="hidden" name="step" value="2">
                 <div class="form-group">
-                    <label class="form-label"><?= t('auth.dealership_name') ?></label>
+                    <label class="form-label"><?= $isPrivate ? 'Anzeigename' : t('auth.dealership_name') ?></label>
                     <input class="form-control" type="text" name="name" value="<?= e($dealership['name'] ?? '') ?>" required>
                 </div>
                 <div class="form-group">

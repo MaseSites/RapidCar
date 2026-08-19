@@ -49,7 +49,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('dashboard/settings.php');
         }
         $v = new Validator($_POST);
-        $v->required('name', 'Autohausname')->maxLength('name', 'Autohausname', 190)
+        $nameLabel = (($dealership['account_type'] ?? 'dealer') === 'private') ? 'Anzeigename' : 'Autohausname';
+        $v->required('name', $nameLabel)->maxLength('name', $nameLabel, 190)
           ->in('currency', 'Währung', ['CHF', 'EUR'])
           ->in('language', 'Sprache', ['de', 'fr', 'it', 'en']);
 
@@ -116,7 +117,8 @@ require BASE_PATH . '/includes/layout/dash-header.php';
 
 <!-- ============================================ Autohaus-Profil (§15) -->
 <div class="card mb-3" id="dealership">
-    <div class="card-header"><h2><?= t('settings.dealership') ?></h2></div>
+    <?php $isPrivate = ($dealership['account_type'] ?? 'dealer') === 'private'; ?>
+    <div class="card-header"><h2><?= $isPrivate ? 'Verkäuferprofil' : t('settings.dealership') ?></h2></div>
     <div class="card-body">
         <p class="text-sm text-secondary mb-2"><?= t('settings.dealership_lead') ?></p>
         <form method="post" enctype="multipart/form-data">

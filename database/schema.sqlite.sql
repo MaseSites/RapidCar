@@ -8,6 +8,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS dealerships (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
+    account_type   TEXT NOT NULL DEFAULT 'dealer', -- dealer | private
     logo_path     TEXT,
     address       TEXT,
     zip           TEXT,

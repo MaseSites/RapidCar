@@ -59,7 +59,7 @@ require BASE_PATH . '/includes/layout/public-header.php';
 ?>
 <div class="auth-wrap">
     <div class="auth-card">
-        <div style="text-align:center; margin-bottom:14px; color:var(--accent, #1d4fd7);">
+        <div style="text-align:center; margin-bottom:14px; color:var(--primary);">
             <?= icon('mail', 44) ?>
         </div>
         <h1 style="text-align:center">Bitte bestätige deine E-Mail-Adresse</h1>

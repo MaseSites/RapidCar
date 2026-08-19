@@ -10,6 +10,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS dealerships (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
     name            VARCHAR(190) NOT NULL,
+    account_type    VARCHAR(10)  NOT NULL DEFAULT 'dealer',  -- dealer | private
     logo_path       VARCHAR(255) DEFAULT NULL,
     address         VARCHAR(255) DEFAULT NULL,
     zip             VARCHAR(20)  DEFAULT NULL,

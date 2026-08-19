@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 14;
+    private const CURRENT_VERSION = 15;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -144,6 +144,9 @@ final class Migrator
             }
             if ($installed < 14) {
                 self::migrateToVersion14();
+            }
+            if ($installed < 15) {
+                self::migrateToVersion15();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -329,6 +332,16 @@ final class Migrator
     }
 
     // -----------------------------------------------------------------------
+
+    /**
+     * Version 15: Die Plattform steht auch Privatpersonen offen. Jeder
+     * Mandant traegt seine Art: dealer (Autohaus) oder private.
+     */
+    private static function migrateToVersion15(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        self::addColumn('dealerships', 'account_type', ($isSqlite ? 'TEXT' : 'VARCHAR(10)') . " NOT NULL DEFAULT 'dealer'");
+    }
 
     /**
      * Ist die Anwendung installiert, die Datenbank aber leer, wird das

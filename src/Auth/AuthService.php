@@ -30,6 +30,11 @@ final class AuthService
      *
      * @return int Neue Benutzer-ID
      */
+    /**
+     * @param string $accountType 'dealer' (Autohaus) oder 'private' (Privatperson).
+     *                            Privatpersonen bekommen denselben Mandanten,
+     *                            nur ohne Firmennamen: er heisst wie sie selbst.
+     */
     public static function register(
         string $firstName,
         string $lastName,
@@ -37,14 +42,17 @@ final class AuthService
         string $password,
         string $dealershipName,
         string $phone,
-        string $country
+        string $country,
+        string $accountType = 'dealer'
     ): int {
+        $accountType = $accountType === 'private' ? 'private' : 'dealer';
         Database::beginTransaction();
         try {
             $now = Database::now();
 
             $dealershipId = Database::insert('dealerships', [
-                'name'       => $dealershipName,
+                'name'         => $dealershipName,
+                'account_type' => $accountType,
                 'phone'      => $phone,
                 'country'    => $country,
                 'currency'   => 'CHF',
