@@ -239,6 +239,36 @@ check(
     'Ohne echten Mailversand bleibt die Bestaetigung aus, sonst kaeme niemand hinein.'
 );
 
+// ------------------------------------------------- Verbindungen nach draussen
+// Viele Hoster sperren ausgehende Verbindungen. Dann schlaegt nicht nur ein
+// git clone fehl, sondern auch jeder Aufruf der KI. Ein kurzer Versuch je
+// Ziel sagt, woran es liegt: Namensaufloesung, Port oder Zertifikat.
+foreach ([
+    'api.openai.com' => 'KI-Erkennung und Texte',
+    'github.com'     => 'Bereitstellung ueber Git',
+] as $probeHost => $purpose) {
+    $ip = gethostbyname($probeHost);
+    if ($ip === $probeHost) {
+        check('Erreichbar: ' . $probeHost, false, 'Name nicht aufloesbar', 'Der Server hat keinen funktionierenden DNS. Hosttime fragen.');
+        continue;
+    }
+
+    $errno = 0;
+    $errstr = '';
+    $socket = @fsockopen('tcp://' . $ip, 443, $errno, $errstr, 5);
+    if ($socket === false) {
+        check(
+            'Erreichbar: ' . $probeHost,
+            false,
+            'Port 443 blockiert (' . trim($errstr) . ')',
+            'Hosttime bitten, ausgehende Verbindungen auf Port 443 freizugeben. Ohne sie laeuft ' . $purpose . ' nicht.'
+        );
+        continue;
+    }
+    fclose($socket);
+    check('Erreichbar: ' . $probeHost, true, $ip . ':443 offen');
+}
+
 // ------------------------------------------------------------------- Ausgabe
 $failed = array_filter($results, static fn(array $r): bool => !$r['ok']);
 
