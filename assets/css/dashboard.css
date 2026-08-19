@@ -1831,3 +1831,13 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     word-break: break-word;
 }
 
+/* Spyne-Optionen im Hintergrund-Fenster */
+.bg-options {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+}
+

@@ -1237,6 +1237,17 @@ check('Admin bietet die Spyne-Optionen an',
 check('Banner-Adresse nur mit https',
     str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'muss mit https:// beginnen'));
 
+// Haken direkt im Bilder-Fenster: die Wahl je Durchlauf hat Vorrang
+check('Fenster bietet Haken fuer Logo und Banner',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'bgOptPlate')
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'bgOptBanner'));
+check('Haken haben Vorrang vor den Einstellungen',
+    str_contains((string) file_get_contents(BASE_PATH . '/api/vehicles/image-background.php'), "isset(\$input['plate_logo'])")
+    && str_contains((string) file_get_contents(BASE_PATH . '/api/vehicles/image-background.php'), "isset(\$input['banner'])"));
+check('Admin nimmt viele Kennungen auf einmal an',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_scene_bulk'));
+
+
 
 
 

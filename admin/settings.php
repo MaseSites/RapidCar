@@ -37,6 +37,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         redirect('admin/settings.php');
     }
 
+    if ($action === 'spyne_scene_bulk') {
+        $lines = preg_split('/\r?\n/', (string) ($_POST['scene_bulk'] ?? '')) ?: [];
+        $scenes = json_decode((string) SettingsService::get('spyne_scenes'), true);
+        $scenes = is_array($scenes) ? $scenes : [];
+        $added = 0;
+        foreach ($lines as $line) {
+            // Erlaubt: "12345 = Name", "12345: Name", "12345 Name" oder nur "12345"
+            if (!preg_match('/^\s*([0-9A-Za-z_-]{1,40})\s*(?:[=:,;\t]|\s)?\s*(.*)$/', trim($line), $m)) {
+                continue;
+            }
+            $sceneId = trim($m[1]);
+            if ($sceneId === '') {
+                continue;
+            }
+            $label = trim($m[2]);
+            $scenes[$sceneId] = $label !== '' ? $label : $sceneId;
+            $added++;
+        }
+        if ($added > 0) {
+            SettingsService::set('spyne_scenes', (string) json_encode($scenes));
+            ActivityLogger::log((int) $currentUser['id'], 'admin.spyne_scene_bulk', $added . ' Spyne-Hintergruende uebernommen');
+            Session::flash('success', $added . ' Hintergründe übernommen.');
+        } else {
+            Session::flash('danger', 'Keine gültigen Zeilen gefunden. Format: Kennung = Name (eine je Zeile).');
+        }
+        redirect('admin/settings.php');
+    }
+
     if ($action === 'spyne_scene_add') {
         $sceneId = trim((string) ($_POST['scene_id'] ?? ''));
         $sceneLabel = trim((string) ($_POST['scene_label'] ?? ''));
@@ -134,6 +162,17 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                         <div class="form-hint">Spyne legt dieses Bild auf jedes verarbeitete Foto. Leer lassen = kein Banner.</div>
                     </div>
                     <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Optionen speichern</button>
+                </form>
+
+                <form method="post" class="mb-2">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="action" value="spyne_scene_bulk">
+                    <div class="form-group">
+                        <label class="form-label">Viele auf einmal übernehmen</label>
+                        <textarea class="form-control" name="scene_bulk" rows="4" placeholder="75282 = Studio hell&#10;85879 = Showroom dunkel&#10;91234"></textarea>
+                        <div class="form-hint">Eine Kennung je Zeile, wahlweise mit Name (Kennung = Name). Einfach die Liste aus der Spyne-Konsole einfügen.</div>
+                    </div>
+                    <button class="btn btn-secondary" type="submit"><?= icon('plus', 15) ?> Liste übernehmen</button>
                 </form>
 
                 <form method="post" class="flex gap-1" style="flex-wrap:wrap;align-items:flex-end">

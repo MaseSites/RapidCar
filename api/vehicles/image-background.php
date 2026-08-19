@@ -153,23 +153,26 @@ switch ($action) {
             // Nur anstossen und sofort antworten: Shared Hosting kappt
             // Anfragen nach wenigen Sekunden, Spyne braucht aber bis zu
             // zwei Minuten. Die Oberflaeche fragt per spyne_status nach.
-            // Kennzeichen und Banner nach den Betreiber-Einstellungen:
-            // 'logo' setzt das Logo des jeweiligen Autohauses aufs Kennzeichen.
+            // Kennzeichen und Banner: die Haken im Fenster haben Vorrang,
+            // ohne Haken gelten die Betreiber-Einstellungen (z.B. im
+            // Anlege-Assistenten, der keine Haken zeigt).
             $plateSetting = (string) (\App\Service\SettingsService::get('spyne_plate') ?? 'off');
+            $plateWanted = isset($input['plate_logo'])
+                ? (int) $input['plate_logo'] === 1
+                : $plateSetting !== 'off';
             $plate = '0';
-            if ($plateSetting === 'white') {
-                $plate = '1';
-            } elseif ($plateSetting === 'logo') {
+            if ($plateWanted) {
                 $logoPath = (string) (App\Core\Database::scalar(
                     'SELECT logo_path FROM dealerships WHERE id = :d',
                     ['d' => $dealershipId]
                 ) ?: '');
-                // Ohne Logo bleibt die weisse Flaeche: besser als ein leerer Link.
-                $plate = $logoPath !== '' ? upload_url($logoPath) : '1';
+                // Logo des Autohauses; ohne Logo weisse Flaeche statt leerem Link.
+                $plate = ($plateSetting === 'logo' && $logoPath !== '') ? upload_url($logoPath) : '1';
             }
             $spyneOptions = ['plate' => $plate];
             $bannerUrl = trim((string) (\App\Service\SettingsService::get('spyne_banner_url') ?? ''));
-            if ($bannerUrl !== '') {
+            $bannerWanted = isset($input['banner']) ? (int) $input['banner'] === 1 : true;
+            if ($bannerUrl !== '' && $bannerWanted) {
                 $spyneOptions['banner_url'] = $bannerUrl;
             }
 

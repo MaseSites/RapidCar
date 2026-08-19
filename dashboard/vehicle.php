@@ -570,6 +570,28 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                             <button type="button" class="bg-tab" data-tab="own"><?= t('background.tab_own') ?></button>
                             <button type="button" class="bg-tab" data-tab="favorites"><?= t('background.tab_favorites') ?></button>
                         </div>
+                        <?php if (App\Service\BackgroundService::usesSpyne()): ?>
+                            <?php
+                            // Vorbelegung der Haken aus den Betreiber-Einstellungen
+                            $spynePlateDefault = (string) (\App\Service\SettingsService::get('spyne_plate') ?? 'off');
+                            $spyneBannerDefault = trim((string) (\App\Service\SettingsService::get('spyne_banner_url') ?? ''));
+                            $hasDealerLogo = trim((string) (App\Core\Database::scalar(
+                                'SELECT logo_path FROM dealerships WHERE id = :d', ['d' => $dealershipId]
+                            ) ?: '')) !== '';
+                            ?>
+                            <div class="bg-options">
+                                <label class="form-check">
+                                    <input type="checkbox" id="bgOptPlate" <?= $spynePlateDefault === 'logo' || $spynePlateDefault === 'white' ? 'checked' : '' ?>>
+                                    <span><?= $hasDealerLogo ? t('background.opt_plate_logo') : t('background.opt_plate_white') ?></span>
+                                </label>
+                                <?php if ($spyneBannerDefault !== ''): ?>
+                                    <label class="form-check">
+                                        <input type="checkbox" id="bgOptBanner" checked>
+                                        <span><?= t('background.opt_banner') ?></span>
+                                    </label>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                         <div class="bg-dialog-body">
                             <div class="bg-grid" data-pane="recommended">
                                 <?php foreach ($bgTemplates as $key => $template): ?>
@@ -1258,9 +1280,15 @@ $pageScripts = <<<HTML
             var item = document.querySelector('.upload-item[data-image-id="' + id + '"]');
             var needsCutout = !item || item.dataset.cutout !== '1';
             bgSetHint((needsCutout ? {$jsBgCutting} : {$jsBgApplied}) + ' (' + pos + '/' + total + ')');
+            var optPlate = document.getElementById('bgOptPlate');
+            var optBanner = document.getElementById('bgOptBanner');
             apiFetch('api/vehicles/image-background.php', {
                 method: 'POST',
-                body: { action: 'apply', image_id: id, background: key }
+                body: {
+                    action: 'apply', image_id: id, background: key,
+                    plate_logo: optPlate ? (optPlate.checked ? 1 : 0) : undefined,
+                    banner: optBanner ? (optBanner.checked ? 1 : 0) : undefined
+                }
             }).then(function (res) {
                 // Spyne arbeitet im Hintergrund: der Server hat nur
                 // angestossen, hier wird alle paar Sekunden nachgefragt.
