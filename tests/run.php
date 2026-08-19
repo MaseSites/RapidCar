@@ -964,6 +964,16 @@ check('Zahlartenwahl liegt bei der Stripe-Kasse',
     && str_contains($creditsPage2, 'was im Stripe-Konto freigeschaltet ist'));
 check('Doppelklick-Schutz am Kaufknopf',
     str_contains($creditsPage2, 'disabled = true'));
+
+$paymentSource3 = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
+check('Zahlarten lassen sich per Konfiguration festnageln',
+    str_contains($paymentSource3, "Config::get('payment.methods'")
+    && str_contains($paymentSource3, "payment_method_types["));
+check('nur bekannte Zahlarten kommen durch',
+    str_contains($paymentSource3, 'in_array($entry, self::PAYMENT_METHODS, true)'));
+check('leer heisst: die Kasse entscheidet',
+    str_contains($paymentSource3, 'Leer = die Kasse zeigt'));
+
 check('Guthaben-Feld in der Kopfleiste',
     str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'credit-chip'));
 

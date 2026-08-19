@@ -41,8 +41,8 @@ final class PaymentService
      *
      * @return string Weiterleitungs-URL zur Stripe-Kasse
      */
-    /** Zahlungsarten, die der Kaufdialog anbieten darf. */
-    public const PAYMENT_METHODS = ['card', 'twint'];
+    /** Zahlungsarten, die eine Konfiguration fest vorgeben darf. */
+    public const PAYMENT_METHODS = ['card', 'twint', 'klarna', 'paypal', 'link'];
 
     /**
      * @param string|null $method 'card' oder 'twint'. Bei 'card' zeigt die
@@ -102,8 +102,25 @@ final class PaymentService
             $params['billing_address_collection'] = 'required';
         }
 
+        // Feste Vorgabe der Zahlarten aus der Konfiguration (payment.methods).
+        // Leer = die Kasse zeigt, was im Stripe-Konto freigeschaltet ist.
+        // Mit z.B. ['card', 'twint'] erscheinen genau Karte und TWINT;
+        // Apple Pay und Google Pay laufen ueber 'card' und kommen von selbst.
+        $configured = Config::get('payment.methods', []);
+        $pinned = [];
+        if (is_array($configured)) {
+            foreach ($configured as $entry) {
+                $entry = strtolower(trim((string) $entry));
+                if (in_array($entry, self::PAYMENT_METHODS, true)) {
+                    $pinned[] = $entry;
+                }
+            }
+        }
         if ($method !== null && in_array($method, self::PAYMENT_METHODS, true)) {
-            $params['payment_method_types[0]'] = $method;
+            $pinned = [$method];
+        }
+        foreach (array_values(array_unique($pinned)) as $i => $entry) {
+            $params['payment_method_types[' . $i . ']'] = $entry;
         }
 
         // Idempotenz je Bestellung: Doppelklick oder Netzwiederholung erzeugt

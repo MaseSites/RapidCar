@@ -219,6 +219,11 @@ return [
         // Mehrwertsteuer ueber Stripe Tax. Erst im Stripe-Dashboard
         // einrichten (Steuerregistrierung), sonst lehnt Stripe ab.
         'automatic_tax' => false,
+        // Zahlarten fest vorgeben, z.B. ['card', 'twint']: dann zeigt die
+        // Kasse genau diese (Apple Pay und Google Pay laufen ueber card).
+        // Leer = die Kasse zeigt alles, was im Stripe-Konto aktiv ist.
+        // Jede Zahlart muss im Stripe-Dashboard freigeschaltet sein.
+        'methods' => [],
     ],
 
     // Weitere Verkaufs- und Social-Kanäle (ChannelRegistry).
