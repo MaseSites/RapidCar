@@ -743,8 +743,8 @@ check('Existenzpruefung ohne SHOW mit Platzhalter',
     str_contains($migratorSource, 'information_schema.tables')
     && str_contains($migratorSource, 'information_schema.columns')
     && !str_contains($migratorSource, 'SHOW COLUMNS FROM {$table} LIKE'));
-check('Heilung protokolliert den Datenverlust',
-    str_contains($migratorSource, 'Konten muessen neu angelegt werden'));
+check('Heilung protokolliert den Neuaufbau',
+    str_contains($migratorSource, 'Das Schema wurde neu angelegt'));
 
 $installerSource2 = file_get_contents(BASE_PATH . '/install/index.php');
 check('gesperrter Installer zeigt den Datenbankzustand',
