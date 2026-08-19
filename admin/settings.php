@@ -6,7 +6,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
-require_once BASE_PATH . '/includes/auth.php';
+require_once BASE_PATH . '/includes/admin-auth.php';
 require_once BASE_PATH . '/includes/permissions.php';
 require_once BASE_PATH . '/includes/csrf.php';
 

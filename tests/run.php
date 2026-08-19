@@ -1037,6 +1037,46 @@ check('Stripe-Antwort wird zwischengespeichert',
 check('Konfiguration hat weiter Vorrang',
     strpos($paymentSource4, 'payment.methods') < strpos($paymentSource4, 'self::autoMethods()'));
 
+echo "
+"; echo "Admin: versteckt, loeschen, Zahlungen automatisch"; echo "
+";
+
+// Der Admin-Bereich verhaelt sich fuer Unbefugte wie eine unbekannte Adresse.
+$adminGuard = file_get_contents(BASE_PATH . '/includes/admin-auth.php');
+check('Unbefugte sehen die 404-Seite',
+    str_contains($adminGuard, 'http_response_code(404)')
+    && str_contains($adminGuard, "errors/404.php")
+    && !str_contains($adminGuard, "redirect('login"));
+$adminPages = glob(BASE_PATH . '/admin/*.php') ?: [];
+$allStealth = true;
+foreach ($adminPages as $adminPage) {
+    if (!str_contains((string) file_get_contents($adminPage), 'includes/admin-auth.php')) {
+        $allStealth = false;
+    }
+}
+check('alle Admin-Seiten nutzen den versteckten Guard', $allStealth && count($adminPages) >= 8);
+
+check('Konten lassen sich endgueltig loeschen',
+    class_exists('App\Service\AdminRemovalService')
+    && str_contains((string) file_get_contents(BASE_PATH . '/admin/user.php'), "case 'delete':"));
+check('eigenes Konto und Betreiber sind tabu',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Service/AdminRemovalService.php'), 'Das eigene Konto kann nicht')
+    && str_contains((string) file_get_contents(BASE_PATH . '/src/Service/AdminRemovalService.php'), 'Betreiberkonten'));
+check('Dateiloeschung bleibt in /uploads eingesperrt',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Service/AdminRemovalService.php'), 'str_starts_with($full, $root)'));
+check('Fahrzeuge lassen sich im Admin loeschen',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/vehicles.php'), 'delete_vehicle'));
+
+$paymentSource5 = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
+check('Ruecksprung prueft die Zahlung direkt bei Stripe',
+    str_contains($paymentSource5, 'public static function confirmOrder')
+    && str_contains($paymentSource5, "'/checkout/sessions/' . rawurlencode"));
+check('Gutschrift sofort beim Ruecksprung',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'PaymentService::confirmOrder'));
+check('unbestaetigte Zahlung wird ehrlich gemeldet',
+    str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'credits.purchase_pending'));
+
+
 
 
 check('Guthaben-Feld in der Kopfleiste',

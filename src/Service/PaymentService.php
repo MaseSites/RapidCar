@@ -229,6 +229,40 @@ final class PaymentService
 
     /** @return array<string, mixed> */
     /**
+     * Prueft eine offene Bestellung direkt bei Stripe und schreibt bei
+     * bestaetigter Zahlung sofort gut. Laeuft beim Ruecksprung von der
+     * Kasse: der Kaeufer sieht sein Guthaben sofort, auch wenn der
+     * Webhook einmal spaeter kommt. Der Webhook bleibt als zweiter Weg;
+     * doppelt verbucht wird nie (Wechsel nur aus pending heraus).
+     */
+    public static function confirmOrder(int $orderId): bool
+    {
+        if (!self::isStripeReady()) {
+            return false;
+        }
+        $order = Database::fetch('SELECT * FROM credit_orders WHERE id = :id', ['id' => $orderId]);
+        if ($order === null || (string) $order['status'] !== 'pending') {
+            return (string) ($order['status'] ?? '') === 'paid';
+        }
+        $sessionId = trim((string) ($order['provider_ref'] ?? ''));
+        if ($sessionId === '') {
+            return false;
+        }
+        try {
+            $session = self::stripeRequest('GET', '/checkout/sessions/' . rawurlencode($sessionId));
+        } catch (\Throwable $e) {
+            Logger::error('Stripe-Nachpruefung fehlgeschlagen: ' . $e->getMessage());
+            return false;
+        }
+        if ((string) ($session['payment_status'] ?? '') !== 'paid') {
+            return false;
+        }
+        CreditService::completeOrder($orderId, null, false);
+        Logger::info('Stripe-Zahlung beim Ruecksprung verbucht fuer Bestellung #' . $orderId);
+        return true;
+    }
+
+    /**
      * Automatische Zahlarten: Karte immer, TWINT sobald das Stripe-Konto es
      * anbietet. Die Abfrage bei Stripe wird sechs Stunden zwischengespeichert,
      * damit nicht jeder Kauf eine zusaetzliche Anfrage kostet.

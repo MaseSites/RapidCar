@@ -19,6 +19,7 @@ require_once BASE_PATH . '/includes/permissions.php';
 require_once BASE_PATH . '/includes/csrf.php';
 
 use App\Core\Session;
+use App\Core\Database;
 use App\Service\ActivityLogger;
 use App\Service\CreditService;
 use App\Service\PaymentService;
@@ -76,7 +77,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $statusParam = (string) ($_GET['status'] ?? '');
 if ($statusParam === 'success') {
-    Session::flash('success', t('credits.purchase_success'));
+    // Nicht auf den Webhook warten: die offenen Bestellungen der letzten
+    // Stunden direkt bei Stripe nachpruefen und sofort gutschreiben.
+    $credited = false;
+    foreach (Database::fetchAll(
+        "SELECT id FROM credit_orders
+         WHERE dealership_id = :d AND status = 'pending' AND provider_ref IS NOT NULL
+         ORDER BY id DESC LIMIT 3",
+        ['d' => $dealershipId]
+    ) as $openOrder) {
+        if (PaymentService::confirmOrder((int) $openOrder['id'])) {
+            $credited = true;
+        }
+    }
+    if ($credited) {
+        Session::flash('success', t('credits.purchase_success'));
+    } else {
+        // Ehrlich: noch keine Bestaetigung von Stripe. Der Webhook
+        // schreibt gut, sobald sie eintrifft.
+        Session::flash('info', t('credits.purchase_pending'));
+    }
     redirect('dashboard/credits.php');
 }
 

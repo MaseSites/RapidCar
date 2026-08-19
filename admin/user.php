@@ -9,7 +9,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
-require_once BASE_PATH . '/includes/auth.php';
+require_once BASE_PATH . '/includes/admin-auth.php';
 require_once BASE_PATH . '/includes/permissions.php';
 require_once BASE_PATH . '/includes/csrf.php';
 
@@ -72,6 +72,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             Database::update('users', $userId, ['role' => $newRole, 'updated_at' => Database::now()]);
             ActivityLogger::log($adminId, 'admin.role_changed', "Rolle von Benutzer #{$userId} geändert zu {$newRole}", 'user', $userId);
             Session::flash('success', 'Rolle geändert.');
+            break;
+
+        case 'delete':
+            try {
+                \App\Service\AdminRemovalService::removeUser($userId, $adminId);
+                ActivityLogger::log($adminId, 'admin.user_deleted', "Benutzer #{$userId} endgueltig geloescht", 'user', $userId);
+                Session::flash('success', 'Konto endgültig gelöscht.');
+                redirect('admin/users.php');
+            } catch (\Throwable $e) {
+                Session::flash('danger', $e->getMessage());
+            }
             break;
 
         case 'password_reset':
@@ -225,4 +236,21 @@ require BASE_PATH . '/includes/layout/admin-header.php';
     </div>
 </div>
 
+<?php if ((string) $user['role'] !== App\Auth\AuthService::ROLE_SUPER_ADMIN && (int) $user['id'] !== (int) $currentUser['id']): ?>
+<div class="card mb-3" style="border-color:#f2c1bd">
+    <div class="card-header"><h2 style="color:var(--danger)">Konto löschen</h2></div>
+    <div class="card-body">
+        <p class="text-sm text-secondary mb-2">
+            Löscht das Konto endgültig. Ist es das letzte Konto seines
+            Autohauses, verschwinden auch alle Fahrzeuge, Inserate und Fotos.
+            Das lässt sich nicht rückgängig machen.
+        </p>
+        <form method="post" onsubmit="return confirm('Dieses Konto endgültig löschen? Das lässt sich nicht rückgängig machen.');">
+            <?= App\Core\Csrf::field() ?>
+            <input type="hidden" name="action" value="delete">
+            <button class="btn btn-danger" type="submit"><?= icon('trash', 15) ?> Endgültig löschen</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <?php require BASE_PATH . '/includes/layout/dash-footer.php'; ?>

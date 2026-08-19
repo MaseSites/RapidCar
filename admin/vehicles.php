@@ -6,12 +6,24 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
-require_once BASE_PATH . '/includes/auth.php';
+require_once BASE_PATH . '/includes/admin-auth.php';
 require_once BASE_PATH . '/includes/permissions.php';
 
 use App\Core\Database;
 
 require_super_admin();
+
+// Inserat samt Fahrzeug, Bildern und Dateien endgueltig loeschen
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string) ($_POST['action'] ?? '') === 'delete_vehicle') {
+    \App\Core\Csrf::validate();
+    $deleteId = (int) ($_POST['vehicle_id'] ?? 0);
+    if ($deleteId > 0) {
+        \App\Service\AdminRemovalService::removeVehicle($deleteId);
+        \App\Service\ActivityLogger::log((int) $currentUser['id'], 'admin.vehicle_deleted', "Fahrzeug #{$deleteId} endgueltig geloescht", 'vehicle', $deleteId);
+        \App\Core\Session::flash('success', 'Fahrzeug und Inserat endgültig gelöscht.');
+    }
+    redirect('admin/vehicles.php');
+}
 
 $dealershipFilter = (int) ($_GET['dealership'] ?? 0);
 $makeFilter = trim((string) ($_GET['make'] ?? ''));
@@ -92,12 +104,12 @@ require BASE_PATH . '/includes/layout/admin-header.php';
             <thead>
                 <tr>
                     <th>Bild</th><th>Fahrzeug</th><th>Händler</th><th>Preis</th>
-                    <th>Score</th><th>Status</th><th>Erstellt</th>
+                    <th>Score</th><th>Status</th><th>Erstellt</th><th></th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($vehicles === []): ?>
-                    <tr><td colspan="7" class="text-center text-muted" style="padding:36px">Keine Fahrzeuge gefunden.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted" style="padding:36px">Keine Fahrzeuge gefunden.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($vehicles as $vehicle): ?>
                     <tr>
@@ -124,6 +136,14 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                         </td>
                         <td><span class="badge badge-neutral"><?= e(vehicle_status_label((string) $vehicle['status'])) ?></span></td>
                         <td class="text-muted"><?= e(format_date((string) $vehicle['created_at'])) ?></td>
+                        <td>
+                            <form method="post" onsubmit="return confirm('Dieses Fahrzeug samt Inserat und Fotos endgültig löschen?');">
+                                <?= App\Core\Csrf::field() ?>
+                                <input type="hidden" name="action" value="delete_vehicle">
+                                <input type="hidden" name="vehicle_id" value="<?= (int) $vehicle['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit" title="Endgültig löschen"><?= icon('trash', 14) ?></button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

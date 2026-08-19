@@ -514,6 +514,7 @@ return [
     'credits.method_card_hint'    => 'Kredit- und Debitkarten, Apple Pay und Google Pay',
     'credits.method_twint_hint'   => 'Bezahlen mit der TWINT-App',
     'credits.climate_note'        => '1% jeder Zahlung geht automatisch an den CO2-Klimaschutz.',
+    'credits.purchase_pending'    => 'Deine Zahlung wird von Stripe bestätigt. Das Guthaben erscheint in wenigen Augenblicken, lade die Seite gleich neu.',
     'credits.order_recorded'      => 'Bestellung erfasst. Das Guthaben wird nach Zahlungseingang freigeschaltet; du erhältst dazu eine Rechnung vom Betreiber.',
     'credits.order_notice'        => 'Die Online-Zahlung ist noch nicht eingerichtet. Deine Bestellung wird erfasst und nach Zahlungseingang vom Betreiber freigeschaltet.',
     'credits.order_submit'        => 'Verbindlich bestellen',
