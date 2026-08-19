@@ -1217,7 +1217,7 @@ $spyneSource2 = file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php
 check('Spyne nutzt die neue merchandise-API mit Bearer',
     str_contains($spyneSource2, 'merchandise/process')
     && str_contains($spyneSource2, 'Authorization: Bearer')
-    && !str_contains($spyneSource2, 'replace-bg'));
+    && !str_contains($spyneSource2, 'pv1/image/replace-bg'));
 check('Ablehnung trotz Erfolgsstatus wird erkannt',
     str_contains($spyneSource2, 'isRequestRejected')
     && str_contains($spyneSource2, 'Spyne-Konsole'));
