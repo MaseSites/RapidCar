@@ -305,6 +305,27 @@ foreach ([
     check('Erreichbar: ' . $probeHost, true, $ip . ':443 offen');
 }
 
+// -------------------------------------------------------- Letzte Fehler
+// Aus den neuesten Protokolldateien, nicht nur von heute: nach einem
+// Fehler um Mitternacht stuende sonst hier nichts.
+$recentErrors = [];
+$logFiles = glob(BASE_PATH . '/storage/logs/app-*.log') ?: [];
+usort($logFiles, static fn(string $a, string $b): int => filemtime($b) <=> filemtime($a));
+$logFiles = array_slice($logFiles, 0, 2);
+$phpLog = BASE_PATH . '/storage/logs/php-errors.log';
+if (is_file($phpLog)) {
+    $logFiles[] = $phpLog;
+}
+foreach ($logFiles as $logFile) {
+    $lines = @file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach (array_slice($lines, -80) as $line) {
+        if (stripos($line, 'ERROR') !== false || stripos($line, 'Fatal') !== false) {
+            $recentErrors[] = mb_substr($line, 0, 400);
+        }
+    }
+}
+$recentErrors = array_slice($recentErrors, -8);
+
 // ------------------------------------------------------------------- Ausgabe
 $failed = array_filter($results, static fn(array $r): bool => !$r['ok']);
 
