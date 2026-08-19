@@ -1,0 +1,28 @@
+# ---------------------------------------------------------------- Geheimnisse
+# Die echte Konfiguration enthält Schlüssel und Passwörter und gehört
+# niemals ins Repository. Als Vorlage dient config/config.sample.php.
+/config/config.php
+/config/*.bak
+
+# ------------------------------------------------------------------- Laufzeit
+# Datenbank, Protokolle und Sitzungen entstehen im Betrieb
+/storage/
+/uploads/
+
+# Beispielfotos werden vom Testskript erzeugt
+/testdaten/
+
+# --------------------------------------------------------------- Arbeitsdaten
+*.sqlite
+*.sqlite-journal
+*.log
+
+# ----------------------------------------------------------- Betriebssysteme
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ------------------------------------------------------------------ Editoren
+.idea/
+.vscode/
+*.swp

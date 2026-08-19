@@ -1,0 +1,205 @@
+<?php
+/**
+ * Beispielkonfiguration — wird vom Installer als /config/config.php erzeugt.
+ * Diese Datei NIEMALS mit echten Zugangsdaten ins Versionssystem einchecken.
+ */
+
+return [
+    'app' => [
+        'url'   => 'https://example.com',   // Basis-URL ohne abschliessenden Slash
+        'key'   => '',                       // base64-kodierter 32-Byte-Schlüssel (vom Installer generiert)
+        'debug' => false,                    // true nur in der Entwicklung
+        'name'  => 'RapidCar',
+    ],
+
+    'db' => [
+        'driver'      => 'mysql',            // mysql | sqlite
+        'host'        => 'localhost',
+        'port'        => '3306',
+        'name'        => '',
+        'user'        => '',
+        'password'    => '',
+        'sqlite_path' => __DIR__ . '/../storage/database.sqlite', // nur bei driver=sqlite
+    ],
+
+    'mail' => [
+        'driver'     => 'log',               // log | mail | smtp
+        'host'       => '',
+        'port'       => 587,
+        'username'   => '',
+        'password'   => '',
+        'encryption' => 'tls',               // tls | ssl | none
+        'from'       => 'noreply@example.com',
+        'from_name'  => 'RapidCar',
+    ],
+
+    'features' => [
+        'email_verification' => true,        // Bestätigungs-E-Mail bei Registrierung (§11)
+    ],
+
+    // Registrierung und Anmeldung über Google (OAuth 2.0).
+    // Zugangsdaten aus der Google Cloud Console (OAuth-Client, Typ Webanwendung).
+    // Autorisierte Weiterleitungs-URI: https://deine-domain.ch/google-callback.php
+    // Ohne diese Werte erscheint der Google-Knopf nicht.
+    'google' => [
+        'client_id'     => '',
+        'client_secret' => '',
+        'redirect_uri'  => '',  // leer = <app.url>/google-callback.php
+    ],
+
+    // KI-Anbindung (OpenAI). Ohne api_key bleibt die Anwendung im Demo-Modus,
+    // egal was hier als Modus steht: Es wird nichts vorgetäuscht.
+    // KI-Anbieter. Standard ist OpenAI; alternativ laeuft alles ueber Google
+    // Gemini, dessen Schnittstelle OpenAI-kompatibel ist und eine kostenlose
+    // Stufe hat (Schluessel unter aistudio.google.com). Dafuer setzen:
+    //   'api_url'      => 'https://generativelanguage.googleapis.com/v1beta/openai',
+    //   'api_key'      => 'AIza...',
+    //   'model'        => 'gemini-2.5-flash',
+    //   'vision_model' => 'gemini-2.5-flash',
+    'ai' => [
+        'mode'    => 'mock',        // mock | live, umschaltbar auch im Admin-Bereich
+        'api_key' => '',            // sk-... aus dem OpenAI-Konto
+        'model'   => 'gpt-4o-mini', // Textmodell für Titel, Beschreibung und Antworten.
+                                    // Günstig und dafür völlig ausreichend.
+        'vision_model' => '',       // Modell der Fahrzeugerkennung.
+                                    // Leer = gpt-5.5. Es liest kleine Typschilder
+                                    // wie "STO" zuverlässig und findet die
+                                    // Ausstattung auf den Fotos.
+        'api_url' => '',            // leer = https://api.openai.com/v1
+
+        // Bilddetailgrad allgemein: 'low' schickt eine verkleinerte Fassung
+        // und kostet je Bild etwa ein Zehntel von 'high'.
+        'image_detail' => 'low',
+
+        // Bilddetailgrad der Fahrzeugerkennung. Hier lohnt sich 'high':
+        // Typschilder sind klein, und verkleinert rät das Modell nur noch.
+        // Die Erkennung läuft einmal je Fahrzeug, also fällt das kaum ins Gewicht.
+        'detection_detail' => 'high',
+
+        // Qualität beim Freistellen (nur wenn kein lokales rembg vorhanden ist):
+        // low | medium | high. Jede Stufe kostet deutlich mehr.
+        'image_quality' => 'medium',
+    ],
+
+    // AutoScout24 Listing-Creation-API (HTTP Basic Auth, kein OAuth).
+    //
+    // Zwei Betriebsarten, beide von der API unterstützt:
+    //
+    //   A) Plattform-Zugang (empfohlen für SaaS): Der Betreiber erhält von
+    //      AutoScout24 EINEN Zugang, der stellvertretend für mehrere Kunden
+    //      arbeiten darf (GET /customers liefert alle berechtigten Kunden).
+    //      Autohäuser wählen dann nur ihre Kundennummer und geben kein
+    //      Passwort ein. Dafür hier platform_username/platform_password setzen.
+    //
+    //   B) Eigener Zugang je Autohaus: Bleiben die Werte leer, hinterlegt
+    //      jedes Autohaus im Dashboard seine eigenen Zugangsdaten.
+    //
+    // Der Zugang muss in beiden Fällen bei AutoScout24 beantragt werden.
+    'autoscout' => [
+        'platform_username' => '',
+        'platform_password' => '',
+        'api_url'           => '',  // leer = https://listing-creation.api.autoscout24.com
+    ],
+
+    // Instagram über die Meta-Graph-API (§39).
+    // In der Meta-Entwicklerkonsole eine App anlegen (Typ Business), die
+    // Facebook-Seite mit dem Instagram-Business-Konto verknüpfen und hier
+    // client_id, client_secret und redirect_uri eintragen. Die übrigen Werte
+    // sind die Meta-Standardadressen und können bleiben.
+    // Weiterleitungs-URI in der Meta-Konsole: <app.url>/api/channels/callback.php?channel=instagram
+    'instagram' => [
+        'client_id'     => '',
+        'client_secret' => '',
+        'redirect_uri'  => '',
+        'auth_url'      => 'https://www.facebook.com/v21.0/dialog/oauth',
+        'token_url'     => 'https://graph.facebook.com/v21.0/oauth/access_token',
+        'api_url'       => 'https://graph.facebook.com/v21.0',
+        'scopes'        => 'instagram_basic,instagram_content_publish,pages_show_list,business_management',
+    ],
+
+    'uploads' => [
+        'max_file_size_mb' => 12,
+        'max_images_per_vehicle' => 20,
+    ],
+
+    // Hintergrund entfernen (Fotos freistellen).
+    //
+    // Ist unter api_key ein Schlüssel hinterlegt, übernimmt der gewählte
+    // Fachdienst. Er hat Vorrang: sauberere Kanten, wenige Sekunden statt
+    // einer Minute. Ohne Schlüssel läuft das lokale Werkzeug rembg
+    // (pip install "rembg[cpu]"): kostenlos, Fotos bleiben im Haus, dafür
+    // langsamer und gröber. Die KI von OpenAI ist nie beteiligt.
+    //
+    // provider:
+    //   'spyne' Auf Fahrzeugfotos spezialisiert, Abo je Händler.
+    //               Zugang über spyne.com, dort Demo anfragen. Nach dem
+    //               Vertrag kommen Schlüssel und die genaue Kopfzeile vom
+    //               Anbieter; weicht sie ab, unter api_key_header eintragen.
+    //   'photoroom' Produktfotos allgemein, Monatsabo, Selbstbedienung
+    //               über photoroom.com/api.
+    //   'removebg'  Allgemeiner Dienst, Abrechnung je Bild.
+    'background' => [
+        'rembg_path'  => '',       // leer = rembg wird im PATH gesucht
+        'rembg_model' => 'u2net',  // u2net trennt am saubersten.
+                                   // 'u2netp' ist viermal schneller, lässt aber
+                                   // sichtbare Reste vom Hintergrund stehen.
+
+        'provider'    => 'removebg',   // spyne | photoroom | removebg
+        'api_key'     => '',           // Schlüssel des Dienstes
+        'api_url'     => '',           // leer = Standardadresse des Dienstes
+        'api_key_header' => '',        // leer = Standard des Dienstes,
+                                       // z.B. 'Authorization: Bearer %s'
+
+        // ---------------------------------------------------- nur Spyne
+        // complete stellt ganz frei, normal behält den Boden,
+        // blur macht den Hintergrund unscharf.
+        'cut_type'    => 'complete',
+
+        // Die Studio-Hintergruende des Kontos. Die Kennungen sind Zahlen und
+        // kommen aus dem Spyne-Konto, die Namen dahinter stehen so in der
+        // Auswahl im Inserat. Mit Spyne ersetzen sie die mitgelieferten Bilder.
+        'scenes' => [
+            // 'showroom_white' => 'Studio hell',
+            // 'showroom_grey'  => 'Studio dunkel',
+            // 'outdoor_city'   => 'Stadt',
+        ],
+
+        'guideline'    => '',       // Verarbeitungsregel des Kontos, leer = Standard
+        'resolution'   => '',       // z.B. '1600x1000', leer = Kontostandard
+        'retouching_accuracy' => '', // normal | precise
+        'blur_license_plate'  => false,  // Kennzeichen unkenntlich machen
+        // Nur remove.bg: 'preview' spart Guthaben beim Ausprobieren.
+        'api_size'    => 'auto',
+    ],
+
+    // Ausgehende HTTPS-Verbindungen (AutoScout24, weitere Kanäle).
+    // Normalerweise leer lassen: Die Zertifikatsliste wird automatisch gefunden.
+    // Nur setzen, wenn der Server eine an ungewöhnlicher Stelle hat.
+    'http' => [
+        'ca_bundle' => '',
+    ],
+
+    // Zahlungsanbieter für den Kauf von Inserat-Guthaben.
+    // Solange hier nichts hinterlegt ist, wird keine Zahlung vorgetäuscht:
+    // Bestellungen bleiben offen und werden vom Betreiber im Admin freigegeben.
+    'payment' => [
+        'provider' => '',   // z.B. stripe, saferpay, datatrans
+        'api_key'  => '',
+        'webhook_secret' => '',
+    ],
+
+    // Weitere Verkaufs- und Social-Kanäle (ChannelRegistry).
+    // Schlüssel entsprechen den Kanal-Keys: mobile_de, car4you, autolina,
+    // tutti, ricardo, kleinanzeigen, facebook_marketplace, tiktok, facebook, youtube
+    'channels' => [
+        'tiktok' => [
+            'client_id' => '', 'client_secret' => '', 'redirect_uri' => '',
+            'auth_url' => '', 'token_url' => '', 'api_url' => '', 'scopes' => '',
+        ],
+        'mobile_de' => [
+            'client_id' => '', 'client_secret' => '', 'redirect_uri' => '',
+            'auth_url' => '', 'token_url' => '', 'api_url' => '', 'scopes' => '',
+        ],
+        // Weitere Kanäle nach dem gleichen Muster ergänzen.
+    ],
+];

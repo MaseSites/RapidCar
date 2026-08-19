@@ -1,0 +1,81 @@
+# VehicleAI — Apache-Konfiguration
+# Funktioniert auf Apache und LiteSpeed (Hosttime). Die Anwendung bleibt auch
+# ohne mod_rewrite voll funktionsfähig (physische .php-Dateien).
+
+Options -Indexes
+
+# ---------------------------------------------------------------------------
+# Sensible Verzeichnisse und Dateien sperren
+# ---------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Interne Ordner niemals ausliefern
+    RewriteRule ^(src|config|includes|database|storage|lang)(/|$) - [F,L]
+
+    # Versteckte Dateien (.env, .git, …) sperren
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+
+    # -----------------------------------------------------------------------
+    # Pretty-URLs (§66) → physische Dateien (§3). Optionaler Komfort.
+    # -----------------------------------------------------------------------
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    RewriteRule ^features/?$ features.php [L]
+    RewriteRule ^pricing/?$ pricing.php [L]
+    RewriteRule ^about/?$ about.php [L]
+    RewriteRule ^contact/?$ contact.php [L]
+    RewriteRule ^login/?$ login.php [L]
+    RewriteRule ^register/?$ register.php [L]
+    RewriteRule ^privacy/?$ privacy.php [L]
+    RewriteRule ^imprint/?$ imprint.php [L]
+
+    RewriteRule ^dashboard/?$ dashboard/index.php [L]
+    RewriteRule ^dashboard/vehicles/?$ dashboard/vehicles.php [L]
+    RewriteRule ^dashboard/vehicles/create/?$ dashboard/create-vehicle.php [L]
+    RewriteRule ^dashboard/vehicles/([0-9]+)/?$ dashboard/vehicle.php?id=$1 [L,QSA]
+    RewriteRule ^dashboard/listings/?$ dashboard/listings.php [L]
+    RewriteRule ^dashboard/leads/?$ dashboard/leads.php [L]
+    RewriteRule ^dashboard/leads/([0-9]+)/?$ dashboard/lead.php?id=$1 [L,QSA]
+    RewriteRule ^dashboard/social/?$ dashboard/social.php [L]
+    RewriteRule ^dashboard/analytics/?$ dashboard/analytics.php [L]
+    RewriteRule ^dashboard/tasks/?$ dashboard/tasks.php [L]
+    RewriteRule ^dashboard/settings/?$ dashboard/settings.php [L]
+
+    RewriteRule ^admin/?$ admin/index.php [L]
+    RewriteRule ^admin/users/?$ admin/users.php [L]
+    RewriteRule ^admin/users/([0-9]+)/?$ admin/user.php?id=$1 [L,QSA]
+    RewriteRule ^admin/vehicles/?$ admin/vehicles.php [L]
+    RewriteRule ^admin/activity/?$ admin/activity.php [L]
+    RewriteRule ^admin/settings/?$ admin/settings.php [L]
+</IfModule>
+
+# Fallback ohne mod_rewrite: Verzeichnisschutz über FilesMatch
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# ---------------------------------------------------------------------------
+# Fehlerseiten (§67)
+# ---------------------------------------------------------------------------
+ErrorDocument 404 /errors/404.php
+ErrorDocument 403 /errors/403.php
+ErrorDocument 500 /errors/500.php
+
+# ---------------------------------------------------------------------------
+# PHP-Grundhärtung (falls vom Hosting erlaubt)
+# ---------------------------------------------------------------------------
+<IfModule mod_php.c>
+    php_flag display_errors off
+</IfModule>
+
+# Caching für statische Assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>
