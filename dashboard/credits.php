@@ -49,12 +49,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     );
 
     if ($stripeReady) {
+        // Gewaehlte Zahlungsart. Nur bekannte Werte, alles andere ueberlaesst
+        // die Auswahl der Stripe-Kasse.
+        $method = (string) ($_POST['payment_method'] ?? '');
+        if (!in_array($method, PaymentService::PAYMENT_METHODS, true)) {
+            $method = null;
+        }
         // Echte Zahlung: Gutschrift erst nach Bestätigung durch Stripe
         try {
             $checkoutUrl = PaymentService::createStripeCheckout(
                 $orderId,
                 base_url('dashboard/credits.php?status=success'),
-                base_url('dashboard/credits.php?status=cancelled')
+                base_url('dashboard/credits.php?status=cancelled'),
+                $method
             );
         } catch (\Throwable $e) {
             CreditService::cancelOrder($orderId);
@@ -199,10 +206,28 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <strong id="paySummaryPrice"></strong>
             </div>
 
+            <div class="pay-methods" role="radiogroup" aria-label="<?= t('credits.method_title') ?>">
+                <div class="pay-methods-title"><?= t('credits.method_title') ?></div>
+                <label class="pay-method">
+                    <input type="radio" name="payment_method" value="card" checked <?= $stripeReady ? '' : 'disabled' ?>>
+                    <span class="pay-method-box">
+                        <span class="pay-method-name"><?= t('credits.method_card') ?></span>
+                        <span class="pay-method-hint"><?= t('credits.method_card_hint') ?></span>
+                    </span>
+                </label>
+                <label class="pay-method">
+                    <input type="radio" name="payment_method" value="twint" <?= $stripeReady ? '' : 'disabled' ?>>
+                    <span class="pay-method-box">
+                        <span class="pay-method-name">TWINT</span>
+                        <span class="pay-method-hint"><?= t('credits.method_twint_hint') ?></span>
+                    </span>
+                </label>
+            </div>
+
             <?php if ($stripeReady): ?>
                 <p class="text-sm text-secondary"><?= t('credits.stripe_lead') ?></p>
             <?php else: ?>
-                <div class="alert alert-info" style="margin-bottom:16px">
+                <div class="alert alert-info" style="margin-top:14px">
                     <?= icon('info', 16) ?>
                     <span class="text-sm"><?= t('credits.order_notice') ?></span>
                 </div>

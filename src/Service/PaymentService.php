@@ -41,7 +41,17 @@ final class PaymentService
      *
      * @return string Weiterleitungs-URL zur Stripe-Kasse
      */
-    public static function createStripeCheckout(int $orderId, string $successUrl, string $cancelUrl): string
+    /** Zahlungsarten, die der Kaufdialog anbieten darf. */
+    public const PAYMENT_METHODS = ['card', 'twint'];
+
+    /**
+     * @param string|null $method 'card' oder 'twint'. Bei 'card' zeigt die
+     *                            Stripe-Kasse automatisch auch Apple Pay und
+     *                            Google Pay an, wenn das Geraet sie kann.
+     *                            null = Stripe zeigt alles, was im Konto
+     *                            freigeschaltet ist.
+     */
+    public static function createStripeCheckout(int $orderId, string $successUrl, string $cancelUrl, ?string $method = null): string
     {
         if (!self::isStripeReady()) {
             throw new RuntimeException('Stripe ist nicht konfiguriert.');
@@ -55,7 +65,7 @@ final class PaymentService
             ? '1 Inserat'
             : $order['credits'] . ' Inserate';
 
-        $response = self::stripeRequest('POST', '/checkout/sessions', [
+        $params = [
             'mode'                      => 'payment',
             'success_url'               => $successUrl,
             'cancel_url'                => $cancelUrl,
@@ -65,7 +75,11 @@ final class PaymentService
             'line_items[0][price_data][unit_amount]'               => (string) (int) round(((float) $order['price']) * 100),
             'line_items[0][price_data][product_data][name]'        => 'RapidCar Guthaben: ' . $label,
             'metadata[order_id]'        => (string) $orderId,
-        ]);
+        ];
+        if ($method !== null && in_array($method, self::PAYMENT_METHODS, true)) {
+            $params['payment_method_types[0]'] = $method;
+        }
+        $response = self::stripeRequest('POST', '/checkout/sessions', $params);
 
         $url = (string) ($response['url'] ?? '');
         if ($url === '') {

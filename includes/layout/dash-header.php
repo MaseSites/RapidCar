@@ -164,6 +164,14 @@ $creditBalance = $dealershipId !== null ? \App\Service\CreditService::balance($d
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php // Guthaben immer im Blick; ein Klick fuehrt zum Kauf. ?>
+                <?php if ($dealershipId !== null): ?>
+                    <a class="credit-chip" href="<?= base_url('dashboard/credits.php') ?>"
+                       title="<?= t('sidebar.credits') ?>">
+                        <?= icon('tag', 14) ?>
+                        <span><?= (int) $creditBalance ?></span>
+                    </a>
+                <?php endif; ?>
                 <div class="dropdown">
                     <button class="user-chip" data-dropdown="userMenu">
                         <span class="avatar"><?= e(initials(AuthService::fullName())) ?></span>

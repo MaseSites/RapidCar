@@ -165,11 +165,11 @@ check('alle Sprachdateien laden sauber', $allLoadable);
 
 echo "Guthaben (CreditService)\n";
 $packages = CreditService::packages();
-check('5 Pakete definiert', count($packages) === 5);
-check('1 Inserat kostet 10 CHF', $packages['single']['credits'] === 1 && $packages['single']['price'] === 10.0);
-check('5 Inserate kosten 40 CHF', $packages['small']['credits'] === 5 && $packages['small']['price'] === 40.0);
-check('10 Inserate kosten 70 CHF', $packages['medium']['credits'] === 10 && $packages['medium']['price'] === 70.0);
-check('50 und 100 Inserate vorhanden', $packages['large']['credits'] === 50 && $packages['xlarge']['credits'] === 100);
+check('4 Pakete definiert', count($packages) === 4);
+check('1 Inserat kostet 18 CHF', $packages['single']['credits'] === 1 && $packages['single']['price'] === 18.0);
+check('20 Inserate kosten 320 CHF', $packages['small']['credits'] === 20 && $packages['small']['price'] === 320.0);
+check('50 Inserate kosten 700 CHF', $packages['medium']['credits'] === 50 && $packages['medium']['price'] === 700.0);
+check('100 Inserate kosten 1300 CHF', $packages['large']['credits'] === 100 && $packages['large']['price'] === 1300.0);
 
 $cheaperPerUnit = true;
 $previous = PHP_FLOAT_MAX;
@@ -937,6 +937,33 @@ check('uploads: Skripte auch in der Wurzel gesperrt',
 check('Kennwoerter nur als Hash',
     str_contains((string) file_get_contents(BASE_PATH . '/src/Auth/AuthService.php'), 'password_hash(')
     && str_contains((string) file_get_contents(BASE_PATH . '/src/Auth/AuthService.php'), 'password_verify('));
+
+echo "
+"; echo "Guthaben-Pakete und Zahlarten"; echo "
+";
+
+$pakete = App\Service\CreditService::packages();
+check('vier Pakete: 1, 20, 50, 100',
+    array_map(fn($p2) => $p2['credits'], array_values($pakete)) === [1, 20, 50, 100]);
+check('Preise 18, 320, 700, 1300',
+    array_map(fn($p2) => $p2['price'], array_values($pakete)) === [18.0, 320.0, 700.0, 1300.0]);
+$stueck = array_map(fn($p2) => $p2['price'] / $p2['credits'], array_values($pakete));
+$sinkend = true;
+for ($i2 = 1; $i2 < count($stueck); $i2++) {
+    if ($stueck[$i2] >= $stueck[$i2 - 1]) { $sinkend = false; }
+}
+check('Stueckpreis sinkt mit der Groesse', $sinkend);
+
+check('Zahlarten sind serverseitig begrenzt',
+    App\Service\PaymentService::PAYMENT_METHODS === ['card', 'twint']);
+$creditsPage2 = file_get_contents(BASE_PATH . '/dashboard/credits.php');
+check('Kaufdialog zeigt die Zahlarten',
+    str_contains($creditsPage2, 'pay-method') && str_contains($creditsPage2, 'twint'));
+check('nur bekannte Zahlarten erreichen Stripe',
+    str_contains($creditsPage2, 'PaymentService::PAYMENT_METHODS, true'));
+check('Guthaben-Feld in der Kopfleiste',
+    str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'credit-chip'));
+
 
 
 

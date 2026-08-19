@@ -1740,3 +1740,53 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     color: var(--text-muted);
 }
 .bg-thumb-pick.is-scene:hover { color: var(--primary); }
+
+/* Zahlungsarten im Kaufdialog: waehlbare Karten, weich gerundet. */
+.pay-methods { margin-bottom: 4px; }
+.pay-methods-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.pay-method { display: block; cursor: pointer; }
+.pay-method + .pay-method { margin-top: 8px; }
+.pay-method input { position: absolute; opacity: 0; pointer-events: none; }
+.pay-method-box {
+    display: block;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pay-method input:checked + .pay-method-box {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.pay-method input:disabled + .pay-method-box { opacity: .55; cursor: default; }
+.pay-method input:focus-visible + .pay-method-box { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pay-method-name { display: block; font-weight: 600; font-size: 14.5px; }
+.pay-method-hint { display: block; font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+/* Guthaben-Anzeige in der Kopfleiste: klein, weich, immer sichtbar. */
+.credit-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.credit-chip:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.credit-chip .icon { color: var(--primary); }
+

@@ -33,12 +33,12 @@ final class CreditService
      */
     public static function packages(): array
     {
+        // Stueckpreis sinkt mit der Groesse: 18, 16, 14, 13 Franken.
         return [
-            'single' => ['credits' => 1,   'price' => 10.0,  'currency' => 'CHF'],
-            'small'  => ['credits' => 5,   'price' => 40.0,  'currency' => 'CHF'],
-            'medium' => ['credits' => 10,  'price' => 70.0,  'currency' => 'CHF'],
-            'large'  => ['credits' => 50,  'price' => 300.0, 'currency' => 'CHF'],
-            'xlarge' => ['credits' => 100, 'price' => 500.0, 'currency' => 'CHF'],
+            'single' => ['credits' => 1,   'price' => 18.0,   'currency' => 'CHF'],
+            'small'  => ['credits' => 20,  'price' => 320.0,  'currency' => 'CHF'],
+            'medium' => ['credits' => 50,  'price' => 700.0,  'currency' => 'CHF'],
+            'large'  => ['credits' => 100, 'price' => 1300.0, 'currency' => 'CHF'],
         ];
     }
 
