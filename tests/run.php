@@ -872,6 +872,28 @@ check('nur der Hash, nie das Passwort',
 check('fehlender operator-Block wird gemeldet',
     str_contains($migratorSource3, 'kein operator-Block'));
 
+// Der Weg einer Privatperson bleibt kurz: kein Profilschritt im
+// Onboarding, keine zweite Bestaetigungsmail direkt nach der Registrierung.
+$onboardingSource3 = file_get_contents(BASE_PATH . '/dashboard/onboarding.php');
+check('Privatpersonen ueberspringen den Profilschritt',
+    str_contains($onboardingSource3, 'if ($isPrivate && $step === 2)'));
+check('Startknopf fuehrt Privatpersonen zu den Kanaelen',
+    str_contains($onboardingSource3, '$isPrivate ? 3 : 2'));
+
+$authSource2 = file_get_contents(BASE_PATH . '/src/Auth/AuthService.php');
+check('Kontaktadresse der Person landet am Mandanten',
+    str_contains($authSource2, "$accountType === 'private' ? mb_strtolower(trim(\$email)) : null"));
+
+$loginSource2 = file_get_contents(BASE_PATH . '/login.php');
+check('keine zweite Mail kurz nach der Registrierung',
+    str_contains($loginSource2, 'MAX(created_at) FROM email_verifications')
+    && str_contains($loginSource2, '$recentlySent'));
+
+check('Einstellungen sagen Anzeigename fuer Privat',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/settings.php'),
+        "$isPrivate ? 'Anzeigename'"));
+
+
 
 
 

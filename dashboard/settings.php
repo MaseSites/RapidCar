@@ -137,7 +137,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             <?php endif; ?>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label"><?= t('auth.dealership_name') ?></label>
+                    <label class="form-label"><?= $isPrivate ? 'Anzeigename' : t('auth.dealership_name') ?></label>
                     <input class="form-control" type="text" name="name" value="<?= e($dealership['name'] ?? '') ?>" required>
                 </div>
                 <div class="form-group">

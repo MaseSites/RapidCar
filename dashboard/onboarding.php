@@ -33,6 +33,12 @@ $dealership = Database::fetch('SELECT * FROM dealerships WHERE id = :id', ['id' 
 // Privatkonten sehen ihre eigenen Worte, kein "Autohaus".
 $isPrivate = ($dealership['account_type'] ?? 'dealer') === 'private';
 $step = max(1, min(3, (int) ($_GET['step'] ?? 1)));
+
+// Eine Privatperson hat nichts auszufuellen: Name, Telefon und E-Mail
+// stehen seit der Registrierung fest. Der Profilschritt entfaellt.
+if ($isPrivate && $step === 2) {
+    redirect('dashboard/onboarding.php?step=3');
+}
 $error = null;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
@@ -120,7 +126,7 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
     <div class="onboarding-card">
         <div class="onboarding-steps">
             <span class="<?= $step >= 1 ? 'done' : '' ?>"></span>
-            <span class="<?= $step >= 2 ? 'done' : '' ?>"></span>
+            <?php if (!$isPrivate): ?><span class="<?= $step >= 2 ? 'done' : '' ?>"></span><?php endif; ?>
             <span class="<?= $step >= 3 ? 'done' : '' ?>"></span>
         </div>
 
@@ -134,7 +140,7 @@ $onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24
                 Schön, dass du da bist, <?= e($currentUser['first_name']) ?>!<br>
                 <?= t('onboarding.welcome_text') ?>
             </p>
-            <a class="btn btn-accent btn-lg btn-block" href="?step=2"><?= t('onboarding.start') ?></a>
+            <a class="btn btn-accent btn-lg btn-block" href="?step=<?= $isPrivate ? 3 : 2 ?>"><?= t('onboarding.start') ?></a>
 
         <?php elseif ($step === 2): ?>
             <h1 style="font-size:22px"><?= $isPrivate ? 'Dein Profil' : t('onboarding.profile_title') ?></h1>

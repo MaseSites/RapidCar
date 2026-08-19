@@ -53,6 +53,9 @@ final class AuthService
             $dealershipId = Database::insert('dealerships', [
                 'name'         => $dealershipName,
                 'account_type' => $accountType,
+                // Privatpersonen fuellen kein Profil aus: die Kontaktadresse
+                // des Kontos gilt auch fuer die Inserate.
+                'email'        => $accountType === 'private' ? mb_strtolower(trim($email)) : null,
                 'phone'      => $phone,
                 'country'    => $country,
                 'currency'   => 'CHF',

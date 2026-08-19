@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/csrf.php';
 use App\Auth\AuthService;
 use App\Auth\EmailVerification;
 use App\Auth\RateLimiter;
+use App\Core\Database;
 use App\Core\Session;
 use App\Core\Validator;
 
@@ -48,7 +49,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             // damit niemand fremde Postfaecher fluten kann. Danach auf die
             // Bestaetigungsseite, dort steht alles Weitere.
             $state = '';
-            if (!RateLimiter::tooManyAttempts('verify_resend', (string) $user['email'])) {
+            // Kam gerade erst eine Mail (Registrierung oder frueherer Versuch),
+            // wird keine zweite hinterhergeschickt: zwei Mails binnen Minuten
+            // verwirren nur. Die alten Links bleiben ohnehin gueltig.
+            $lastSent = Database::scalar(
+                'SELECT MAX(created_at) FROM email_verifications WHERE user_id = :u',
+                ['u' => (int) $user['id']]
+            );
+            $recentlySent = is_string($lastSent) && $lastSent !== ''
+                && (time() - (int) strtotime($lastSent)) < 600;
+            if (!$recentlySent && !RateLimiter::tooManyAttempts('verify_resend', (string) $user['email'])) {
                 RateLimiter::hit('verify_resend', (string) $user['email']);
                 try {
                     $state = EmailVerification::send((int) $user['id'], (string) $user['email']) ? 'sent' : 'failed';
