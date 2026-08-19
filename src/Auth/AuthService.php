@@ -81,18 +81,7 @@ final class AuthService
 
             Database::commit();
 
-            // Startguthaben: ein Gratis-Inserat zum Testen
-            try {
-                \App\Service\CreditService::grant(
-                    $dealershipId,
-                    \App\Service\CreditService::WELCOME_CREDITS,
-                    \App\Service\CreditService::REASON_WELCOME,
-                    'Startguthaben bei Registrierung',
-                    $userId
-                );
-            } catch (\Throwable $e) {
-                \App\Core\Logger::warning('Startguthaben konnte nicht gutgeschrieben werden: ' . $e->getMessage());
-            }
+            // Kein Startguthaben: Inserate gibt es erst nach dem Kauf.
 
             ActivityLogger::log($userId, 'user.registered', "Benutzer registriert ({$email})", 'user', $userId, $dealershipId);
             return $userId;

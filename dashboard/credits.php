@@ -49,19 +49,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     );
 
     if ($stripeReady) {
-        // Gewaehlte Zahlungsart. Nur bekannte Werte, alles andere ueberlaesst
-        // die Auswahl der Stripe-Kasse.
-        $method = (string) ($_POST['payment_method'] ?? '');
-        if (!in_array($method, PaymentService::PAYMENT_METHODS, true)) {
-            $method = null;
-        }
-        // Echte Zahlung: Gutschrift erst nach Bestätigung durch Stripe
+        // Keine Vorauswahl der Zahlungsart: die Stripe-Kasse zeigt alles,
+        // was im Stripe-Konto freigeschaltet ist (Karte, TWINT, Apple Pay
+        // und Google Pay je nach Geraet).
         try {
             $checkoutUrl = PaymentService::createStripeCheckout(
                 $orderId,
                 base_url('dashboard/credits.php?status=success'),
-                base_url('dashboard/credits.php?status=cancelled'),
-                $method
+                base_url('dashboard/credits.php?status=cancelled')
             );
         } catch (\Throwable $e) {
             CreditService::cancelOrder($orderId);
@@ -159,9 +154,18 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 </div>
             </div>
 
-            <button class="btn btn-primary btn-block btn-lg credit-cta" type="button" id="creditBuyBtn">
-                <?= t('credits.buy') ?> · <span id="creditCtaAmount"></span>
-            </button>
+            <?php // Direkt zur Stripe-Kasse, kein Zwischenschritt. Das Paket
+                  // schreibt das Skript beim Absenden aus der Auswahl um. ?>
+            <form method="post" action="<?= base_url('dashboard/credits.php') ?>" id="creditBuyForm">
+                <?= App\Core\Csrf::field() ?>
+                <input type="hidden" name="package" id="payPackage" value="<?= e($defaultKey) ?>">
+                <button class="btn btn-primary btn-block btn-lg credit-cta" type="submit" id="creditBuyBtn">
+                    <?= t('credits.buy') ?> · <span id="creditCtaAmount"></span>
+                </button>
+                <?php if (!$stripeReady): ?>
+                    <div class="form-hint" style="margin-top:8px"><?= t('credits.order_notice') ?></div>
+                <?php endif; ?>
+            </form>
 
         </div>
 
@@ -189,77 +193,23 @@ require BASE_PATH . '/includes/layout/dash-header.php';
     </div>
 </div>
 
-<!-- Kasse: bei hinterlegtem Stripe geht es direkt weiter, sonst Testzahlung -->
-<dialog class="bg-dialog" id="payDialog">
-    <form method="post" action="<?= base_url('dashboard/credits.php') ?>" autocomplete="off">
-        <?= App\Core\Csrf::field() ?>
-        <input type="hidden" name="package" id="payPackage" value="">
-
-        <div class="feature-dialog-head">
-            <strong><?= t('checkout.title') ?></strong>
-            <button class="icon-btn" type="button" id="payClose" aria-label="<?= e(t('common.close')) ?>"><?= icon('x', 18) ?></button>
-        </div>
-
-        <div class="bg-dialog-body">
-            <div class="pay-summary">
-                <span id="paySummaryCredits"></span>
-                <strong id="paySummaryPrice"></strong>
-            </div>
-
-            <div class="pay-methods" role="radiogroup" aria-label="<?= t('credits.method_title') ?>">
-                <div class="pay-methods-title"><?= t('credits.method_title') ?></div>
-                <label class="pay-method">
-                    <input type="radio" name="payment_method" value="card" checked <?= $stripeReady ? '' : 'disabled' ?>>
-                    <span class="pay-method-box">
-                        <span class="pay-method-name"><?= t('credits.method_card') ?></span>
-                        <span class="pay-method-hint"><?= t('credits.method_card_hint') ?></span>
-                    </span>
-                </label>
-                <label class="pay-method">
-                    <input type="radio" name="payment_method" value="twint" <?= $stripeReady ? '' : 'disabled' ?>>
-                    <span class="pay-method-box">
-                        <span class="pay-method-name">TWINT</span>
-                        <span class="pay-method-hint"><?= t('credits.method_twint_hint') ?></span>
-                    </span>
-                </label>
-            </div>
-
-            <?php if ($stripeReady): ?>
-                <p class="text-sm text-secondary"><?= t('credits.stripe_lead') ?></p>
-            <?php else: ?>
-                <div class="alert alert-info" style="margin-top:14px">
-                    <?= icon('info', 16) ?>
-                    <span class="text-sm"><?= t('credits.order_notice') ?></span>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <div class="feature-dialog-foot" style="justify-content:flex-end">
-            <button class="btn btn-primary btn-lg" type="submit">
-                <?= icon('check', 16) ?>
-                <?= $stripeReady ? t('credits.to_payment') : t('credits.order_submit') ?>
-            </button>
-        </div>
-    </form>
-</dialog>
-
 <?php
 $jsEach = json_encode(t('credits.dialog_credits', ['count' => '{COUNT}']), JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
 $pageScripts = <<<HTML
 <script>
 (function () {
-    var dialog = document.getElementById('payDialog');
     var radios = document.querySelectorAll('input[name="pkg_choice"]');
-    if (!dialog || !radios.length) { return; }
+    if (!radios.length) { return; }
 
     var total = document.getElementById('creditTotal');
     var ctaAmount = document.getElementById('creditCtaAmount');
+    var packageField = document.getElementById('payPackage');
 
     function selected() {
         return document.querySelector('input[name="pkg_choice"]:checked');
     }
 
-    // Summe, Ersparnis und Knopfbetrag laufen mit der Auswahl mit
+    // Summe und Knopfbetrag laufen mit der Auswahl mit
     function paint() {
         var pick = selected();
         if (!pick) { return; }
@@ -269,6 +219,7 @@ $pageScripts = <<<HTML
             ctaAmount.textContent = pick.dataset.priceLabel;
             [total, ctaAmount].forEach(function (el) { el.classList.remove('is-swapping'); });
         }, 120);
+        packageField.value = pick.value;
     }
 
     radios.forEach(function (radio) {
@@ -279,41 +230,16 @@ $pageScripts = <<<HTML
         var pick = selected();
         total.textContent = pick.dataset.priceLabel;
         ctaAmount.textContent = pick.dataset.priceLabel;
+        packageField.value = pick.value;
     })();
 
-    document.getElementById('creditBuyBtn').addEventListener('click', function () {
-        var pick = selected();
-        if (!pick) { return; }
-        document.getElementById('payPackage').value = pick.value;
-        document.getElementById('paySummaryCredits').textContent =
-            {$jsEach}.replace('{COUNT}', pick.dataset.credits);
-        document.getElementById('paySummaryPrice').textContent = pick.dataset.priceLabel;
-        dialog.showModal();
+    // Doppelklick-Schutz: nach dem Absenden sperrt der Knopf
+    document.getElementById('creditBuyForm').addEventListener('submit', function () {
+        document.getElementById('creditBuyBtn').disabled = true;
     });
-
-    var close = function () { dialog.close(); };
-    document.getElementById('payClose').addEventListener('click', close);
-    dialog.addEventListener('click', function (event) {
-        if (event.target === dialog) { close(); }
-    });
-
-    // Kartennummer und Ablaufdatum beim Tippen lesbar gruppieren
-    var number = document.getElementById('cardNumber');
-    if (number) {
-        number.addEventListener('input', function () {
-            var digits = number.value.replace(/\D+/g, '').slice(0, 19);
-            number.value = digits.replace(/(.{4})/g, '\$1 ').trim();
-        });
-    }
-    var expiry = document.getElementById('cardExpiry');
-    if (expiry) {
-        expiry.addEventListener('input', function () {
-            var digits = expiry.value.replace(/\D+/g, '').slice(0, 4);
-            expiry.value = digits.length > 2 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits;
-        });
-    }
 })();
 </script>
 HTML;
+
 require BASE_PATH . '/includes/layout/dash-footer.php';
 ?>

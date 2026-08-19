@@ -954,13 +954,16 @@ for ($i2 = 1; $i2 < count($stueck); $i2++) {
 }
 check('Stueckpreis sinkt mit der Groesse', $sinkend);
 
-check('Zahlarten sind serverseitig begrenzt',
-    App\Service\PaymentService::PAYMENT_METHODS === ['card', 'twint']);
 $creditsPage2 = file_get_contents(BASE_PATH . '/dashboard/credits.php');
-check('Kaufdialog zeigt die Zahlarten',
-    str_contains($creditsPage2, 'pay-method') && str_contains($creditsPage2, 'twint'));
-check('nur bekannte Zahlarten erreichen Stripe',
-    str_contains($creditsPage2, 'PaymentService::PAYMENT_METHODS, true'));
+check('Kauf fuehrt ohne Zwischenschritt zur Kasse',
+    !str_contains($creditsPage2, 'payDialog')
+    && str_contains($creditsPage2, 'creditBuyForm')
+    && str_contains($creditsPage2, 'type="submit"'));
+check('Zahlartenwahl liegt bei der Stripe-Kasse',
+    !str_contains($creditsPage2, 'payment_method')
+    && str_contains($creditsPage2, 'was im Stripe-Konto freigeschaltet ist'));
+check('Doppelklick-Schutz am Kaufknopf',
+    str_contains($creditsPage2, 'disabled = true'));
 check('Guthaben-Feld in der Kopfleiste',
     str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'credit-chip'));
 
