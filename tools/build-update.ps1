@@ -50,7 +50,11 @@ foreach ($f in $dateien) {
 }
 
 if (Test-Path $zip) { [System.IO.File]::Delete($zip) }
-& "$env:SystemRoot\System32\tar.exe" -a -cf $zip -C $stage '.'
+# Dateiliste ohne ./-Praefix: der Windows-Explorer zeigt Eintraege mit ./
+# als leeren Ordner an. Linux-unzip versteht beide Formen.
+$liste = Join-Path $stage 'dateiliste.txt'
+[System.IO.File]::WriteAllLines($liste, [string[]]$dateien)
+& "$env:SystemRoot\System32\tar.exe" -a -cf $zip -C $stage -T $liste
 Remove-Item $stage -Recurse -Force
 
 $anzahl = ($dateien | Measure-Object).Count
