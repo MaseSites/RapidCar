@@ -1,5 +1,5 @@
 -- ===========================================================================
--- VehicleAI — MySQL/MariaDB-Schema (Produktion, §56)
+-- RapidCar, MySQL/MariaDB-Schema (Produktion, §56)
 -- Zeichensatz utf8mb4, InnoDB, Fremdschlüssel mit ON DELETE CASCADE
 -- ===========================================================================
 
@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS dealerships (
     opening_hours   TEXT         DEFAULT NULL,
     currency        VARCHAR(3)   NOT NULL DEFAULT 'CHF',
     language        VARCHAR(2)   NOT NULL DEFAULT 'de',
+    channels_synced_at   DATETIME DEFAULT NULL,
+    listing_tone         VARCHAR(30) DEFAULT NULL,
+    listing_sample       TEXT DEFAULT NULL,
+    listing_title_style  VARCHAR(30) DEFAULT NULL,
+    listing_title_sample VARCHAR(160) DEFAULT NULL,
     credits         INT UNSIGNED NOT NULL DEFAULT 0,
     created_at      DATETIME     NOT NULL,
     updated_at      DATETIME     NOT NULL,
@@ -78,6 +83,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     interior_color     VARCHAR(80)  DEFAULT NULL,
     doors              TINYINT UNSIGNED DEFAULT NULL,
     seats              TINYINT UNSIGNED DEFAULT NULL,
+    previous_owners  INT UNSIGNED DEFAULT NULL,
     vin                VARCHAR(30)  DEFAULT NULL,
     description        TEXT         DEFAULT NULL,
     status             VARCHAR(20)  NOT NULL DEFAULT 'draft',  -- §24
@@ -96,6 +102,9 @@ CREATE TABLE IF NOT EXISTS vehicle_images (
     id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
     vehicle_id            INT UNSIGNED NOT NULL,
     file_path             VARCHAR(255) NOT NULL,        -- relativ zu /uploads
+    cutout_path    VARCHAR(255) DEFAULT NULL,
+    composed_path  VARCHAR(255) DEFAULT NULL,
+    background_key VARCHAR(80) DEFAULT NULL,
     thumb_path            VARCHAR(255) DEFAULT NULL,
     card_path             VARCHAR(255) DEFAULT NULL,
     original_name         VARCHAR(255) DEFAULT NULL,
@@ -133,6 +142,7 @@ CREATE TABLE IF NOT EXISTS vehicle_field_status (
     vehicle_id  INT UNSIGNED NOT NULL,
     field_name  VARCHAR(50)  NOT NULL,
     status      VARCHAR(15)  NOT NULL DEFAULT 'manual',
+    alternatives  TEXT DEFAULT NULL,
     confidence  TINYINT UNSIGNED DEFAULT NULL,           -- 0–100
     updated_at  DATETIME NOT NULL,
     PRIMARY KEY (id),
@@ -148,6 +158,8 @@ CREATE TABLE IF NOT EXISTS listings (
     dealership_id INT UNSIGNED NOT NULL,
     title         VARCHAR(255) DEFAULT NULL,
     description   TEXT         DEFAULT NULL,
+    title_template       TEXT DEFAULT NULL,
+    description_template TEXT DEFAULT NULL,
     status        VARCHAR(20)  NOT NULL DEFAULT 'draft',  -- draft | ready | published
     credit_charged TINYINT(1)  NOT NULL DEFAULT 0,        -- Guthaben einmalig belastet
     published_at  DATETIME     DEFAULT NULL,
@@ -245,6 +257,10 @@ CREATE TABLE IF NOT EXISTS social_posts (
     image_path    VARCHAR(255) DEFAULT NULL,             -- generiertes Bild in /uploads
     image_ids     TEXT         DEFAULT NULL,             -- JSON: verwendete vehicle_images-IDs
     status        VARCHAR(20)  NOT NULL DEFAULT 'draft', -- draft | saved | published
+    stat_views     INT DEFAULT NULL,
+    stat_likes     INT DEFAULT NULL,
+    stat_comments  INT DEFAULT NULL,
+    stat_saves     INT DEFAULT NULL,
     published_at  DATETIME     DEFAULT NULL,
     created_at    DATETIME NOT NULL,
     updated_at    DATETIME NOT NULL,
@@ -403,6 +419,7 @@ CREATE TABLE IF NOT EXISTS credit_orders (
     price         DECIMAL(10,2) NOT NULL,
     currency      VARCHAR(3)   NOT NULL DEFAULT 'CHF',
     status        VARCHAR(20)  NOT NULL DEFAULT 'pending',  -- pending | paid | cancelled
+    provider_ref  VARCHAR(190) DEFAULT NULL,
     created_by    INT UNSIGNED DEFAULT NULL,
     paid_at       DATETIME     DEFAULT NULL,
     created_at    DATETIME     NOT NULL,
@@ -494,6 +511,55 @@ CREATE TABLE IF NOT EXISTS settings (
     setting_value TEXT DEFAULT NULL,
     updated_at    DATETIME NOT NULL,
     PRIMARY KEY (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------- backgrounds
+-- Eigene Hintergrundbilder je Autohaus
+CREATE TABLE IF NOT EXISTS backgrounds (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    dealership_id INT UNSIGNED NOT NULL,
+    name          VARCHAR(120) NOT NULL,
+    file_path     VARCHAR(255) NOT NULL,
+    thumb_path    VARCHAR(255) DEFAULT NULL,
+    created_at    DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_backgrounds_dealership (dealership_id),
+    CONSTRAINT fk_backgrounds_dealership FOREIGN KEY (dealership_id)
+        REFERENCES dealerships (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------- background_favorites
+-- Favorisierte Hintergruende je Autohaus
+CREATE TABLE IF NOT EXISTS background_favorites (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    dealership_id INT UNSIGNED NOT NULL,
+    bg_key        VARCHAR(80) NOT NULL,
+    created_at    DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_bgfav (dealership_id, bg_key),
+    CONSTRAINT fk_bgfav_dealership FOREIGN KEY (dealership_id)
+        REFERENCES dealerships (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------- channel_remote_listings
+-- Inserate, die nur auf einem Verkaufskanal bestehen (Abgleich)
+CREATE TABLE IF NOT EXISTS channel_remote_listings (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    dealership_id INT UNSIGNED NOT NULL,
+    provider      VARCHAR(50) NOT NULL,
+    external_id   VARCHAR(190) NOT NULL,
+    reference_id  VARCHAR(190) DEFAULT NULL,
+    title         VARCHAR(255) DEFAULT NULL,
+    price         DECIMAL(12,2) DEFAULT NULL,
+    currency      VARCHAR(3) DEFAULT NULL,
+    status        VARCHAR(20) DEFAULT NULL,
+    url           VARCHAR(500) DEFAULT NULL,
+    vehicle_id    INT UNSIGNED DEFAULT NULL,
+    fetched_at    DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_remote_listing (dealership_id, provider, external_id),
+    CONSTRAINT fk_remote_dealership FOREIGN KEY (dealership_id)
+        REFERENCES dealerships (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
