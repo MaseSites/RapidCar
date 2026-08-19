@@ -185,6 +185,36 @@ Nach der Einrichtung `systemcheck.php` löschen.
 - Ein Fahrzeug anlegen, Fotos hochladen, Inserat erzeugen
 - `storage/logs/` auf Einträge prüfen, falls etwas hakt
 
+## Guthaben-Kauf ueber Stripe
+
+Die Anbindung ist fertig eingebaut, es fehlen nur die zwei Schluessel:
+
+1. Stripe-Konto anlegen (stripe.com), dann unter **Entwickler, API-Schluessel**
+   den geheimen Schluessel kopieren (beginnt mit `sk_live_` oder zum Testen
+   `sk_test_`).
+2. Unter **Entwickler, Webhooks** einen Endpunkt anlegen:
+   - Adresse: `https://deine-domain.tld/api/payments/stripe-webhook.php`
+   - Ereignis: `checkout.session.completed`
+   - Das Signaturgeheimnis (`whsec_...`) kopieren.
+3. Beide Werte in `config/config.php` eintragen:
+
+```php
+'payment' => [
+    'provider'       => 'stripe',
+    'api_key'        => 'sk_live_...',
+    'webhook_secret' => 'whsec_...',
+],
+```
+
+Ab dann fuehrt der Kauf zur Stripe-Kasse; gutgeschrieben wird erst, wenn
+Stripe die Zahlung ueber den signierten Webhook bestaetigt. Doppelte
+Webhooks, nachgebaute Signaturen und wiederholt eingespielte alte
+Ereignisse werden abgewiesen.
+
+Solange die Schluessel fehlen, wird kein Kauf vorgetaeuscht: Bestellungen
+bleiben offen und werden im Admin unter Bestellungen nach Zahlungseingang
+freigegeben.
+
 ## Fehler 500 nach einem Umzug
 
 Rendert die Seite, aber Anmeldung und Registrierung enden im Fehler, ist fast

@@ -11,7 +11,6 @@ require_once __DIR__ . '/includes/csrf.php';
 use App\Auth\AuthService;
 use App\Auth\EmailVerification;
 use App\Auth\RateLimiter;
-use App\Core\Database;
 use App\Core\Session;
 use App\Core\Validator;
 
@@ -45,30 +44,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = t('auth.login.failed');
         } elseif (EmailVerification::isEnabled() && $user['email_verified_at'] === null) {
             AuthService::logout();
-            // Direkt einen frischen Link senden statt nur zu mahnen; gedrosselt,
-            // damit niemand fremde Postfaecher fluten kann. Danach auf die
-            // Bestaetigungsseite, dort steht alles Weitere.
-            $state = '';
-            // Kam gerade erst eine Mail (Registrierung oder frueherer Versuch),
-            // wird keine zweite hinterhergeschickt: zwei Mails binnen Minuten
-            // verwirren nur. Die alten Links bleiben ohnehin gueltig.
-            $lastSent = Database::scalar(
-                'SELECT MAX(created_at) FROM email_verifications WHERE user_id = :u',
-                ['u' => (int) $user['id']]
-            );
-            $recentlySent = is_string($lastSent) && $lastSent !== ''
-                && (time() - (int) strtotime($lastSent)) < 600;
-            if (!$recentlySent && !RateLimiter::tooManyAttempts('verify_resend', (string) $user['email'])) {
-                RateLimiter::hit('verify_resend', (string) $user['email']);
-                try {
-                    $state = EmailVerification::send((int) $user['id'], (string) $user['email']) ? 'sent' : 'failed';
-                } catch (\Throwable $e) {
-                    \App\Core\Logger::error('Bestaetigungsmail fehlgeschlagen: ' . $e->getMessage());
-                    $state = 'failed';
-                }
-            }
+            // Keine Mail von selbst: nachgeschickt wird nur, wenn jemand auf
+            // der Bestaetigungsseite ausdruecklich "E-Mail erneut senden"
+            // drueckt. Die Links aus der Registrierung bleiben gueltig.
             Session::set('verify_email', (string) $user['email']);
-            Session::set('verify_state', $state);
+            Session::set('verify_state', '');
             redirect('confirm-email.php');
         } else {
             RateLimiter::clear('login', $login);

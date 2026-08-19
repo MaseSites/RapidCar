@@ -42,6 +42,23 @@ foreach ([BASE_PATH . '/storage', BASE_PATH . '/storage/logs', BASE_PATH . '/upl
     }
 }
 
+// Hochgeladene Dateien duerfen nie als Skript laufen (Paragraf 59). Der
+// Ordner entsteht zur Laufzeit, also entsteht sein Schutz hier gleich mit.
+$uploadsGuard = BASE_PATH . '/uploads/.htaccess';
+if (!is_file($uploadsGuard)) {
+    @file_put_contents($uploadsGuard,
+        "Options -Indexes -ExecCGI" . PHP_EOL
+        . "<IfModule mod_php.c>" . PHP_EOL
+        . "    php_flag engine off" . PHP_EOL
+        . "</IfModule>" . PHP_EOL
+        . "RemoveHandler .php .phtml .phar" . PHP_EOL
+        . "RemoveType .php .phtml .phar" . PHP_EOL
+        . '<FilesMatch "' . chr(92) . '.(?i:php|phtml|phar|pl|py|cgi|sh|exe)$">' . PHP_EOL
+        . "    Require all denied" . PHP_EOL
+        . "</FilesMatch>" . PHP_EOL
+    );
+}
+
 $debug = (bool) filter_var(Config::get('app.debug', false), FILTER_VALIDATE_BOOL);
 ini_set('display_errors', $debug ? '1' : '0');
 ini_set('log_errors', '1');
@@ -113,6 +130,9 @@ if (!headers_sent()) {
     if (Session::isHttps()) {
         header('Strict-Transport-Security: max-age=31536000');
     }
+    // Seiten nutzen eigene Inline-Skripte, aber niemals fremde Quellen.
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
     // Seiten enthalten ihr Skript inline und aendern sich mit jedem
     // Speichern. Ohne diese Angabe zeigen manche Browser nach dem
     // Zurueckspringen eine alte Fassung samt altem Skript.

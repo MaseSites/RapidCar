@@ -797,8 +797,9 @@ $loginSource = file_get_contents(BASE_PATH . '/login.php');
 check('Anmeldung weist unbestaetigte Konten ab',
     str_contains($loginSource, "email_verified_at'] === null")
     && str_contains($loginSource, 'AuthService::logout()'));
-check('Anmeldung schickt gedrosselt einen frischen Link',
-    str_contains($loginSource, "verify_resend"));
+check('Nachschicken nur ueber den Knopf auf der Bestaetigungsseite',
+    !str_contains($loginSource, "verify_resend")
+    && str_contains((string) file_get_contents(BASE_PATH . '/confirm-email.php'), "tooManyAttempts('verify_resend'"));
 
 echo "
 "; echo "Kontoarten (Privat und Autohaus)"; echo "
@@ -885,13 +886,58 @@ check('Kontaktadresse der Person landet am Mandanten',
     str_contains($authSource2, "$accountType === 'private' ? mb_strtolower(trim(\$email)) : null"));
 
 $loginSource2 = file_get_contents(BASE_PATH . '/login.php');
-check('keine zweite Mail kurz nach der Registrierung',
-    str_contains($loginSource2, 'MAX(created_at) FROM email_verifications')
-    && str_contains($loginSource2, '$recentlySent'));
+check('Anmeldung verschickt nie von selbst eine Mail',
+    !str_contains($loginSource2, 'EmailVerification::send'));
 
 check('Einstellungen sagen Anzeigename fuer Privat',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/settings.php'),
         "$isPrivate ? 'Anzeigename'"));
+
+echo "\n"; echo "Haertung: Guthaben und Zahlung"; echo "\n";
+
+// Guthaben laesst sich nicht erschleichen: kein Kauf ohne Zahlung, keine
+// Abbuchung unter null, kein doppeltes Verbuchen derselben Bestellung.
+$creditSource = file_get_contents(BASE_PATH . '/src/Service/CreditService.php');
+check('Abbuchung ist atomar und bedingt',
+    str_contains($creditSource, 'credits + :d2 >= 0')
+    && str_contains($creditSource, "throw new RuntimeException('INSUFFICIENT_CREDITS')"));
+check('kein stilles Abrunden auf null mehr',
+    !str_contains($creditSource, 'max(0, ' . chr(36) . 'current'));
+check('Bestellung wird nur aus pending heraus verbucht',
+    str_contains($creditSource, "WHERE id = :id AND status = 'pending'"));
+
+$creditsPage = file_get_contents(BASE_PATH . '/dashboard/credits.php');
+check('Testkauf ohne Zahlung ist abgeschafft',
+    !str_contains($creditsPage, 'card_number')
+    && !str_contains($creditsPage, 'completeOrder(' . chr(36) . 'orderId, (int) ' . chr(36) . 'currentUser'));
+check('ohne Anbieter bleibt die Bestellung offen',
+    str_contains($creditsPage, "t('credits.order_recorded')"));
+
+$paymentSource = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
+check('Preis kommt aus der Bestellung, nie vom Kaeufer',
+    str_contains($paymentSource, "(float) " . chr(36) . "order['price']"));
+check('Webhook verlangt die Signatur',
+    str_contains($paymentSource, 'verifyStripeSignature'));
+check('alte Ereignisse werden abgewiesen',
+    str_contains($paymentSource, 'Toleranz: 5 Minuten'));
+
+echo "\n"; echo "Haertung: Server"; echo "\n";
+
+$bootstrapSource3 = file_get_contents(BASE_PATH . '/includes/bootstrap.php');
+check('Content-Security-Policy gesetzt',
+    str_contains($bootstrapSource3, 'Content-Security-Policy')
+    && str_contains($bootstrapSource3, "object-src 'none'"));
+check('Permissions-Policy gesetzt',
+    str_contains($bootstrapSource3, 'Permissions-Policy'));
+check('uploads-Schutz entsteht zur Laufzeit',
+    str_contains($bootstrapSource3, "uploads/.htaccess")
+    && str_contains($bootstrapSource3, 'php_flag engine off'));
+check('uploads: Skripte auch in der Wurzel gesperrt',
+    str_contains((string) file_get_contents(BASE_PATH . '/.htaccess'), 'uploads/.+'));
+check('Kennwoerter nur als Hash',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Auth/AuthService.php'), 'password_hash(')
+    && str_contains((string) file_get_contents(BASE_PATH . '/src/Auth/AuthService.php'), 'password_verify('));
+
 
 
 

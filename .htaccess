@@ -13,6 +13,9 @@ Options -Indexes
     # Interne Ordner niemals ausliefern
     RewriteRule ^(src|config|includes|database|storage|lang)(/|$) - [F,L]
 
+    # Hochgeladene Dateien laufen nie als Skript, egal was jemand hochlaedt
+    RewriteRule ^uploads/.+\.(php|phtml|phar|pl|py|cgi|sh)$ - [F,L,NC]
+
     # Versteckte Dateien (.env, .git, …) sperren
     RewriteRule (^|/)\.(?!well-known) - [F,L]
 

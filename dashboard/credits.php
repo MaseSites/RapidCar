@@ -65,22 +65,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         exit;
     }
 
-    // Testzahlung: Die Kartendaten werden nur auf Vollständigkeit geprüft und
-    // danach verworfen. Gespeichert wird ausschliesslich die Bestellung.
-    $cardNumber = preg_replace('/\D+/', '', (string) ($_POST['card_number'] ?? '')) ?? '';
-    $holder = trim((string) ($_POST['card_holder'] ?? ''));
-    $expiry = trim((string) ($_POST['card_expiry'] ?? ''));
-    $cvc = preg_replace('/\D+/', '', (string) ($_POST['card_cvc'] ?? '')) ?? '';
-
-    if ($holder === '' || strlen($cardNumber) < 12 || !preg_match('/^\d{2}\s*\/\s*\d{2}$/', $expiry) || strlen($cvc) < 3) {
-        CreditService::cancelOrder($orderId);
-        Session::flash('danger', t('credits.card_incomplete'));
-        redirect('dashboard/credits.php');
-    }
-    unset($cardNumber, $cvc, $expiry, $holder, $_POST['card_number'], $_POST['card_cvc']);
-
-    CreditService::completeOrder($orderId, (int) $currentUser['id'], true);
-    Session::flash('success', t('credits.test_purchase_done', ['count' => (int) $package['credits']]));
+    // Ohne Zahlungsanbieter wird nichts gutgeschrieben: die Bestellung
+    // bleibt offen, bis der Betreiber den Zahlungseingang im Admin bestaetigt.
+    // Einen Kauf ohne Zahlung gibt es nicht (Paragraf 72).
+    Session::flash('info', t('credits.order_recorded'));
     redirect('dashboard/credits.php');
 }
 
@@ -214,32 +202,9 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             <?php if ($stripeReady): ?>
                 <p class="text-sm text-secondary"><?= t('credits.stripe_lead') ?></p>
             <?php else: ?>
-                <div class="alert alert-warning" style="margin-bottom:16px">
+                <div class="alert alert-info" style="margin-bottom:16px">
                     <?= icon('info', 16) ?>
-                    <span class="text-sm"><?= t('credits.test_notice') ?></span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="cardHolder"><?= t('credits.card_holder') ?></label>
-                    <input class="form-control" type="text" id="cardHolder" name="card_holder"
-                           placeholder="Max Muster" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="cardNumber"><?= t('credits.card_number') ?></label>
-                    <input class="form-control" type="text" id="cardNumber" name="card_number"
-                           inputmode="numeric" maxlength="23" placeholder="4242 4242 4242 4242" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="cardExpiry"><?= t('credits.card_expiry') ?></label>
-                        <input class="form-control" type="text" id="cardExpiry" name="card_expiry"
-                               maxlength="5" placeholder="12/29" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="cardCvc"><?= t('credits.card_cvc') ?></label>
-                        <input class="form-control" type="text" id="cardCvc" name="card_cvc"
-                               inputmode="numeric" maxlength="4" placeholder="123" required>
-                    </div>
+                    <span class="text-sm"><?= t('credits.order_notice') ?></span>
                 </div>
             <?php endif; ?>
         </div>
@@ -247,7 +212,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
         <div class="feature-dialog-foot" style="justify-content:flex-end">
             <button class="btn btn-primary btn-lg" type="submit">
                 <?= icon('check', 16) ?>
-                <?= $stripeReady ? t('credits.to_payment') : t('credits.pay_test') ?>
+                <?= $stripeReady ? t('credits.to_payment') : t('credits.order_submit') ?>
             </button>
         </div>
     </form>

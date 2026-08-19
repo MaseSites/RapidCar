@@ -239,6 +239,23 @@ check(
     'Ohne echten Mailversand bleibt die Bestaetigung aus, sonst kaeme niemand hinein.'
 );
 
+// ----------------------------------------------------------------- Zahlung
+$paymentProvider = strtolower(trim((string) Config::get('payment.provider', '')));
+$paymentKey = trim((string) Config::get('payment.api_key', '')) !== '';
+$paymentHook = trim((string) Config::get('payment.webhook_secret', '')) !== '';
+check(
+    'Guthaben-Kauf',
+    true,
+    $paymentProvider === 'stripe' && $paymentKey && $paymentHook
+        ? 'Stripe aktiv'
+        : ($paymentProvider === 'stripe'
+            ? 'Stripe vorbereitet, Schluessel fehlen (Freigabe von Hand im Admin)'
+            : 'Freigabe von Hand im Admin'),
+    $paymentProvider === 'stripe' && (!$paymentKey || !$paymentHook)
+        ? 'payment.api_key (sk_...) und payment.webhook_secret (whsec_...) in config/config.php eintragen.'
+        : ''
+);
+
 // ------------------------------------------------- Verbindungen nach draussen
 // Viele Hoster sperren ausgehende Verbindungen. Dann schlaegt nicht nur ein
 // git clone fehl, sondern auch jeder Aufruf der KI. Ein kurzer Versuch je

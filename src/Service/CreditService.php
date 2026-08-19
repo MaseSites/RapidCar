@@ -146,12 +146,22 @@ final class CreditService
     ): int {
         Database::beginTransaction();
         try {
-            $current = self::balance($dealershipId);
-            $new = max(0, $current + $delta);
-
-            Database::run(
-                'UPDATE dealerships SET credits = :c, updated_at = :t WHERE id = :id',
-                ['c' => $new, 't' => Database::now(), 'id' => $dealershipId]
+            // Bedingtes, atomares Update statt Lesen und Zurueckschreiben:
+            // zwei gleichzeitige Veroeffentlichungen koennten sonst dasselbe
+            // letzte Guthaben verbrauchen. Reicht der Stand nicht, aendert
+            // die Datenbank keine Zeile, und die Buchung schlaegt ehrlich fehl.
+            $affected = Database::run(
+                'UPDATE dealerships
+                 SET credits = credits + :d, updated_at = :t
+                 WHERE id = :id AND credits + :d2 >= 0',
+                ['d' => $delta, 'd2' => $delta, 't' => Database::now(), 'id' => $dealershipId]
+            )->rowCount();
+            if ($affected === 0) {
+                throw new RuntimeException('INSUFFICIENT_CREDITS');
+            }
+            $new = (int) Database::scalar(
+                'SELECT credits FROM dealerships WHERE id = :id',
+                ['id' => $dealershipId]
             );
             Database::insert('credit_transactions', [
                 'dealership_id' => $dealershipId,
@@ -221,11 +231,17 @@ final class CreditService
             return;
         }
 
-        Database::update('credit_orders', $orderId, [
-            'status'     => 'paid',
-            'paid_at'    => Database::now(),
-            'updated_at' => Database::now(),
-        ]);
+        // Nur der Wechsel pending -> paid schreibt gut. Das bedingte Update
+        // verhindert, dass zwei gleichzeitig eintreffende Webhooks dieselbe
+        // Bestellung doppelt verbuchen.
+        $switched = Database::run(
+            "UPDATE credit_orders SET status = 'paid', paid_at = :p, updated_at = :u
+             WHERE id = :id AND status = 'pending'",
+            ['p' => Database::now(), 'u' => Database::now(), 'id' => $orderId]
+        )->rowCount();
+        if ($switched === 0) {
+            return;
+        }
 
         $description = ($isTestPurchase ? 'Testkauf ohne Zahlung: ' : '')
             . $order['credits'] . ' Inserate, Bestellung #' . $orderId;
