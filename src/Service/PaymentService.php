@@ -8,7 +8,6 @@ use App\Core\CaBundle;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Logger;
-use App\Service\SettingsService;
 use RuntimeException;
 
 /**
@@ -43,7 +42,7 @@ final class PaymentService
      * @return string Weiterleitungs-URL zur Stripe-Kasse
      */
     /** Zahlungsarten, die eine Konfiguration fest vorgeben darf. */
-    public const PAYMENT_METHODS = ['card', 'twint', 'klarna', 'paypal', 'link'];
+    public const PAYMENT_METHODS = ['card', 'twint', 'klarna', 'paypal', 'link', 'amazon_pay', 'revolut_pay', 'eps', 'ideal', 'bancontact'];
 
     /**
      * @param string|null $method 'card' oder 'twint'. Bei 'card' zeigt die
@@ -103,13 +102,13 @@ final class PaymentService
             $params['billing_address_collection'] = 'required';
         }
 
-        // Zahlarten der Kasse. Reihenfolge der Entscheidung:
-        //   1. payment.methods aus der Konfiguration, wenn gesetzt
-        //   2. sonst automatisch: Karte, plus TWINT sobald es im Stripe-Konto
-        //      freigeschaltet ist. Klarna und anderes, was Stripe von sich aus
-        //      dazuschaltet, erscheint damit bewusst nicht.
-        // Apple Pay und Google Pay laufen ueber 'card' und kommen von selbst,
-        // je nachdem, was Geraet und Browser des Kaeufers koennen.
+        // Zahlarten der Kasse. Ohne payment.methods in der Konfiguration
+        // zeigt die Kasse ALLES, was im Stripe-Konto freigeschaltet ist:
+        // Karte, TWINT, Klarna, PayPal, Amazon Pay, Link und so weiter.
+        // Neue Zahlarten erscheinen damit von selbst, sobald sie im
+        // Stripe-Dashboard aktiviert werden. Apple Pay und Google Pay laufen
+        // ueber die Karte und richten sich nach dem Geraet des Kaeufers.
+        // Eine gesetzte Konfiguration begrenzt die Auswahl fest.
         $configured = Config::get('payment.methods', []);
         $pinned = [];
         if (is_array($configured)) {
@@ -119,9 +118,6 @@ final class PaymentService
                     $pinned[] = $entry;
                 }
             }
-        }
-        if ($pinned === []) {
-            $pinned = self::autoMethods();
         }
         if ($method !== null && in_array($method, self::PAYMENT_METHODS, true)) {
             $pinned = [$method];
@@ -260,42 +256,6 @@ final class PaymentService
         CreditService::completeOrder($orderId, null, false);
         Logger::info('Stripe-Zahlung beim Ruecksprung verbucht fuer Bestellung #' . $orderId);
         return true;
-    }
-
-    /**
-     * Automatische Zahlarten: Karte immer, TWINT sobald das Stripe-Konto es
-     * anbietet. Die Abfrage bei Stripe wird sechs Stunden zwischengespeichert,
-     * damit nicht jeder Kauf eine zusaetzliche Anfrage kostet.
-     *
-     * @return array<int, string>
-     */
-    private static function autoMethods(): array
-    {
-        $cached = SettingsService::get('stripe_auto_methods');
-        if ($cached !== null) {
-            $entry = json_decode($cached, true);
-            if (is_array($entry)
-                && time() - (int) ($entry['checked_at'] ?? 0) < 6 * 3600
-                && is_array($entry['methods'] ?? null)
-            ) {
-                return $entry['methods'];
-            }
-        }
-
-        $methods = ['card'];
-        $overview = self::methodOverview();
-        if (($overview['twint'] ?? '') === 'on') {
-            $methods[] = 'twint';
-        }
-        if ($overview !== []) {
-            // Nur speichern, wenn Stripe geantwortet hat: eine leere Antwort
-            // (nicht erreichbar) soll den naechsten Versuch nicht blockieren.
-            SettingsService::set('stripe_auto_methods', (string) json_encode([
-                'checked_at' => time(),
-                'methods'    => $methods,
-            ]));
-        }
-        return $methods;
     }
 
     /**

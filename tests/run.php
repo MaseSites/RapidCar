@@ -971,8 +971,8 @@ check('Zahlarten lassen sich per Konfiguration festnageln',
     && str_contains($paymentSource3, "payment_method_types["));
 check('nur bekannte Zahlarten kommen durch',
     str_contains($paymentSource3, 'in_array($entry, self::PAYMENT_METHODS, true)'));
-check('leer heisst: der Server waehlt automatisch',
-    str_contains($paymentSource3, 'self::autoMethods()'));
+check('leer heisst: das Stripe-Konto entscheidet',
+    !str_contains($paymentSource3, 'autoMethods'));
 
 echo "
 "; echo "Belastung beim Bau des Inserats"; echo "
@@ -1023,19 +1023,18 @@ check('Zahlarten-Abfrage nur mit eingerichtetem Stripe',
     str_contains((string) file_get_contents(BASE_PATH . '/src/Service/PaymentService.php'),
         'payment_method_configurations'));
 
-// Ohne feste Vorgabe entscheidet der Server selbst: Karte immer, TWINT
-// sobald das Stripe-Konto es anbietet. Klarna kommt nie von allein.
+// Ohne feste Vorgabe zeigt die Kasse alles, was das Stripe-Konto
+// freigeschaltet hat; die Konfiguration kann die Auswahl begrenzen.
 $paymentSource4 = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
-check('automatische Zahlarten: Karte plus TWINT sobald aktiv',
-    str_contains($paymentSource4, 'private static function autoMethods')
-    && str_contains($paymentSource4, "(\$overview['twint'] ?? '') === 'on'"));
-check('Klarna erscheint nie von allein',
-    !str_contains($paymentSource4, "\$methods[] = 'klarna'"));
-check('Stripe-Antwort wird zwischengespeichert',
-    str_contains($paymentSource4, 'stripe_auto_methods')
-    && str_contains($paymentSource4, '6 * 3600'));
-check('Konfiguration hat weiter Vorrang',
-    strpos($paymentSource4, 'payment.methods') < strpos($paymentSource4, 'self::autoMethods()'));
+check('ohne Vorgabe zeigt die Kasse alles Freigeschaltete',
+    str_contains($paymentSource4, 'zeigt die Kasse ALLES')
+    && !str_contains($paymentSource4, 'autoMethods'));
+check('breite Zahlarten-Liste fuer feste Vorgaben',
+    str_contains($paymentSource4, "'amazon_pay'")
+    && str_contains($paymentSource4, "'paypal'")
+    && str_contains($paymentSource4, "'twint'"));
+check('Konfiguration begrenzt weiterhin',
+    str_contains($paymentSource4, "Config::get('payment.methods'")); 
 
 echo "
 "; echo "Admin: versteckt, loeschen, Zahlungen automatisch"; echo "
