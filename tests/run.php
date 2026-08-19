@@ -1086,6 +1086,11 @@ check('beide Schemata kennen das Protokoll',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'sent_emails')
     && str_contains((string) file_get_contents(BASE_PATH . '/database/schema.sqlite.sql'), 'sent_emails'));
 
+check('auch spaete Zahlungen (Bankueberweisung) schreiben gut',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Service/PaymentService.php'),
+        'checkout.session.async_payment_succeeded'));
+
+
 
 
 

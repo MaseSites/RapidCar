@@ -163,7 +163,12 @@ final class PaymentService
         if (!is_array($event)) {
             throw new RuntimeException('Der Webhook-Inhalt konnte nicht gelesen werden.');
         }
-        if ((string) ($event['type'] ?? '') !== 'checkout.session.completed') {
+        // Zwei Wege zum bezahlten Kauf: sofortige Zahlarten melden
+        // checkout.session.completed mit payment_status paid; asynchrone
+        // (z.B. Bankueberweisung) melden den spaeteren Zahlungseingang als
+        // async_payment_succeeded. Beide schreiben gut, doppelt nie.
+        $eventType = (string) ($event['type'] ?? '');
+        if (!in_array($eventType, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
             return null;
         }
 

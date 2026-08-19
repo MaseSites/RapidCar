@@ -194,7 +194,8 @@ Die Anbindung ist fertig eingebaut, es fehlen nur die zwei Schluessel:
    `sk_test_`).
 2. Unter **Entwickler, Webhooks** einen Endpunkt anlegen:
    - Adresse: `https://deine-domain.tld/api/payments/stripe-webhook.php`
-   - Ereignis: `checkout.session.completed`
+   - Ereignisse: `checkout.session.completed` und `checkout.session.async_payment_succeeded`
+     (das zweite meldet spaeter eintreffende Zahlungen wie Bankueberweisungen)
    - Das Signaturgeheimnis (`whsec_...`) kopieren.
 3. Beide Werte in `config/config.php` eintragen:
 
