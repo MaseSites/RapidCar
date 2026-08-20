@@ -1806,6 +1806,29 @@ check('Pro-Zeichen schimmert in Lila',
 check('Bewegung laesst sich abschalten',
     str_contains($cssSrc, 'prefers-reduced-motion'));
 
+echo "
+"; echo "Beitrags-Editor"; echo "
+";
+
+// Der Beitrag laesst sich vor dem Veroeffentlichen frei gestalten.
+$socialSrc = file_get_contents(BASE_PATH . '/dashboard/social.php');
+check('Schriftart waehlbar',
+    str_contains($socialSrc, 'fontSelect') && str_contains($socialSrc, 'condensed'));
+check('Schriftgroesse einstellbar',
+    str_contains($socialSrc, 'fontScale'));
+check('Texte im Bild anklickbar aendern',
+    str_contains($socialSrc, 'textBoxes') && str_contains($socialSrc, "LABELS = { badge:"));
+check('Bild verschieben und zoomen',
+    str_contains($socialSrc, 'pointerdown') && str_contains($socialSrc, 'imgZoom')
+    && str_contains($socialSrc, 'view.offsetX'));
+check('Ausschnitt bleibt im Bild',
+    str_contains($socialSrc, 'Math.max(-maxX, Math.min(maxX, view.offsetX))'));
+check('Ausschnitt zuruecksetzbar',
+    str_contains($socialSrc, 'resetImage'));
+check('Wortmarke ueber der Navigation',
+    str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'sidebar-brand-name'));
+
+
 
 echo "
 "; echo "Vollstaendige Inseratsdaten"; echo "

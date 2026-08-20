@@ -62,9 +62,13 @@ $hasPlus = $dealershipId !== null && \App\Service\SubscriptionService::isActive(
 ?>
 <div class="app">
     <aside class="sidebar">
-        <?php if ($hasPlus): ?>
-            <div class="pro-mark" title="RapidCar Plus ist aktiv">Pro</div>
-        <?php endif; ?>
+        <?php // Kopf der Seitenleiste: Wortmarke, darunter das Pro-Zeichen ?>
+        <div class="sidebar-brand">
+            <span class="sidebar-brand-name">RapidCar</span>
+            <?php if ($hasPlus): ?>
+                <span class="pro-mark" title="RapidCar Plus ist aktiv">Pro</span>
+            <?php endif; ?>
+        </div>
         <nav>
             <a class="nav-item <?= $activeNav === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard/') ?>">
                 <?= icon('dashboard') ?> <?= t('sidebar.dashboard') ?>

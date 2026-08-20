@@ -272,7 +272,36 @@ else:
                 <h3 style="font-size:15.5px"><?= t('social.preview') ?> (1080x1080)</h3>
                 <button class="btn btn-secondary btn-sm" type="button" id="regenerateBtn"><?= icon('refresh', 14) ?> <?= t('social.regenerate') ?></button>
             </div>
-            <canvas id="postCanvas" width="1080" height="1080" style="width:100%;border-radius:14px;border:1px solid var(--border)"></canvas>
+            <div class="post-tools">
+                <div class="post-tool">
+                    <label class="form-label">Schrift</label>
+                    <select class="form-control" id="fontSelect">
+                        <option value="sans">Modern (serifenlos)</option>
+                        <option value="serif">Klassisch (Serifen)</option>
+                        <option value="condensed">Schmal</option>
+                        <option value="rounded">Rund</option>
+                        <option value="mono">Technisch</option>
+                    </select>
+                </div>
+                <div class="post-tool">
+                    <label class="form-label">Schriftgrösse</label>
+                    <input type="range" id="fontScale" min="70" max="140" value="100" step="5">
+                </div>
+                <div class="post-tool">
+                    <label class="form-label">Bildausschnitt</label>
+                    <input type="range" id="imgZoom" min="100" max="250" value="100" step="5">
+                    <div class="form-hint">Bild mit der Maus verschieben</div>
+                </div>
+                <div class="post-tool">
+                    <button class="btn btn-secondary btn-sm" type="button" id="resetImage">Ausschnitt zurücksetzen</button>
+                </div>
+            </div>
+            <canvas id="postCanvas" width="1080" height="1080"
+                    style="width:100%;border-radius:14px;border:1px solid var(--border);cursor:grab"
+                    title="Auf einen Text klicken, um ihn zu ändern. Bild ziehen, um den Ausschnitt zu wählen."></canvas>
+            <div class="text-xs text-muted mt-1">
+                Auf einen Text im Bild klicken, um ihn zu ändern. Das Foto lässt sich ziehen und mit dem Regler vergrössern.
+            </div>
             <div class="flex gap-1 mt-2" style="flex-wrap:wrap">
                 <button class="btn btn-primary" type="button" id="saveBtn"><?= t('common.save') ?></button>
                 <?php if (!$hasPlus): ?>
@@ -400,6 +429,38 @@ $pageScripts = <<<HTML
         img.src = src;
     }
 
+    // Schriftfamilien zur Auswahl. Nur systemseitig vorhandene, damit die
+    // Vorschau auf jedem Rechner dem gespeicherten Bild entspricht.
+    var FONTS = {
+        sans:      'Arial, Helvetica, sans-serif',
+        serif:     'Georgia, "Times New Roman", serif',
+        condensed: '"Arial Narrow", "Helvetica Neue", Arial, sans-serif',
+        rounded:   '"Trebuchet MS", "Segoe UI", Verdana, sans-serif',
+        mono:      '"Courier New", Consolas, monospace'
+    };
+
+    // Frei aenderbare Texte. Was hier steht, wird gezeichnet.
+    var texts = {
+        badge:  'NEW IN',
+        name:   data.name,
+        facts:  [data.powerHp, data.mileage, data.price].filter(Boolean).join('   ·   '),
+        dealer: data.dealer
+    };
+    // Wo die Texte liegen: fuer das Anklicken im Bild.
+    var textBoxes = {};
+
+    var view = { zoom: 1, offsetX: 0, offsetY: 0 };   // Bildausschnitt
+    var fontKey = 'sans';
+    var fontScale = 1;
+
+    function fontFamily() {
+        // Vorlage gibt die Grundschrift vor, die Auswahl gewinnt.
+        if (fontKey === 'sans' && currentTemplate && currentTemplate.font === 'serif') {
+            return FONTS.serif;
+        }
+        return FONTS[fontKey] || FONTS.sans;
+    }
+
     function render() {
         if (!currentTemplate) { return; }
         var W = 1080, H = 1080;
@@ -407,14 +468,21 @@ $pageScripts = <<<HTML
         ctx.fillStyle = currentTemplate.bg || '#111';
         ctx.fillRect(0, 0, W, H);
 
-        // Fahrzeugbild (cover, oberer Bereich)
+        // Fahrzeugbild mit waehlbarem Ausschnitt
         if (currentImage) {
             var imgH = 700;
-            var scale = Math.max(W / currentImage.width, imgH / currentImage.height);
+            var base = Math.max(W / currentImage.width, imgH / currentImage.height);
+            var scale = base * view.zoom;
             var sw = W / scale, sh = imgH / scale;
-            var sx = (currentImage.width - sw) / 2, sy = (currentImage.height - sh) / 2;
+            // Verschiebung in Bildpunkten, begrenzt auf das Vorhandene
+            var maxX = Math.max(0, (currentImage.width - sw) / 2);
+            var maxY = Math.max(0, (currentImage.height - sh) / 2);
+            var offX = Math.max(-maxX, Math.min(maxX, view.offsetX));
+            var offY = Math.max(-maxY, Math.min(maxY, view.offsetY));
+            var sx = (currentImage.width - sw) / 2 + offX;
+            var sy = (currentImage.height - sh) / 2 + offY;
             ctx.drawImage(currentImage, sx, sy, sw, sh, 0, 0, W, imgH);
-            // Verlauf zum Textbereich
+
             var grad = ctx.createLinearGradient(0, imgH - 180, 0, imgH);
             grad.addColorStop(0, 'rgba(0,0,0,0)');
             grad.addColorStop(1, currentTemplate.bg || '#111');
@@ -424,43 +492,109 @@ $pageScripts = <<<HTML
 
         var accent = currentTemplate.accent || '#fff';
         var textColor = currentTemplate.text || '#fff';
-        var serif = (currentTemplate.font === 'serif');
-        var fontName = serif ? 'Georgia, serif' : 'Arial, sans-serif';
-
-        // NEW IN
-        ctx.fillStyle = accent;
-        ctx.font = '700 34px ' + fontName;
+        var fontName = fontFamily();
         ctx.textAlign = 'center';
-        ctx.letterSpacing = '8px';
-        ctx.fillText('NEW IN', W / 2, 790);
+        textBoxes = {};
 
-        // Fahrzeugname
-        ctx.fillStyle = textColor;
-        var nameSize = data.name.length > 24 ? 46 : 58;
-        ctx.font = '800 ' + nameSize + 'px ' + fontName;
-        ctx.fillText(data.name, W / 2, 860, W - 100);
+        /** Zeichnet einen Text und merkt sich seine Flaeche zum Anklicken. */
+        function drawText(key, value, weight, size, color, y, spacing, alpha) {
+            if (!value) { return; }
+            var px = Math.round(size * fontScale);
+            ctx.font = weight + ' ' + px + 'px ' + fontName;
+            ctx.letterSpacing = spacing || '0px';
+            ctx.fillStyle = color;
+            ctx.globalAlpha = alpha || 1;
+            ctx.fillText(value, W / 2, y, W - 100);
+            ctx.globalAlpha = 1;
+            var width = Math.min(W - 100, ctx.measureText(value).width);
+            textBoxes[key] = { x: (W - width) / 2, y: y - px, w: width, h: px * 1.3 };
+            ctx.letterSpacing = '0px';
+        }
 
-        // Fakten
-        var facts = [data.powerHp, data.mileage, data.price].filter(Boolean).join('   ·   ');
-        ctx.font = '600 34px ' + fontName;
-        ctx.fillStyle = accent;
-        ctx.fillText(facts, W / 2, 930, W - 100);
+        drawText('badge', texts.badge, '700', 34, accent, 790, '8px');
+        drawText('name', texts.name, '800', texts.name.length > 24 ? 46 : 58, textColor, 860);
+        drawText('facts', texts.facts, '600', 34, accent, 930);
+        drawText('dealer', texts.dealer, '500', 26, textColor, 1010, '0px', 0.85);
 
-        // Händler + Logo
-        ctx.font = '500 26px ' + fontName;
-        ctx.fillStyle = textColor;
-        ctx.globalAlpha = 0.85;
-        ctx.fillText(data.dealer, W / 2, 1010);
-        ctx.globalAlpha = 1;
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
             var lh = 64, lw = logoImage.width * (lh / logoImage.height);
             ctx.drawImage(logoImage, W - lw - 36, 36, lw, lh);
         }
 
-        // Akzentlinie
         ctx.fillStyle = accent;
         ctx.fillRect(W / 2 - 40, 745, 80, 4);
     }
+
+    // ---------------------------------------------- Texte im Bild aendern
+    var LABELS = { badge: 'Kopfzeile', name: 'Fahrzeug', facts: 'Eckdaten', dealer: 'Absender' };
+
+    canvas.addEventListener('click', function (event) {
+        var rect = canvas.getBoundingClientRect();
+        var x = (event.clientX - rect.left) * (1080 / rect.width);
+        var y = (event.clientY - rect.top) * (1080 / rect.height);
+        for (var key in textBoxes) {
+            var box = textBoxes[key];
+            if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
+                var value = window.prompt(LABELS[key] + ' ändern:', texts[key]);
+                if (value !== null) {
+                    texts[key] = value;
+                    render();
+                }
+                return;
+            }
+        }
+    });
+
+    // ---------------------------------------------- Bild ziehen und zoomen
+    var dragging = false, dragStartX = 0, dragStartY = 0, startOffX = 0, startOffY = 0;
+
+    canvas.addEventListener('pointerdown', function (event) {
+        if (!currentImage) { return; }
+        var rect = canvas.getBoundingClientRect();
+        var y = (event.clientY - rect.top) * (1080 / rect.height);
+        if (y > 700) { return; }   // unterhalb des Fotos liegt der Textbereich
+        dragging = true;
+        canvas.style.cursor = 'grabbing';
+        canvas.setPointerCapture(event.pointerId);
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        startOffX = view.offsetX;
+        startOffY = view.offsetY;
+    });
+
+    canvas.addEventListener('pointermove', function (event) {
+        if (!dragging) { return; }
+        var rect = canvas.getBoundingClientRect();
+        var factor = (1080 / rect.width) / view.zoom;
+        view.offsetX = startOffX - (event.clientX - dragStartX) * factor;
+        view.offsetY = startOffY - (event.clientY - dragStartY) * factor;
+        render();
+    });
+
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (type) {
+        canvas.addEventListener(type, function () {
+            dragging = false;
+            canvas.style.cursor = 'grab';
+        });
+    });
+
+    document.getElementById('fontSelect').addEventListener('change', function () {
+        fontKey = this.value;
+        render();
+    });
+    document.getElementById('fontScale').addEventListener('input', function () {
+        fontScale = parseInt(this.value, 10) / 100;
+        render();
+    });
+    document.getElementById('imgZoom').addEventListener('input', function () {
+        view.zoom = parseInt(this.value, 10) / 100;
+        render();
+    });
+    document.getElementById('resetImage').addEventListener('click', function () {
+        view = { zoom: 1, offsetX: 0, offsetY: 0 };
+        document.getElementById('imgZoom').value = 100;
+        render();
+    });
 
     window.socialRender = render;
 

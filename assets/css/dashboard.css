@@ -1942,3 +1942,34 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 .plus-planned summary { cursor: pointer; }
 .plus-planned ul { margin: 8px 0 0 18px; }
 
+/* Bedienfeld ueber der Beitrags-Vorschau */
+.post-tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-hover);
+}
+.post-tool { min-width: 0; }
+.post-tool .form-label { font-size: 12.5px; margin-bottom: 4px; }
+.post-tool input[type=range] { width: 100%; accent-color: var(--primary); }
+.post-tool .form-hint { margin-top: 2px; font-size: 11.5px; }
+
+/* Kopf der Seitenleiste: Wortmarke mit Luft darueber */
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 4px 18px 6px;
+}
+.sidebar-brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    color: var(--text);
+}
+.sidebar-brand .pro-mark { margin: 0; }
+
