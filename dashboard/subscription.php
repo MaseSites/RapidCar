@@ -71,80 +71,70 @@ $activeNav = 'subscription';
 require BASE_PATH . '/includes/layout/dash-header.php';
 ?>
 
-<div class="page-head">
-    <div>
-        <h1>RapidCar Plus</h1>
-        <div class="sub">Die Werkzeuge für Fotos und Instagram.</div>
-    </div>
-</div>
+<div class="plus-page">
+    <div class="plus-layout">
 
-<div class="card mb-3" style="max-width:640px">
-    <div class="card-header">
-        <h2>
-            <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?>
-            <?= e(SubscriptionService::CURRENCY) ?> pro Monat
-        </h2>
-        <?php if ($isActive): ?>
-            <span class="badge badge-success"><?= icon('check', 13) ?> aktiv</span>
-        <?php endif; ?>
-    </div>
-    <div class="card-body">
-        <ul class="plus-features">
-            <?php foreach (SubscriptionService::benefits() as $benefit): ?>
-                <li>
-                    <?= icon('check', 15) ?>
-                    <span>
-                        <strong><?= e($benefit['title']) ?></strong>
-                        <span class="plus-feature-text"><?= e($benefit['text']) ?></span>
-                    </span>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-
-        <details class="plus-planned">
-            <summary>In Arbeit, noch nicht enthalten</summary>
-            <ul>
-                <?php foreach (SubscriptionService::planned() as $planned): ?>
-                    <li><?= e($planned) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </details>
-
-        <?php if ($isActive): ?>
-            <p class="text-sm text-secondary mb-2">
-                <?php if ($endsAt !== null): ?>
-                    Gekündigt. Nutzbar noch bis <?= e(format_datetime($endsAt)) ?>.
-                <?php else: ?>
-                    Monatlich kündbar. Die Abrechnung läuft über Stripe.
-                <?php endif; ?>
-            </p>
-            <?php if ($endsAt === null): ?>
-                <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
-                    <?= App\Core\Csrf::field() ?>
-                    <input type="hidden" name="action" value="cancel">
-                    <button class="btn btn-secondary" type="submit">Kündigen</button>
-                </form>
-            <?php endif; ?>
-        <?php else: ?>
-            <p class="text-sm text-secondary mb-2">
-                Ohne Abo bleibt alles andere nutzbar: Fahrzeuge anlegen, Inserate
-                erzeugen und auf die Verkaufsplattformen stellen.
-            </p>
-            <form method="post">
-                <?= App\Core\Csrf::field() ?>
-                <input type="hidden" name="action" value="subscribe">
-                <button class="btn btn-primary btn-lg" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
-                    <?= icon('check', 16) ?> Für <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?> <?= e(SubscriptionService::CURRENCY) ?> im Monat freischalten
-                </button>
-                <?php if (!$stripeReady): ?>
-                    <div class="form-hint" style="margin-top:8px">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
-                <?php endif; ?>
-            </form>
-            <div class="climate-note" style="margin-top:14px">
-                <?= icon('activity', 15) ?>
-                <span><?= t('credits.climate_note') ?></span>
+        <!-- ------------------------------------------------ Die Preiskarte -->
+        <div class="plus-price-card">
+            <div class="plus-price-brand">RapidCar <span>Plus</span></div>
+            <div class="plus-price-figure">
+                <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?>
+                <span class="plus-price-currency"><?= e(SubscriptionService::CURRENCY) ?></span>
             </div>
-        <?php endif; ?>
+            <div class="plus-price-period">pro Monat, monatlich kündbar</div>
+
+            <?php if ($isActive): ?>
+                <div class="plus-active-badge"><?= icon('check', 14) ?> Aktiv</div>
+                <?php if ($endsAt !== null): ?>
+                    <p class="plus-price-note">Gekündigt. Nutzbar bis <?= e(format_datetime($endsAt)) ?>.</p>
+                <?php else: ?>
+                    <p class="plus-price-note">Die Abrechnung läuft über Stripe.</p>
+                    <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
+                        <?= App\Core\Csrf::field() ?>
+                        <input type="hidden" name="action" value="cancel">
+                        <button class="btn btn-secondary btn-block" type="submit">Kündigen</button>
+                    </form>
+                <?php endif; ?>
+            <?php else: ?>
+                <form method="post">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="action" value="subscribe">
+                    <button class="btn btn-primary btn-lg btn-block" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
+                        Freischalten
+                    </button>
+                    <?php if (!$stripeReady): ?>
+                        <div class="form-hint" style="margin-top:8px">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
+                    <?php endif; ?>
+                </form>
+                <p class="plus-price-note">Ohne Abo bleibt alles andere nutzbar.</p>
+            <?php endif; ?>
+        </div>
+
+        <!-- ------------------------------------------------ Die Leistungen -->
+        <div class="plus-benefits">
+            <h2>Enthalten</h2>
+            <div class="plus-benefit-grid">
+                <?php foreach (SubscriptionService::benefits() as $benefit): ?>
+                    <div class="plus-benefit">
+                        <span class="plus-benefit-check"><?= icon('check', 14) ?></span>
+                        <div>
+                            <div class="plus-benefit-title"><?= e($benefit['title']) ?></div>
+                            <div class="plus-benefit-text"><?= e($benefit['text']) ?></div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <details class="plus-planned">
+                <summary>In Arbeit, noch nicht enthalten</summary>
+                <ul>
+                    <?php foreach (SubscriptionService::planned() as $planned): ?>
+                        <li><?= e($planned) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </details>
+        </div>
+
     </div>
 </div>
 

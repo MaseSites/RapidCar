@@ -125,10 +125,12 @@ require BASE_PATH . '/includes/layout/dash-header.php';
 <div class="credit-page">
     <div class="credit-layout">
 
-        <!-- ------------------------------------------------ Links: Einstieg -->
+        <!-- ------------------------------------------ Links: der Kontostand -->
         <div class="credit-copy-intro">
             <div class="credit-kicker"><?= t('sidebar.credits') ?></div>
-            <h1><?= t('credits.headline') ?></h1>
+            <div class="credit-balance-figure"><?= (int) \App\Service\CreditService::balance($dealershipId) ?></div>
+            <div class="credit-balance-caption"><?= t('credits.balance') ?></div>
+            <p class="credit-balance-note">Ein Guthaben veröffentlicht ein Inserat. Erstellen und Bearbeiten sind kostenlos, das Guthaben verfällt nicht.</p>
         </div>
 
         <!-- ---------------------------------------------- Rechts: Kaufkarte -->
@@ -188,19 +190,10 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <?php endif; ?>
             </form>
 
-            <div class="climate-note">
-                <?= icon('activity', 15) ?>
-                <span><?= t('credits.climate_note') ?></span>
-            </div>
-
         </div>
 
         <!-- ------------------------------------ Links: leise Randangaben -->
         <div class="credit-copy-points">
-            <div class="credit-facts">
-                <span><?= t('credits.fact_free') ?></span>
-                <span><?= t('credits.fact_no_expiry') ?></span>
-            </div>
             <?php if ($history !== []): ?>
                 <div class="credit-recent">
                     <div class="credit-recent-label"><?= t('credits.recent') ?></div>

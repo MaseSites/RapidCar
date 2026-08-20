@@ -1164,9 +1164,9 @@ echo "
 "; echo "Klimaschutz und Zahlarten-Diagnose"; echo "
 ";
 
-check('Klimaschutz-Hinweis unter dem Kaufknopf',
-    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'climate-note')
-    && str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'CO2-Klimaschutz'));
+check('Guthaben-Seite ohne Werbe-Beiwerk',
+    !str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'climate-note')
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'credit-balance-figure'));
 check('Systemcheck zeigt die Stripe-Zahlarten',
     str_contains((string) file_get_contents(BASE_PATH . '/systemcheck.php'), 'methodOverview'));
 check('Zahlarten-Abfrage nur mit eingerichtetem Stripe',

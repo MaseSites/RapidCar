@@ -185,7 +185,8 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             $rowName = trim(($vehicle['make'] ?? '') . ' ' . ($vehicle['model'] ?? ''));
             $detailUrl = base_url('dashboard/vehicle.php?id=' . $vehicleId);
             ?>
-            <article class="listing-row" data-name="<?= e(mb_strtolower($rowName . ' ' . ($vehicle['variant'] ?? ''))) ?>">
+            <article class="listing-row is-clickable" data-href="<?= $detailUrl ?>"
+                     data-name="<?= e(mb_strtolower($rowName . ' ' . ($vehicle['variant'] ?? ''))) ?>">
                 <a class="listing-media" href="<?= $detailUrl ?>">
                     <?php if ($vehicle['thumb'] !== null): ?>
                         <img src="<?= e(upload_url((string) $vehicle['thumb'])) ?>" alt="">
@@ -364,6 +365,15 @@ $pageScripts = <<<HTML
         setTimeout(function () { runSync(true); }, 800);
     }
 })();
+
+// Klick irgendwo auf einer Zeile oeffnet das Fahrzeug; Knoepfe, Links
+// und Formulare behalten ihre eigene Wirkung.
+document.querySelectorAll('.listing-row.is-clickable').forEach(function (row) {
+    row.addEventListener('click', function (event) {
+        if (event.target.closest('a, button, form, input, label')) { return; }
+        window.location.href = row.dataset.href;
+    });
+});
 </script>
 HTML;
 require BASE_PATH . '/includes/layout/dash-footer.php';

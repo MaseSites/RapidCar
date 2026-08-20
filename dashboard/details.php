@@ -88,60 +88,72 @@ require BASE_PATH . '/includes/layout/dash-header.php';
     <div class="alert alert-danger mb-3"><?= icon('alert-triangle', 16) ?> <?= e($error) ?></div>
 <?php endif; ?>
 
-<form method="post" class="card" style="max-width:640px">
+<form method="post" class="details-form">
     <?= App\Core\Csrf::field() ?>
     <?php if ($backTo !== ''): ?>
         <input type="hidden" name="back_to" value="<?= e($backTo) ?>">
     <?php endif; ?>
-    <div class="card-body">
-        <div class="grid-2">
-            <div class="form-group">
-                <label class="form-label">Vorname</label>
-                <input class="form-control" type="text" name="first_name" required
-                       value="<?= e((string) ($user['first_name'] ?? '')) ?>">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Nachname</label>
-                <input class="form-control" type="text" name="last_name" required
-                       value="<?= e((string) ($user['last_name'] ?? '')) ?>">
-            </div>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Strasse und Hausnummer</label>
-            <input class="form-control" type="text" name="address" placeholder="Musterstrasse 12"
-                   value="<?= e((string) ($dealership['address'] ?? '')) ?>">
-        </div>
-        <div class="grid-2">
-            <div class="form-group">
-                <label class="form-label">Postleitzahl</label>
-                <input class="form-control" type="text" name="zip"
-                       value="<?= e((string) ($dealership['zip'] ?? '')) ?>">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Ort</label>
-                <input class="form-control" type="text" name="city"
-                       value="<?= e((string) ($dealership['city'] ?? '')) ?>">
+
+    <div class="details-grid">
+        <div class="card">
+            <div class="card-header"><h2>Person</h2></div>
+            <div class="card-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Vorname <span class="req-star">*</span></label>
+                        <input class="form-control" type="text" name="first_name" required
+                               value="<?= e((string) ($user['first_name'] ?? '')) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nachname <span class="req-star">*</span></label>
+                        <input class="form-control" type="text" name="last_name" required
+                               value="<?= e((string) ($user['last_name'] ?? '')) ?>">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Telefon <span class="req-star">*</span></label>
+                    <input class="form-control" type="tel" name="phone" placeholder="+41 79 123 45 67"
+                           value="<?= e((string) ($dealership['phone'] ?? '')) ?>">
+                </div>
             </div>
         </div>
-        <div class="grid-2">
-            <div class="form-group">
-                <label class="form-label">Land</label>
-                <select class="form-control" name="country">
-                    <?php foreach (['CH' => 'Schweiz', 'DE' => 'Deutschland', 'AT' => 'Österreich', 'LI' => 'Liechtenstein', 'FR' => 'Frankreich', 'IT' => 'Italien'] as $code => $name): ?>
-                        <option value="<?= $code ?>" <?= ($dealership['country'] ?? 'CH') === $code ? 'selected' : '' ?>><?= $name ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Telefon</label>
-                <input class="form-control" type="tel" name="phone" placeholder="+41 79 123 45 67"
-                       value="<?= e((string) ($dealership['phone'] ?? '')) ?>">
+
+        <div class="card">
+            <div class="card-header"><h2>Adresse</h2></div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label">Strasse und Hausnummer</label>
+                    <input class="form-control" type="text" name="address" placeholder="Musterstrasse 12"
+                           value="<?= e((string) ($dealership['address'] ?? '')) ?>">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Postleitzahl <span class="req-star">*</span></label>
+                        <input class="form-control" type="text" name="zip"
+                               value="<?= e((string) ($dealership['zip'] ?? '')) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ort <span class="req-star">*</span></label>
+                        <input class="form-control" type="text" name="city"
+                               value="<?= e((string) ($dealership['city'] ?? '')) ?>">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Land</label>
+                    <select class="form-control" name="country">
+                        <?php foreach (['CH' => 'Schweiz', 'DE' => 'Deutschland', 'AT' => 'Österreich', 'LI' => 'Liechtenstein', 'FR' => 'Frankreich', 'IT' => 'Italien'] as $code => $name): ?>
+                            <option value="<?= $code ?>" <?= ($dealership['country'] ?? 'CH') === $code ? 'selected' : '' ?>><?= $name ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
         </div>
-        <p class="form-hint" style="margin-top:2px">
-            Ohne Postleitzahl, Ort und Telefon lässt sich kein Inserat veröffentlichen:
-            die Verkaufsplattformen verlangen diese Angaben.
-        </p>
+    </div>
+
+    <div class="details-actions">
+        <span class="text-sm text-muted">
+            <span class="req-star">*</span> Für die Veröffentlichung von Inseraten erforderlich.
+        </span>
         <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Speichern</button>
     </div>
 </form>
