@@ -108,6 +108,11 @@ return [
         // Die Erkennung läuft einmal je Fahrzeug, also fällt das kaum ins Gewicht.
         'detection_detail' => 'high',
 
+        // Wie viele Fotos die Erkennung ansieht (1 bis 12). Mehr Fotos
+        // finden mehr Ausstattung (Scheinwerfer, Felgen, Sitze liegen auf
+        // verschiedenen Bildern), kosten aber je Bild etwas mehr.
+        'detection_images' => 8,
+
         // Qualität beim Freistellen (nur wenn kein lokales rembg vorhanden ist):
         // low | medium | high. Jede Stufe kostet deutlich mehr.
         'image_quality' => 'medium',

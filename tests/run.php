@@ -629,8 +629,8 @@ check('Erkennung nutzt das stärkere Modell',
 // Höchstzahl der Bilder je Erkennung: private Konstante über Reflection prüfen
 $providerRef = new ReflectionClass(App\AI\OpenAiProvider::class);
 $maxImagesConst = $providerRef->getReflectionConstant('MAX_IMAGES');
-check('höchstens drei Bilder je Erkennung',
-    $maxImagesConst !== false && $maxImagesConst->getValue() === 3);
+check('Bildzahl je Erkennung ist begrenzt und ausreichend',
+    $maxImagesConst !== false && $maxImagesConst->getValue() >= 6 && $maxImagesConst->getValue() <= 12);
 
 // Bildbewertung darf nie einen KI-Aufruf ausloesen: sie laeuft regelbasiert
 $imageServiceSource = file_get_contents(BASE_PATH . '/src/AI/AIImageService.php');
@@ -1812,6 +1812,34 @@ check('Codes werden zu lesbaren Woertern',
     && str_contains($rendered, 'Hinterradantrieb'));
 check('Zahlen bekommen ihre Einheit',
     str_contains($rendered, '13.9 l/100 km') && str_contains($rendered, "1'620 kg"));
+
+echo "
+"; echo "Ausstattung aus Fotos und Dokumenten"; echo "
+";
+
+$provSrc = file_get_contents(BASE_PATH . '/src/AI/OpenAiProvider.php');
+check('Erkennung sieht mehr als drei Fotos',
+    str_contains($provSrc, 'MAX_IMAGES = 8')
+    && str_contains($provSrc, "Config::get('ai.detection_images'"));
+check('Anzahl der Fotos ist begrenzt',
+    str_contains($provSrc, 'max(1, min(12, $limit))'));
+check('Fotos werden systematisch abgesucht',
+    str_contains($provSrc, 'Scheinwerfertyp')
+    && str_contains($provSrc, 'Bremssaettel')
+    && str_contains($provSrc, 'Bezugsmaterial'));
+check('Dokumente liefern Ausstattungslisten',
+    str_contains($provSrc, 'Enthaelt das Dokument eine Ausstattungsliste'));
+check('nichts wird dazuerfunden',
+    str_contains($provSrc, 'erfinde nichts dazu')
+    && str_contains($provSrc, 'nichts, was du nur vermutest'));
+
+$docEndpoint = file_get_contents(BASE_PATH . '/api/ai/extract-document.php');
+check('Ausstattung aus Dokumenten wird gespeichert',
+    str_contains($docEndpoint, 'documentFeatures')
+    && str_contains($docEndpoint, 'replaceFeatures'));
+check('vorhandene Ausstattung bleibt erhalten',
+    str_contains($docEndpoint, 'array_unique(array_merge($existing, $documentFeatures))'));
+
 
 
 

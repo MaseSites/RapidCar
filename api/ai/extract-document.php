@@ -94,6 +94,8 @@ try {
     // ------------------------------------------------ Schritt 1: ohne Kosten
     $fields = [];
     $note = '';
+    /** @var array<int, string> $documentFeatures Ausstattung aus dem Dokument */
+    $documentFeatures = [];
     if ($documentText !== '') {
         $parsed = DocumentParser::parse($documentText);
         $fields = $parsed['fields'];
@@ -124,6 +126,15 @@ try {
                 }
                 // Regelbasierte Treffer haben Vorrang: sie stammen direkt aus dem Dokument
                 $fields = $fields + $detection['fields'];
+                // Ausstattungslisten aus Kaufvertrag, Fahrzeugausweis oder
+                // Datenblatt: sie stehen dort oft vollstaendiger als auf
+                // jedem Foto erkennbar.
+                foreach ((array) ($detection['features'] ?? []) as $feature) {
+                    $feature = trim((string) $feature);
+                    if ($feature !== '') {
+                        $documentFeatures[] = $feature;
+                    }
+                }
                 $note = trim($note . ' ' . ($detection['note'] ?? ''));
                 $usedAi = true;
             } catch (\Throwable $e) {
@@ -142,6 +153,13 @@ try {
     }
 
     $applied = AIVehicleService::applyToEmptyFields($vehicleId, $fields);
+
+    // Gefundene Ausstattung ergaenzen, ohne vorhandene Eintraege zu verlieren
+    if ($documentFeatures !== []) {
+        $existing = \App\Repository\VehicleRepository::features($vehicleId);
+        $merged = array_values(array_unique(array_merge($existing, $documentFeatures)));
+        \App\Repository\VehicleRepository::replaceFeatures($vehicleId, $merged);
+    }
 } finally {
     // In jedem Fall entfernen: erfolgreich, abgebrochen oder fehlgeschlagen
     foreach ($tempPaths as $path) {
@@ -153,7 +171,7 @@ ActivityLogger::log(
     (int) $currentUser['id'],
     'vehicle.document_extracted',
     'Dokument (' . $source . ') ausgewertet und gelöscht, '
-    . count($fields) . ' Felder, KI: ' . ($usedAi ? 'ja' : 'nein'),
+    . count($fields) . ' Felder, ' . count($documentFeatures) . ' Ausstattungspunkte, KI: ' . ($usedAi ? 'ja' : 'nein'),
     'vehicle',
     $vehicleId,
     $dealershipId
@@ -169,6 +187,7 @@ json_response(true, [
         'mode'       => $usedAi ? 'live' : 'local',
     ],
     'applied'       => $applied,
+    'features'      => count($documentFeatures),
     'used_ai'       => $usedAi,
     'document_kept' => false,
 ]);

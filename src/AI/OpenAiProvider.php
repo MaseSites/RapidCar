@@ -31,7 +31,13 @@ final class OpenAiProvider implements AIProviderInterface
      * was für Marke, Modell und Variante nötig ist. Jedes weitere Bild kostet
      * zusätzlich, ohne die Erkennung merklich zu verbessern.
      */
-    private const MAX_IMAGES = 3;
+    /**
+     * Fotos je Erkennung. Drei reichen fuer Marke und Modell, aber nicht
+     * fuer die Ausstattung: Scheinwerfer, Felgen, Sitze, Lenkrad und
+     * Anzeigen liegen auf verschiedenen Bildern. Einstellbar ueber
+     * ai.detection_images.
+     */
+    private const MAX_IMAGES = 8;
 
     private const TIMEOUT_SECONDS = 90;
 
@@ -350,9 +356,17 @@ Dokumenttext:
             . "9. Uebernimm den Kilometerstand nur, wenn er ausdruecklich als solcher "
             . "beschriftet ist. Zahlen aus Rechnungsbetraegen oder Belegnummern sind "
             . "kein Kilometerstand.\n"
-            . "10. note: kurzer Hinweis auf Deutsch, um welches Dokument es sich handelt "
+            . "10. features: Enthaelt das Dokument eine Ausstattungsliste, uebernimm sie "
+            . "VOLLSTAENDIG und Punkt fuer Punkt. Das betrifft Serienausstattung, "
+            . "Sonderausstattung, Zusatzpakete und Optionen, wie sie in Kaufvertraegen, "
+            . "Fahrzeugausweisen, Bestellbestaetigungen und Datenblaettern stehen. "
+            . "Uebernimm jeden Eintrag einzeln, kuerze auf das Wesentliche (aus "
+            . "\"Media: Navigationssystem\" wird \"Navigationssystem\"), lass "
+            . "Bestellnummern und Preise weg und erfinde nichts dazu. Steht keine "
+            . "Ausstattung im Dokument, gib eine leere Liste zurueck.\n"
+            . "11. note: kurzer Hinweis auf Deutsch, um welches Dokument es sich handelt "
             . "und welche Stellen schwer lesbar waren.\n"
-            . "11. label: Fahrzeugbezeichnung laut Dokument.";
+            . "12. label: Fahrzeugbezeichnung laut Dokument.";
     }
 
     private function detectionPrompt(): string
@@ -394,16 +408,32 @@ Dokumenttext:
             . "7. Zahlenwerte als reine Ziffern ohne Einheit. Erstzulassung im Format MM.JJJJ.\n"
             . "8. Für diese Felder sind ausschliesslich folgende Codes erlaubt:\n   "
             . implode("\n   ", $enums) . "\n"
-            . "9. features: eine moeglichst vollstaendige Ausstattungsliste. Sie besteht "
-            . "aus zwei Quellen: (a) allem, was auf den Fotos SICHTBAR ist, etwa Felgen, "
-            . "Panoramadach, Navigationssystem, Ledersitze, LED-Scheinwerfer, Rueckfahrkamera, "
-            . "Anhaengerkupplung; und (b) der SERIENAUSSTATTUNG, die die erkannte Baureihe "
-            . "und Variante ab Werk immer hat, aus deinem Modellwissen. Beispiel: Ein Huracan "
-            . "STO hat serienmaessig Keramikbremsen und ein Carbon-Aerodynamikpaket. "
-            . "Nimm KEINE aufpreispflichtigen Sonderausstattungen auf, die das konkrete "
-            . "Fahrzeug haben koennte oder auch nicht. Jeder Eintrag kurz, auf Deutsch, "
-            . "ohne Doppelungen. Bist du bei der Variante unsicher, nenne nur Sichtbares.
-"
+            . "9. features: eine moeglichst vollstaendige Ausstattungsliste. Untersuche "
+            . "JEDES Foto systematisch und gehe dabei diese Punkte durch:\n"
+            . "   - Front: Scheinwerfertyp (LED, Matrix-LED, Laser, Xenon, Halogen), "
+            . "Tagfahrlicht, Nebelscheinwerfer, Kuehlergrill, Frontsplitter, Sensoren "
+            . "und Kameras (Abstandstempomat, Spurhalter)\n"
+            . "   - Seite: Felgengroesse und Design, Reifenmarke falls lesbar, "
+            . "Bremssaettel und ihre Farbe, Keramikbremsen erkennbar an der Scheibe, "
+            . "Seitenschweller, Dachtyp (Panorama, Glasdach, Cabrioverdeck, Carbon), "
+            . "Aussenspiegel (Carbon, elektrisch anklappbar), getoente Scheiben\n"
+            . "   - Heck: Heckfluegel oder Spoiler, Diffusor, Endrohre (Anzahl, Form, "
+            . "Farbe), Rueckfahrkamera, Anhaengerkupplung, Modell- und Motorschriftzug\n"
+            . "   - Innenraum: Sitztyp (Sport-, Renn-, Komfortsitze), Bezugsmaterial "
+            . "(Leder, Alcantara, Stoff), Sitzheizung und Belueftung falls Schalter "
+            . "sichtbar, Lenkradtyp und Schaltwippen, Groesse und Art der Bildschirme, "
+            . "Head-up-Display, Klimaanlage ein- oder mehrzonig, Ambientebeleuchtung, "
+            . "Soundsystem falls Marke auf Lautsprechern lesbar, Carbon- oder "
+            . "Holzeinlagen, Dachhimmel-Material\n"
+            . "   - Anzeigen: Was auf dem Tacho oder Display zu sehen ist, etwa "
+            . "Fahrmodi, Navigationskarte, Assistenzsymbole\n"
+            . "Dazu kommt die SERIENAUSSTATTUNG, die die erkannte Baureihe und Variante "
+            . "ab Werk immer hat, aus deinem Modellwissen. Beispiel: Ein Huracan STO hat "
+            . "serienmaessig Keramikbremsen und ein Carbon-Aerodynamikpaket. Nimm KEINE "
+            . "aufpreispflichtigen Sonderausstattungen auf, die das Fahrzeug haben "
+            . "koennte oder auch nicht, und nichts, was du nur vermutest. Jeder Eintrag "
+            . "kurz und auf Deutsch, ohne Doppelungen. Bist du bei der Variante unsicher, "
+            . "nenne nur Sichtbares.\n"
             . "10. note: kurzer Hinweis auf Deutsch, was du erkannt hast und wo du unsicher bist.";
     }
 
@@ -755,7 +785,9 @@ Schreibstil der Beschreibung:
     private function prepareImages(array $absolutePaths): array
     {
         $images = [];
-        foreach (array_slice($absolutePaths, 0, self::MAX_IMAGES) as $path) {
+        $limit = (int) Config::get('ai.detection_images', self::MAX_IMAGES);
+        $limit = max(1, min(12, $limit));
+        foreach (array_slice($absolutePaths, 0, $limit) as $path) {
             if (!is_file($path) || !is_readable($path)) {
                 continue;
             }
