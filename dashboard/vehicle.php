@@ -47,6 +47,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if ($action === 'publish') {
+        // Die Verkaufsplattformen verlangen eine Halteradresse und eine
+        // Telefonnummer. Fehlen sie, geht es zuerst zu den Angaben.
+        $sellerData = Database::fetch(
+            'SELECT zip, city, phone FROM dealerships WHERE id = :id',
+            ['id' => $dealershipId]
+        ) ?? [];
+        if (trim((string) ($sellerData['zip'] ?? '')) === ''
+            || trim((string) ($sellerData['city'] ?? '')) === ''
+            || trim((string) ($sellerData['phone'] ?? '')) === '') {
+            Session::flash('warning', 'Zum Veröffentlichen fehlen noch deine Angaben: Postleitzahl, Ort und Telefon. Bitte einmal ausfüllen, dann klappt es.');
+            redirect('dashboard/details.php?vehicle=' . $vehicleId);
+        }
+
         // Inserat sicherstellen; fehlen Titel oder Beschreibung, erzeugt sie
         // der Generator aus den Fahrzeugdaten, damit ein Klick genuegt.
         $listing = ListingService::ensureForVehicle($vehicleId, $dealershipId);
@@ -119,61 +132,84 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if ($action === 'save') {
+        // Die Pruefregeln kommen aus dem Feldkatalog: eine Quelle fuer
+        // Formular und Speicherung, damit nichts auseinanderlaeuft.
+        $fieldCatalog = \App\Service\VehicleFields::all();
+
+        // Schweizer Schreibweisen zuerst glaetten: 27'900 und 7,1 sind
+        // gueltige Eingaben, keine Fehler.
+        foreach ($fieldCatalog as $catalogField => $catalogDef) {
+            $fieldType = (string) $catalogDef['type'];
+            if (($fieldType === 'price' || $fieldType === 'decimal') && isset($_POST[$catalogField])) {
+                $_POST[$catalogField] = str_replace(["'", ' '], '', str_replace(',', '.', (string) $_POST[$catalogField]));
+            }
+        }
+
         $v = new Validator($_POST);
-        $v->maxLength('make', 'Marke', 100)
-          ->maxLength('model', 'Modell', 100)
-          ->maxLength('variant', 'Variante', 150)
-          ->integer('year', 'Baujahr')->range('year', 'Baujahr', 1900, (int) date('Y') + 1)
-          ->maxLength('first_registration', 'Erstzulassung', 7)
-          ->integer('mileage', 'Kilometerstand')->range('mileage', 'Kilometerstand', 0, 5000000)
-          ->numeric('price', 'Preis')
-          ->integer('power_hp', 'PS')->range('power_hp', 'PS', 0, 3000)
-          ->integer('power_kw', 'kW')->range('power_kw', 'kW', 0, 2500)
-          ->integer('displacement_ccm', 'Hubraum')->range('displacement_ccm', 'Hubraum', 0, 20000)
-          ->in('transmission', 'Getriebe', ['', 'manual', 'automatic', 'semi_automatic'])
-          ->in('drivetrain', 'Antrieb', ['', 'fwd', 'rwd', 'awd'])
-          ->in('fuel_type', 'Treibstoff', ['', 'petrol', 'diesel', 'electric', 'hybrid', 'plug_in_hybrid', 'gas'])
-          ->maxLength('color', 'Farbe', 80)
-          ->integer('doors', 'Türen')->range('doors', 'Türen', 0, 9)
-          ->integer('seats', 'Sitze')->range('seats', 'Sitze', 0, 12)
-          ->integer('previous_owners', 'Vorhalter')->range('previous_owners', 'Vorhalter', 0, 50)
-          ->maxLength('vin', 'VIN', 30)
-          ->maxLength('listing_title', 'Titel', 120);
+        foreach ($fieldCatalog as $catalogField => $catalogDef) {
+            $catalogLabel = (string) $catalogDef['label'];
+            switch ((string) $catalogDef['type']) {
+                case 'number':
+                    $v->integer($catalogField, $catalogLabel)
+                      ->range($catalogField, $catalogLabel, (int) ($catalogDef['min'] ?? 0), (int) ($catalogDef['max'] ?? 99999999));
+                    break;
+                case 'decimal':
+                case 'price':
+                    $v->numeric($catalogField, $catalogLabel);
+                    break;
+                case 'select':
+                    $v->in($catalogField, $catalogLabel, array_merge([''], array_map('strval', array_keys((array) ($catalogDef['options'] ?? [])))));
+                    break;
+                case 'tri':
+                    $v->in($catalogField, $catalogLabel, ['', 'ja', 'nein']);
+                    break;
+                case 'month':
+                    $v->maxLength($catalogField, $catalogLabel, 7);
+                    break;
+                case 'check':
+                    break;   // Haken: kommt als 1 oder gar nicht
+                default:
+                    $v->maxLength($catalogField, $catalogLabel, (int) ($catalogDef['max'] ?? 190));
+            }
+        }
+        $v->maxLength('listing_title', 'Titel', 120);
 
         if ($v->fails()) {
             $error = $v->firstError();
         } else {
-            $toNullableInt = static fn(string $value): ?int => $value === '' ? null : (int) $value;
-            $toNullableStr = static fn(string $value): ?string => $value === '' ? null : $value;
-            $priceRaw = str_replace(["'", ' '], '', $v->value('price'));
             $listingTitle = trim(mb_substr((string) ($_POST['listing_title'] ?? ''), 0, 120));
             $listingDescription = trim(mb_substr((string) ($_POST['listing_description'] ?? ''), 0, 10000));
 
-            $update = [
-                'make'               => $toNullableStr($v->value('make')),
-                'model'              => $toNullableStr($v->value('model')),
-                'variant'            => $toNullableStr($v->value('variant')),
-                'year'               => $toNullableInt($v->value('year')),
-                'first_registration' => $toNullableStr($v->value('first_registration')),
-                'mileage'            => $toNullableInt($v->value('mileage')),
-                'price'              => $priceRaw === '' ? null : (float) $priceRaw,
-                'power_hp'           => $toNullableInt($v->value('power_hp')),
-                'power_kw'           => $toNullableInt($v->value('power_kw')),
-                'displacement_ccm'   => $toNullableInt($v->value('displacement_ccm')),
-                'transmission'       => $toNullableStr($v->value('transmission')),
-                'drivetrain'         => $toNullableStr($v->value('drivetrain')),
-                'fuel_type'          => $toNullableStr($v->value('fuel_type')),
-                'color'              => $toNullableStr($v->value('color')),
-                'doors'              => $toNullableInt($v->value('doors')),
-                'seats'              => $toNullableInt($v->value('seats')),
-                'previous_owners'    => $toNullableInt($v->value('previous_owners')),
-                'vin'                => $toNullableStr($v->value('vin')),
-                // Der Inseratstext liegt beim Inserat; hier nur gespiegelt,
-                // damit Exporte auf das Fahrzeug weiterhin einen Text finden.
-                'description'        => $listingDescription !== '' ? $listingDescription : null,
-                'status'             => (string) $vehicle['status'], // Status steuern Veröffentlichen und Zurückziehen
-                'updated_at'         => Database::now(),
-            ];
+            $update = [];
+            foreach ($fieldCatalog as $catalogField => $catalogDef) {
+                $raw = trim((string) ($_POST[$catalogField] ?? ''));
+                switch ((string) $catalogDef['type']) {
+                    case 'number':
+                        $update[$catalogField] = $raw === '' ? null : (int) $raw;
+                        break;
+                    case 'decimal':
+                        $update[$catalogField] = $raw === '' ? null : (float) str_replace(',', '.', $raw);
+                        break;
+                    case 'price':
+                        $clean = str_replace(["'", ' '], '', $raw);
+                        $update[$catalogField] = $clean === '' ? null : (float) $clean;
+                        break;
+                    case 'tri':
+                        // leer bedeutet unbekannt, nicht Nein
+                        $update[$catalogField] = $raw === '' ? null : ($raw === 'ja' ? 1 : 0);
+                        break;
+                    case 'check':
+                        $update[$catalogField] = isset($_POST[$catalogField]) ? 1 : null;
+                        break;
+                    default:
+                        $update[$catalogField] = $raw === '' ? null : $raw;
+                }
+            }
+            // Der Inseratstext liegt beim Inserat; hier nur gespiegelt,
+            // damit Exporte auf das Fahrzeug weiterhin einen Text finden.
+            $update['description'] = $listingDescription !== '' ? $listingDescription : null;
+            $update['status'] = (string) $vehicle['status'];   // Status steuern Veröffentlichen und Zurückziehen
+            $update['updated_at'] = Database::now();
 
             // Vom Benutzer geänderte Felder → Status 'manuell' (§30)
             foreach ($update as $field => $newValue) {
@@ -362,6 +398,59 @@ foreach ($images as $image) {
 $mainImage ??= $images[0] ?? null;
 
 /** Feldstatus-Badge (§30). */
+/**
+ * Zeichnet ein Feld des Katalogs als Formulargruppe. Eine Stelle fuer alle
+ * Boxen, damit Aussehen und Verhalten ueberall gleich bleiben.
+ */
+function render_vehicle_field(string $name, array $def, array $vehicle, array $statuses): string
+{
+    $label = e((string) $def['label']);
+    $value = $vehicle[$name] ?? null;
+    $type = (string) $def['type'];
+
+    if ($type === 'check') {
+        $checked = ((int) ($value ?? 0)) === 1 ? ' checked' : '';
+        return '<label class="check-item"><input type="checkbox" name="' . e($name) . '" value="1"' . $checked . '> '
+            . '<span>' . $label . '</span></label>';
+    }
+
+    $html = '<div class="form-group">'
+        . '<label class="form-label">' . $label . ' ' . field_status_badge($statuses, $name) . '</label>';
+
+    if ($type === 'select' || $type === 'tri') {
+        $options = $type === 'tri' ? ['ja' => 'Ja', 'nein' => 'Nein'] : (array) ($def['options'] ?? []);
+        $current = $type === 'tri'
+            ? ($value === null || $value === '' ? '' : (((int) $value) === 1 ? 'ja' : 'nein'))
+            : (string) ($value ?? '');
+        $html .= '<select class="form-control" name="' . e($name) . '">'
+            . '<option value="">' . t('common.select') . '</option>';
+        foreach ($options as $optValue => $optLabel) {
+            $selected = $current === (string) $optValue ? ' selected' : '';
+            $html .= '<option value="' . e((string) $optValue) . '"' . $selected . '>' . e((string) $optLabel) . '</option>';
+        }
+        $html .= '</select>';
+    } elseif ($type === 'number') {
+        $html .= '<input class="form-control" type="number" name="' . e($name) . '"'
+            . ' min="' . (int) ($def['min'] ?? 0) . '" max="' . (int) ($def['max'] ?? 99999999) . '"'
+            . ' value="' . e((string) ($value ?? '')) . '">';
+    } elseif ($type === 'price') {
+        $shown = $value !== null && $value !== '' ? number_format((float) $value, 0, '.', '') : '';
+        $html .= '<input class="form-control" type="text" name="' . e($name) . '" inputmode="numeric"'
+            . ' value="' . e($shown) . '">';
+    } elseif ($type === 'decimal') {
+        $html .= '<input class="form-control" type="text" name="' . e($name) . '" inputmode="decimal"'
+            . ' value="' . e((string) ($value ?? '')) . '">';
+    } elseif ($type === 'month') {
+        $html .= '<input class="form-control" type="text" name="' . e($name) . '" placeholder="MM.JJJJ"'
+            . ' value="' . e((string) ($value ?? '')) . '">';
+    } else {
+        $html .= '<input class="form-control" type="text" name="' . e($name) . '"'
+            . ' maxlength="' . (int) ($def['max'] ?? 190) . '" value="' . e((string) ($value ?? '')) . '">';
+    }
+
+    return $html . field_alternatives($statuses, $name, $value ?? '') . '</div>';
+}
+
 function field_status_badge(array $statuses, string $field): string
 {
     $entry = $statuses[$field] ?? null;
@@ -759,121 +848,28 @@ require BASE_PATH . '/includes/layout/dash-header.php';
         </div>
     </div>
 
-    <div class="card mb-3">
-        <div class="card-header"><h2><?= t('vehicle.data.title') ?></h2></div>
-        <div class="card-body">
-            <div class="grid-3">
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.make') ?> <?= field_status_badge($fieldStatuses, 'make') ?></label>
-                    <input class="form-control" type="text" name="make" value="<?= e($vehicle['make'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'make', $vehicle['make'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.model') ?> <?= field_status_badge($fieldStatuses, 'model') ?></label>
-                    <input class="form-control" type="text" name="model" value="<?= e($vehicle['model'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'model', $vehicle['model'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.variant') ?> <?= field_status_badge($fieldStatuses, 'variant') ?></label>
-                    <input class="form-control" type="text" name="variant" value="<?= e($vehicle['variant'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'variant', $vehicle['variant'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.year') ?> <?= field_status_badge($fieldStatuses, 'year') ?></label>
-                    <input class="form-control" type="number" name="year" min="1900" max="<?= (int) date('Y') + 1 ?>" value="<?= e($vehicle['year'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'year', $vehicle['year'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.first_registration') ?> <span class="optional">(MM.JJJJ)</span></label>
-                    <input class="form-control" type="text" name="first_registration" placeholder="03.2023" value="<?= e($vehicle['first_registration'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'first_registration', $vehicle['first_registration'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.mileage') ?> <?= field_status_badge($fieldStatuses, 'mileage') ?></label>
-                    <input class="form-control" type="number" name="mileage" min="0" value="<?= e($vehicle['mileage'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'mileage', $vehicle['mileage'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.price') ?> (CHF)</label>
-                    <input class="form-control" type="text" name="price" value="<?= $vehicle['price'] !== null ? e(number_format((float) $vehicle['price'], 0, '.', '')) : '' ?>">
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.power_hp') ?> <?= field_status_badge($fieldStatuses, 'power_hp') ?></label>
-                    <input class="form-control" type="number" name="power_hp" min="0" value="<?= e($vehicle['power_hp'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'power_hp', $vehicle['power_hp'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.power_kw') ?></label>
-                    <input class="form-control" type="number" name="power_kw" min="0" value="<?= e($vehicle['power_kw'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'power_kw', $vehicle['power_kw'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.displacement') ?></label>
-                    <input class="form-control" type="number" name="displacement_ccm" min="0" value="<?= e($vehicle['displacement_ccm'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'displacement_ccm', $vehicle['displacement_ccm'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.transmission') ?> <?= field_status_badge($fieldStatuses, 'transmission') ?></label>
-                    <select class="form-control" name="transmission">
-                        <option value=""><?= t('common.select') ?></option>
-                        <option value="manual" <?= ($vehicle['transmission'] ?? '') === 'manual' ? 'selected' : '' ?>><?= t('transmission.manual') ?></option>
-                        <option value="automatic" <?= ($vehicle['transmission'] ?? '') === 'automatic' ? 'selected' : '' ?>><?= t('transmission.automatic') ?></option>
-                        <option value="semi_automatic" <?= ($vehicle['transmission'] ?? '') === 'semi_automatic' ? 'selected' : '' ?>><?= t('transmission.semi_automatic') ?></option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.drivetrain') ?></label>
-                    <select class="form-control" name="drivetrain">
-                        <option value=""><?= t('common.select') ?></option>
-                        <option value="fwd" <?= ($vehicle['drivetrain'] ?? '') === 'fwd' ? 'selected' : '' ?>><?= t('drivetrain.fwd') ?></option>
-                        <option value="rwd" <?= ($vehicle['drivetrain'] ?? '') === 'rwd' ? 'selected' : '' ?>><?= t('drivetrain.rwd') ?></option>
-                        <option value="awd" <?= ($vehicle['drivetrain'] ?? '') === 'awd' ? 'selected' : '' ?>><?= t('drivetrain.awd') ?></option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.fuel_type') ?> <?= field_status_badge($fieldStatuses, 'fuel_type') ?></label>
-                    <select class="form-control" name="fuel_type">
-                        <option value=""><?= t('common.select') ?></option>
-                        <option value="petrol" <?= ($vehicle['fuel_type'] ?? '') === 'petrol' ? 'selected' : '' ?>><?= t('fuel.petrol') ?></option>
-                        <option value="diesel" <?= ($vehicle['fuel_type'] ?? '') === 'diesel' ? 'selected' : '' ?>><?= t('fuel.diesel') ?></option>
-                        <option value="electric" <?= ($vehicle['fuel_type'] ?? '') === 'electric' ? 'selected' : '' ?>><?= t('fuel.electric') ?></option>
-                        <option value="hybrid" <?= ($vehicle['fuel_type'] ?? '') === 'hybrid' ? 'selected' : '' ?>><?= t('fuel.hybrid') ?></option>
-                        <option value="plug_in_hybrid" <?= ($vehicle['fuel_type'] ?? '') === 'plug_in_hybrid' ? 'selected' : '' ?>><?= t('fuel.plug_in_hybrid') ?></option>
-                        <option value="gas" <?= ($vehicle['fuel_type'] ?? '') === 'gas' ? 'selected' : '' ?>><?= t('fuel.gas') ?></option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.color') ?> <?= field_status_badge($fieldStatuses, 'color') ?></label>
-                    <input class="form-control" type="text" name="color" value="<?= e($vehicle['color'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'color', $vehicle['color'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.doors') ?> <?= field_status_badge($fieldStatuses, 'doors') ?></label>
-                    <input class="form-control" type="number" name="doors" min="0" max="9" value="<?= e($vehicle['doors'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'doors', $vehicle['doors'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.seats') ?></label>
-                    <input class="form-control" type="number" name="seats" min="0" max="12" value="<?= e($vehicle['seats'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'seats', $vehicle['seats'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.previous_owners') ?> <?= field_status_badge($fieldStatuses, 'previous_owners') ?></label>
-                    <input class="form-control" type="text" name="previous_owners" value="<?= e((string) ($vehicle['previous_owners'] ?? '')) ?>">
-                    <?= field_alternatives($fieldStatuses, 'previous_owners', $vehicle['previous_owners'] ?? '') ?>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('field.vin') ?> <span class="optional">(<?= t('common.optional') ?>)</span> <?= field_status_badge($fieldStatuses, 'vin') ?></label>
-                    <input class="form-control" type="text" name="vin" value="<?= e($vehicle['vin'] ?? '') ?>">
-                    <?= field_alternatives($fieldStatuses, 'vin', $vehicle['vin'] ?? '') ?>
+    <!-- Die Boxen kommen aus dem Feldkatalog: Merkmale, Zustand, Preis,
+         Technik, Eigenschaften. Neue Felder brauchen nur einen Eintrag dort. -->
+    <?php foreach (\App\Service\VehicleFields::groups() as $formGroupKey => $formGroup): ?>
+        <div class="card mb-3">
+            <div class="card-header"><h2><?= e($formGroup['title']) ?></h2></div>
+            <div class="card-body">
+                <div class="<?= $formGroupKey === 'eigenschaften' ? 'check-grid' : 'grid-3' ?>">
+                    <?php foreach ($formGroup['fields'] as $formFieldName => $formFieldDef): ?>
+                        <?= render_vehicle_field($formFieldName, $formFieldDef, $vehicle, $fieldStatuses) ?>
+                    <?php endforeach; ?>
                 </div>
             </div>
+        </div>
+    <?php endforeach; ?>
 
-            <div class="form-group">
-                <div class="flex-between mb-1" style="align-items:baseline">
-                    <label class="form-label" style="margin:0"><?= t('field.features') ?></label>
-                    <span class="text-sm text-muted"><span id="featureCount"><?= count($features) ?></span> <?= t('field.features_selected') ?></span>
-                </div>
+    <div class="card mb-3">
+        <div class="card-header">
+            <h2><?= t('field.features') ?></h2>
+            <span class="text-sm text-muted"><span id="featureCount"><?= count($features) ?></span> <?= t('field.features_selected') ?></span>
+        </div>
+        <div class="card-body">
+            <div class="form-group" style="margin-bottom:0">
 
                 <!-- Freie Liste: eintippen, hinzufuegen, fertig. Die Eintraege
                      gehen als Liste in die Beschreibung. -->

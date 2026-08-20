@@ -54,13 +54,15 @@ final class OpenAiProvider implements AIProviderInterface
         'vin', 'previous_owners',
         // Technik und Aufbau
         'body_type', 'condition_state', 'cylinders', 'engine_layout', 'gears',
+        'wheelbase_mm', 'towing_capacity_kg', 'metallic',
         // Energie
         'consumption', 'co2_emission', 'energy_class', 'euro_norm',
         // Masse und Gewichte
         'length_mm', 'width_mm', 'height_mm',
         'weight_empty_kg', 'weight_total_kg', 'payload_kg',
         // Papiere und Zustand
-        'type_certificate', 'license_category', 'is_import', 'is_tuned',
+        'type_certificate', 'license_category', 'stamm_number', 'last_mfk',
+        'is_import', 'is_tuned',
         'is_race_car', 'is_accessible', 'has_mfk', 'accident_free',
         'has_warranty', 'warranty_months', 'warranty_note',
     ];
@@ -82,6 +84,7 @@ final class OpenAiProvider implements AIProviderInterface
         'has_mfk'         => ['ja', 'nein'],
         'accident_free'   => ['ja', 'nein'],
         'has_warranty'    => ['ja', 'nein'],
+        'metallic'        => ['ja', 'nein'],
     ];
 
     public function mode(): string

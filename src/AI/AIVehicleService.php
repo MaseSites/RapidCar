@@ -208,12 +208,15 @@ final class AIVehicleService
             return [];
         }
 
-        $allowed = [
-            'make', 'model', 'variant', 'year', 'first_registration', 'mileage', 'price',
-            'power_hp', 'power_kw', 'displacement_ccm', 'transmission', 'drivetrain',
-            'fuel_type', 'color', 'doors', 'seats',
-            'vin', 'previous_owners',
-        ];
+        // Alle Felder, die die Erkennung liefert. Frueher stand hier eine
+        // Handliste der ersten 18 Felder: alles Neuere wurde still verworfen.
+        $allowed = OpenAiProvider::FIELDS;
+
+        // Ja/Nein-Angaben kommen als Text und landen als 1/0 in der Datenbank.
+        $booleanFields = array_keys(array_filter(
+            OpenAiProvider::ENUM_FIELDS,
+            static fn(array $values): bool => $values === ['ja', 'nein']
+        ));
 
         $applied = [];
         $update = [];
@@ -240,8 +243,17 @@ final class AIVehicleService
                 continue;
             }
 
+            $isBoolean = in_array($field, $booleanFields, true);
+            if ($isBoolean) {
+                $value = strtolower(trim((string) $value)) === 'ja' ? 1 : 0;
+            }
+
             $current = $vehicle[$field] ?? null;
-            if ($current === null || $current === '' || $current === 0) {
+            // Bei Ja/Nein-Feldern ist 0 eine Antwort (Nein), kein leeres Feld.
+            $isEmpty = $isBoolean
+                ? ($current === null || $current === '')
+                : ($current === null || $current === '' || $current === 0);
+            if ($isEmpty) {
                 $update[$field] = $value;
                 $applied[] = $field;
                 $perField[$field] = ['confidence' => $fieldConfidence, 'alternatives' => $alternatives];

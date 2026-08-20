@@ -113,6 +113,12 @@ CREATE TABLE IF NOT EXISTS vehicles (
     warranty_months    SMALLINT UNSIGNED DEFAULT NULL,
     warranty_note      VARCHAR(190) DEFAULT NULL,
     description        TEXT         DEFAULT NULL,
+    metallic           TINYINT(1)   DEFAULT NULL,
+    last_mfk           VARCHAR(7)   DEFAULT NULL,
+    wheelbase_mm       SMALLINT UNSIGNED DEFAULT NULL,
+    towing_capacity_kg SMALLINT UNSIGNED DEFAULT NULL,
+    new_price          DECIMAL(10,2) DEFAULT NULL,
+    stamm_number       VARCHAR(30)  DEFAULT NULL,
     ai_detections      INT          NOT NULL DEFAULT 0,
     ai_documents       INT          NOT NULL DEFAULT 0,
     status             VARCHAR(20)  NOT NULL DEFAULT 'draft',  -- §24

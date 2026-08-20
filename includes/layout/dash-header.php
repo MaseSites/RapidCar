@@ -96,6 +96,9 @@ $hasPlus = $dealershipId !== null && \App\Service\SubscriptionService::isActive(
                 <?= icon('star') ?> Abo
                 <?php if (!$hasPlus): ?><span class="pro-badge">Pro</span><?php endif; ?>
             </a>
+            <a class="nav-item <?= $activeNav === 'details' ? 'active' : '' ?>" href="<?= base_url('dashboard/details.php') ?>">
+                <?= icon('user') ?> Angaben
+            </a>
             <a class="nav-item <?= $activeNav === 'settings' ? 'active' : '' ?>" href="<?= base_url('dashboard/settings.php') ?>">
                 <?= icon('settings') ?> <?= t('sidebar.settings') ?>
             </a>

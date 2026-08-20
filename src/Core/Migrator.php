@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 19;
+    private const CURRENT_VERSION = 20;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -159,6 +159,9 @@ final class Migrator
             }
             if ($installed < 19) {
                 self::migrateToVersion19();
+            }
+            if ($installed < 20) {
+                self::migrateToVersion20();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -437,6 +440,23 @@ final class Migrator
         $isSqlite = Database::driver() === 'sqlite';
         self::addColumn('vehicles', 'ai_detections', ($isSqlite ? 'INTEGER' : 'INT') . ' NOT NULL DEFAULT 0');
         self::addColumn('vehicles', 'ai_documents', ($isSqlite ? 'INTEGER' : 'INT') . ' NOT NULL DEFAULT 0');
+    }
+
+    /**
+     * Version 20: die letzten Angaben, die ein AutoScout-Inserat verlangt.
+     * Metallic-Lack, letzte MFK, Radstand, Anhaengelast, Neupreis und die
+     * Stammnummer aus dem Fahrzeugausweis.
+     */
+    private static function migrateToVersion20(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        $int = $isSqlite ? 'INTEGER' : 'INT';
+        self::addColumn('vehicles', 'metallic', $int . ' DEFAULT NULL');
+        self::addColumn('vehicles', 'last_mfk', ($isSqlite ? 'TEXT' : 'VARCHAR(7)') . ' DEFAULT NULL');
+        self::addColumn('vehicles', 'wheelbase_mm', $int . ' DEFAULT NULL');
+        self::addColumn('vehicles', 'towing_capacity_kg', $int . ' DEFAULT NULL');
+        self::addColumn('vehicles', 'new_price', ($isSqlite ? 'REAL' : 'DECIMAL(10,2)') . ' DEFAULT NULL');
+        self::addColumn('vehicles', 'stamm_number', ($isSqlite ? 'TEXT' : 'VARCHAR(30)') . ' DEFAULT NULL');
     }
 
     /**

@@ -661,6 +661,77 @@ check('Dokumentauswertung belastet beim ersten Schritt', str_contains($docSource
 check('Fahrzeug speichert die Zaehler',
     App\Core\Database::scalar('SELECT COUNT(*) FROM vehicles WHERE ai_detections >= 0 AND ai_documents >= 0') !== null);
 
+echo "Fahrzeugformular in Boxen\n";
+// Der Katalog traegt alle Felder, die ein AutoScout-Inserat verlangt.
+$catalogFields = App\Service\VehicleFields::all();
+$catalogGroups = App\Service\VehicleFields::groups();
+check('Katalog hat die fuenf Boxen',
+    array_keys($catalogGroups) === ['merkmale', 'zustand', 'preis', 'technik', 'eigenschaften']);
+$requiredCatalog = [
+    'make', 'model', 'body_type', 'transmission', 'drivetrain', 'fuel_type',
+    'color', 'interior_color', 'metallic', 'condition_state', 'first_registration',
+    'mileage', 'last_mfk', 'has_mfk', 'has_warranty', 'price', 'new_price',
+    'doors', 'seats', 'power_hp', 'power_kw', 'wheelbase_mm', 'length_mm',
+    'width_mm', 'height_mm', 'weight_empty_kg', 'payload_kg', 'towing_capacity_kg',
+    'energy_class', 'type_certificate', 'vin', 'stamm_number',
+    'is_accessible', 'is_import', 'is_race_car', 'is_tuned', 'accident_free',
+];
+$missingCatalog = array_diff($requiredCatalog, array_keys($catalogFields));
+check('alle AutoScout-Felder im Katalog (' . implode(', ', $missingCatalog) . ')', $missingCatalog === []);
+check('jedes Katalogfeld hat Beschriftung und Typ', array_filter(
+    $catalogFields,
+    static fn(array $d): bool => !isset($d['label']) || !isset($d['type'])
+) === []);
+
+$vehiclePage = file_get_contents(BASE_PATH . '/dashboard/vehicle.php');
+check('Formular zeichnet die Boxen aus dem Katalog',
+    str_contains($vehiclePage, 'VehicleFields::groups()')
+    && str_contains($vehiclePage, 'render_vehicle_field('));
+check('Speichern nutzt denselben Katalog', str_contains($vehiclePage, 'VehicleFields::all()'));
+check('alte Handliste der Felder ist weg', !str_contains($vehiclePage, "->maxLength('vin', 'VIN', 30)"));
+
+echo "KI darf alle Felder fuellen\n";
+$formNow = App\Core\Database::now();
+$formDealer = App\Core\Database::insert('dealerships', [
+    'name' => '__test_formular', 'account_type' => 'private', 'country' => 'CH', 'currency' => 'CHF',
+    'language' => 'de', 'credits' => 0, 'created_at' => $formNow, 'updated_at' => $formNow,
+]);
+$formCar = App\Core\Database::insert('vehicles', [
+    'dealership_id' => $formDealer, 'status' => 'draft',
+    'created_at' => $formNow, 'updated_at' => $formNow,
+]);
+$appliedFields = App\AI\AIVehicleService::applyToEmptyFields($formCar, [
+    'body_type'      => ['value' => 'suv', 'confidence' => 95, 'alternatives' => []],
+    'metallic'       => ['value' => 'ja', 'confidence' => 90, 'alternatives' => []],
+    'wheelbase_mm'   => ['value' => 2680, 'confidence' => 92, 'alternatives' => []],
+    'weight_empty_kg' => ['value' => 1550, 'confidence' => 92, 'alternatives' => []],
+]);
+$formSaved = App\Core\Database::fetch('SELECT * FROM vehicles WHERE id = :id', ['id' => $formCar]);
+check('Aufbau wird uebernommen', ($formSaved['body_type'] ?? null) === 'suv');
+check('Ja wird zu 1', (int) ($formSaved['metallic'] ?? 0) === 1);
+check('Radstand wird uebernommen', (int) ($formSaved['wheelbase_mm'] ?? 0) === 2680);
+check('Leergewicht wird uebernommen', (int) ($formSaved['weight_empty_kg'] ?? 0) === 1550);
+// Ein von Hand gesetztes Nein bleibt stehen
+App\Core\Database::update('vehicles', $formCar, ['metallic' => 0]);
+App\AI\AIVehicleService::applyToEmptyFields($formCar, [
+    'metallic' => ['value' => 'ja', 'confidence' => 99, 'alternatives' => []],
+]);
+check('Nein wird nicht ueberschrieben',
+    (int) App\Core\Database::scalar('SELECT metallic FROM vehicles WHERE id = :id', ['id' => $formCar]) === 0);
+App\Core\Database::run('DELETE FROM vehicle_field_status WHERE vehicle_id = :v', ['v' => $formCar]);
+App\Core\Database::run('DELETE FROM vehicles WHERE dealership_id = :d', ['d' => $formDealer]);
+App\Core\Database::run('DELETE FROM dealerships WHERE id = :d', ['d' => $formDealer]);
+
+echo "Angaben des Verkaeufers\n";
+check('Angaben-Seite existiert', is_file(BASE_PATH . '/dashboard/details.php'));
+$detailsPage = file_get_contents(BASE_PATH . '/dashboard/details.php');
+check('Angaben speichern Name und Adresse',
+    str_contains($detailsPage, "required('first_name'") && str_contains($detailsPage, "'zip'"));
+check('Veroeffentlichen verlangt die Angaben',
+    str_contains($vehiclePage, "redirect('dashboard/details.php?vehicle="));
+$headerPage = file_get_contents(BASE_PATH . '/includes/layout/dash-header.php');
+check('Angaben stehen in der Navigation', str_contains($headerPage, 'dashboard/details.php'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
@@ -874,7 +945,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 19', str_contains($migratorSource2, 'CURRENT_VERSION = 19'));
+check('Schema-Version 20', str_contains($migratorSource2, 'CURRENT_VERSION = 20'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));
