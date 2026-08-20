@@ -217,7 +217,7 @@ else:
         <div class="card mb-3">
             <div class="card-header">
                 <h2><?= t('social.best_images') ?></h2>
-                <span class="badge badge-warning" title="Reihenfolge: regelbasierte Bildqualität (KI im Demo-Modus)"><?= t('ai.badge.mock') ?></span>
+                <span class="badge badge-warning" title="Reihenfolge: regelbasierte Bildqualität"><?= t('ai.badge.mock') ?></span>
             </div>
             <div class="card-body">
                 <p class="text-sm text-muted mb-2"><?= t('social.best_images_hint') ?></p>
@@ -268,17 +268,14 @@ else:
             <div class="card-header"><h2><?= t('social.caption') ?></h2></div>
             <div class="card-body">
                 <textarea class="form-control" id="captionInput" rows="7"><?= e($caption['caption']) ?></textarea>
-                <div class="text-xs text-muted mt-1">Automatisch erstellt (<?= $caption['mode'] === 'mock' ? 'regelbasiert, Demo-Modus' : 'KI' ?>), frei anpassbar.</div>
+                <div class="text-xs text-muted mt-1">Automatisch erstellt (<?= $caption['mode'] === 'mock' ? 'regelbasiert' : 'KI' ?>), frei anpassbar.</div>
             </div>
         </div>
     </div>
 
     <div>
         <div class="card card-pad mb-3">
-            <div class="flex-between mb-2">
-                <h3 style="font-size:15.5px"><?= t('social.preview') ?> (1080x1080)</h3>
-                <button class="btn btn-secondary btn-sm" type="button" id="regenerateBtn"><?= icon('refresh', 14) ?> <?= t('social.regenerate') ?></button>
-            </div>
+            <h3 class="mb-2" style="font-size:15.5px"><?= t('social.preview') ?></h3>
             <canvas id="postCanvas" width="1080" height="1080"
                     style="width:100%;border-radius:14px;border:1px solid var(--border)"></canvas>
 
@@ -292,13 +289,20 @@ else:
                 <div class="editor-toolbar">
                     <div class="editor-tool">
                         <span class="editor-tool-label">Schrift</span>
-                        <select class="form-control" id="fontSelect">
-                            <option value="sans">Modern (serifenlos)</option>
-                            <option value="serif">Klassisch (Serifen)</option>
-                            <option value="condensed">Schmal</option>
-                            <option value="rounded">Rund</option>
-                            <option value="mono">Technisch</option>
-                        </select>
+                        <div class="font-picker" id="fontPicker">
+                            <button type="button" class="font-picker-btn" id="fontPickerBtn"
+                                    aria-haspopup="listbox" aria-expanded="false">
+                                <span id="fontPickerLabel">Modern</span>
+                                <?= icon('chevron-down', 14) ?>
+                            </button>
+                            <div class="font-picker-menu" id="fontPickerMenu" role="listbox" hidden>
+                                <button type="button" role="option" data-font="sans">Modern</button>
+                                <button type="button" role="option" data-font="serif">Klassisch</button>
+                                <button type="button" role="option" data-font="condensed">Schmal</button>
+                                <button type="button" role="option" data-font="rounded">Rund</button>
+                                <button type="button" role="option" data-font="mono">Technisch</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="editor-tool editor-tool-size">
                         <span class="editor-tool-label">Schriftgrösse</span>
@@ -318,6 +322,8 @@ else:
                 <div class="post-edit-wrap" id="postEditWrap">
                     <canvas id="postEditCanvas" width="1080" height="1080"></canvas>
                     <input type="text" id="inlineTextInput" class="inline-text-input" autocomplete="off" style="display:none">
+                    <button type="button" id="inlineTextDelete" class="inline-text-delete" style="display:none"
+                            title="Text entfernen"><?= icon('trash', 14) ?></button>
                 </div>
                 <div class="text-xs text-muted mt-1">
                     Bild ziehen zum Verschieben, lila Eckpunkte ziehen zum Vergrössern.
@@ -470,6 +476,13 @@ $pageScripts = <<<HTML
     };
     // Wo die Texte liegen: fuer das Anklicken im Bild.
     var textBoxes = {};
+    // Verschiebung jedes Textes gegenueber seinem Platz in der Vorlage.
+    var textPos = {};
+
+    function posOf(key) {
+        if (!textPos[key]) { textPos[key] = { dx: 0, dy: 0 }; }
+        return textPos[key];
+    }
 
     var fontKey = 'sans';
     var fontScale = 1;
@@ -539,15 +552,17 @@ $pageScripts = <<<HTML
 
         function drawText(key, value, weight, size, color, y, spacing, alpha) {
             if (!value) { return; }
+            var pos = posOf(key);
+            var tx = W / 2 + pos.dx, ty = y + pos.dy;
             var px = Math.round(size * fontScale);
             c.font = weight + ' ' + px + 'px ' + fontName;
             c.letterSpacing = spacing || '0px';
             c.fillStyle = color;
             c.globalAlpha = alpha || 1;
-            c.fillText(value, W / 2, y, W - 100);
+            c.fillText(value, tx, ty, W - 100);
             c.globalAlpha = 1;
             var width = Math.min(W - 100, c.measureText(value).width);
-            textBoxes[key] = { x: (W - width) / 2, y: y - px, w: width, h: px * 1.3, size: px, weight: weight, color: color };
+            textBoxes[key] = { x: tx - width / 2, y: ty - px, w: width, h: px * 1.3, size: px, weight: weight, color: color };
             c.letterSpacing = '0px';
         }
 
@@ -620,9 +635,12 @@ $pageScripts = <<<HTML
     }
 
     // ------------------------------------------------ Bild ziehen und skalieren
-    var mode = null;         // 'move' | 'scale'
+    var mode = null;         // 'move' | 'scale' | 'text'
     var anchor = null;       // fester Gegenpunkt beim Skalieren
     var grabDX = 0, grabDY = 0;
+    var textKey = null;      // welcher Text gerade gezogen wird
+    var textMoved = false;
+    var textStart = null;
 
     editCanvas.addEventListener('pointerdown', function (event) {
         commitInlineText();
@@ -643,11 +661,19 @@ $pageScripts = <<<HTML
             }
         }
 
-        // 2. Texte: anklicken und direkt im Bild tippen
+        // 2. Texte: kurzer Klick tippt, Ziehen verschiebt. preventDefault ist
+        // noetig, sonst zieht der Klick den Fokus sofort wieder auf die
+        // Zeichenflaeche und das Eingabefeld schliesst sich ungewollt.
         for (var key in textBoxes) {
             var box = textBoxes[key];
-            if (pt.x >= box.x - 20 && pt.x <= box.x + box.w + 20 && pt.y >= box.y && pt.y <= box.y + box.h) {
-                openInlineText(key);
+            if (pt.x >= box.x - 24 && pt.x <= box.x + box.w + 24
+                && pt.y >= box.y - 14 && pt.y <= box.y + box.h + 14) {
+                event.preventDefault();
+                mode = 'text';
+                textKey = key;
+                textMoved = false;
+                textStart = { x: pt.x, y: pt.y, dx: posOf(key).dx, dy: posOf(key).dy };
+                editCanvas.setPointerCapture(event.pointerId);
                 return;
             }
         }
@@ -666,8 +692,19 @@ $pageScripts = <<<HTML
     });
 
     editCanvas.addEventListener('pointermove', function (event) {
-        if (!mode || !currentImage) { return; }
+        if (!mode) { return; }
         var pt = toCanvasPoint(event);
+        if (mode === 'text') {
+            var pos = posOf(textKey);
+            pos.dx = textStart.dx + (pt.x - textStart.x);
+            pos.dy = textStart.dy + (pt.y - textStart.y);
+            if (Math.abs(pt.x - textStart.x) + Math.abs(pt.y - textStart.y) > 6) {
+                textMoved = true;
+            }
+            render();
+            return;
+        }
+        if (!currentImage) { return; }
         if (mode === 'move') {
             imgT.x = pt.x - grabDX;
             imgT.y = pt.y - grabDY;
@@ -688,7 +725,11 @@ $pageScripts = <<<HTML
 
     ['pointerup', 'pointercancel'].forEach(function (type) {
         editCanvas.addEventListener(type, function () {
+            if (mode === 'text' && !textMoved && textKey !== null) {
+                openInlineText(textKey);   // kurzer Klick: direkt tippen
+            }
             mode = null;
+            textKey = null;
             editCanvas.style.cursor = 'default';
         });
     });
@@ -696,27 +737,49 @@ $pageScripts = <<<HTML
     // ------------------------------------------------ Text direkt im Bild tippen
     var editingKey = null;
 
+    var inlineDelete = document.getElementById('inlineTextDelete');
+
     function openInlineText(key) {
         var box = textBoxes[key];
         if (!box) { return; }
         editingKey = key;
         var rect = editCanvas.getBoundingClientRect();
         var ratio = rect.width / 1080;
+        var left = Math.max(0, (box.x - 30) * ratio);
+        var width = Math.min(1040, box.w + 120) * ratio;
         inlineInput.value = texts[key];
         inlineInput.style.display = 'block';
-        inlineInput.style.left = Math.max(0, (box.x - 30) * ratio) + 'px';
+        inlineInput.style.left = left + 'px';
         inlineInput.style.top = (box.y - 6) * ratio + 'px';
-        inlineInput.style.width = Math.min(1040, box.w + 120) * ratio + 'px';
+        inlineInput.style.width = width + 'px';
+        inlineDelete.style.display = 'flex';
+        inlineDelete.style.left = Math.min(rect.width - 40, left + width + 8) + 'px';
+        inlineDelete.style.top = (box.y - 6) * ratio + 'px';
         inlineInput.style.fontSize = Math.max(13, box.size * ratio * 0.9) + 'px';
-        inlineInput.focus();
-        inlineInput.select();
+        // Fokus erst nach dem laufenden Klick, sonst geht er sofort verloren
+        window.setTimeout(function () {
+            inlineInput.focus();
+            inlineInput.select();
+        }, 0);
     }
 
     function commitInlineText() {
         if (editingKey === null) { return; }
         editingKey = null;
         inlineInput.style.display = 'none';
+        inlineDelete.style.display = 'none';
     }
+
+    // Muelleimer: der angeklickte Text verschwindet aus dem Bild
+    inlineDelete.addEventListener('pointerdown', function (event) {
+        // vor dem Fokusverlust des Eingabefelds zuschlagen
+        event.preventDefault();
+        if (editingKey !== null) {
+            texts[editingKey] = '';
+        }
+        commitInlineText();
+        render();
+    });
 
     inlineInput.addEventListener('input', function () {
         if (editingKey === null) { return; }
@@ -731,9 +794,40 @@ $pageScripts = <<<HTML
     inlineInput.addEventListener('blur', commitInlineText);
 
     // ------------------------------------------------ Werkzeuge
-    document.getElementById('fontSelect').addEventListener('change', function () {
-        fontKey = this.value;
-        render();
+    // Eigenes Dropdown: jeder Eintrag zeigt sich in seiner eigenen Schrift
+    var fontPicker = document.getElementById('fontPicker');
+    var fontPickerBtn = document.getElementById('fontPickerBtn');
+    var fontPickerMenu = document.getElementById('fontPickerMenu');
+    var fontPickerLabel = document.getElementById('fontPickerLabel');
+
+    fontPickerMenu.querySelectorAll('[data-font]').forEach(function (option) {
+        option.style.fontFamily = FONTS[option.dataset.font] || FONTS.sans;
+        option.addEventListener('click', function () {
+            fontKey = option.dataset.font;
+            fontPickerLabel.textContent = option.textContent;
+            fontPickerLabel.style.fontFamily = option.style.fontFamily;
+            fontPickerMenu.querySelectorAll('[data-font]').forEach(function (o) {
+                o.classList.toggle('is-active', o === option);
+            });
+            closeFontPicker();
+            render();
+        });
+    });
+    fontPickerMenu.querySelector('[data-font="sans"]').classList.add('is-active');
+
+    function closeFontPicker() {
+        fontPickerMenu.hidden = true;
+        fontPickerBtn.setAttribute('aria-expanded', 'false');
+    }
+    fontPickerBtn.addEventListener('click', function () {
+        var open = fontPickerMenu.hidden;
+        fontPickerMenu.hidden = !open;
+        fontPickerBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    editDialog.addEventListener('pointerdown', function (event) {
+        if (!fontPicker.contains(event.target)) {
+            closeFontPicker();
+        }
     });
     var fontScaleInput = document.getElementById('fontScale');
     function updateSliderFill() {
@@ -747,14 +841,30 @@ $pageScripts = <<<HTML
         updateSliderFill();
         render();
     });
+    // Alles auf Anfang: Bild, Texte, Positionen, Schrift
     document.getElementById('resetImage').addEventListener('click', function () {
         imgT = null;
+        textPos = {};
+        texts = {
+            badge:  'NEW IN',
+            name:   data.name,
+            facts:  [data.powerHp, data.mileage, data.price].filter(Boolean).join('   ·   '),
+            dealer: data.dealer
+        };
+        fontKey = 'sans';
+        fontScale = 1;
+        fontScaleInput.value = 100;
+        updateSliderFill();
+        fontPickerLabel.textContent = 'Modern';
+        fontPickerLabel.style.fontFamily = '';
+        fontPickerMenu.querySelectorAll('[data-font]').forEach(function (o) {
+            o.classList.toggle('is-active', o.dataset.font === 'sans');
+        });
         render();
     });
 
     window.socialRender = render;
 
-    document.getElementById('regenerateBtn').addEventListener('click', render);
 
     document.getElementById('saveBtn').addEventListener('click', function () {
         var btn = this;

@@ -148,10 +148,10 @@ $hasPlus = $dealershipId !== null && \App\Service\SubscriptionService::isActive(
             </div>
             <div class="topbar-actions">
                 <?php if ($isDemoUser): ?>
-                    <span class="badge badge-info" title="Im Demo-Modus sind Änderungen deaktiviert.">Demo</span>
+                    <span class="badge badge-info" title="Im Demo-Konto sind Änderungen deaktiviert.">Demo</span>
                 <?php endif; ?>
                 <?php /* Im Normalbetrieb steht hier nichts: dass die KI läuft,
-                          zeigt sich an den Ergebnissen. Nur der Demo-Modus wird
+                          zeigt sich an den Ergebnissen. Nur die Demo wird
                           gekennzeichnet, damit niemand echte Erkennung erwartet. */ ?>
                 <?php if ($aiMode === 'mock'): ?>
                     <span class="badge badge-warning" title="<?= t('ai.mode.mock') ?>"><?= t('ai.badge.test') ?></span>

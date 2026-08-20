@@ -1946,7 +1946,7 @@ echo "
 // Der Beitrag laesst sich vor dem Veroeffentlichen frei gestalten.
 $socialSrc = file_get_contents(BASE_PATH . '/dashboard/social.php');
 check('Schriftart waehlbar',
-    str_contains($socialSrc, 'fontSelect') && str_contains($socialSrc, 'condensed'));
+    str_contains($socialSrc, 'fontPicker') && str_contains($socialSrc, 'condensed'));
 check('Schriftgroesse einstellbar',
     str_contains($socialSrc, 'fontScale'));
 check('Texte direkt im Bild tippbar',

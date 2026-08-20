@@ -662,19 +662,19 @@ return [
     'autoscout.status_on_as24'  => 'Status bei AutoScout24',
 
     // ------------------------------------------------------------------ KI-Statusanzeige
-    'ai.mode.mock'            => 'KI-Modul derzeit im Demo-Modus',
+    'ai.mode.mock'            => 'KI-Modul arbeitet regelbasiert',
     'ai.mode.live'            => 'KI aktiv',
-    'ai.badge.mock'           => 'Demo-Modus',
+    'ai.badge.mock'           => 'Regelbasiert',
     'ai.no_credits'           => 'Ohne Guthaben läuft keine KI-Anfrage. Bearbeiten bleibt unbegrenzt möglich.',
     'ai.badge.test'           => 'Testmodus',
-    'ai.score.rule_based'     => 'Regelbasierte Bewertung (KI im Demo-Modus)',
+    'ai.score.rule_based'     => 'Regelbasierte Bewertung',
     'ai.field.detected'       => 'KI erkannt',
     'ai.field.uncertain'      => 'KI unsicher',
     'ai.field.manual'         => 'Manuell',
     'ai.field.choose'         => 'Nicht eindeutig, bitte prüfen',
     'ai.field.custom'         => 'Eigene Eingabe',
     'ai.model.active'         => 'Modell: :model',
-    'ai.live_not_ready'       => 'Live-Modus ist eingeschaltet, aber es ist kein KI-Schlüssel hinterlegt. Es wird weiterhin der Demo-Modus verwendet.',
+    'ai.live_not_ready'       => 'Live-Modus ist eingeschaltet, aber es ist kein KI-Schlüssel hinterlegt. Die Bewertung läuft regelbasiert weiter.',
     'ai.analysis_failed'      => 'Die Bildanalyse ist fehlgeschlagen: :error',
 
     // ------------------------------------------------------------------ Integrationen
@@ -845,7 +845,7 @@ return [
 
     // ------------------------------------------------------------------ Demo
     'demo.badge'              => 'Demo',
-    'demo.readonly'           => 'Im Demo-Modus sind Änderungen deaktiviert.',
-    'demo.active'             => 'Demo-Modus aktiv. Änderungen sind deaktiviert.',
+    'demo.readonly'           => 'Im Demo-Konto sind Änderungen deaktiviert.',
+    'demo.active'             => 'Demo aktiv. Änderungen sind deaktiviert.',
     'demo.not_available'      => 'Der Demo-Modus ist auf dieser Installation nicht eingerichtet.',
 ];

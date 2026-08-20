@@ -86,9 +86,9 @@ function guard_demo_mode(): void
     if ($user !== null && (int) ($user['is_demo'] ?? 0) === 1) {
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
             || str_starts_with($_SERVER['SCRIPT_NAME'] ?? '', '/api/')) {
-            json_response(false, null, 'Im Demo-Modus sind Änderungen deaktiviert.', 403);
+            json_response(false, null, 'Im Demo-Konto sind Änderungen deaktiviert.', 403);
         }
-        \App\Core\Session::flash('warning', 'Im Demo-Modus sind Änderungen deaktiviert.');
+        \App\Core\Session::flash('warning', 'Im Demo-Konto sind Änderungen deaktiviert.');
         redirect('dashboard/');
     }
 }
