@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS vehicle_images (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     vehicle_id       INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
     file_path        TEXT NOT NULL,
+    spyne_job        TEXT DEFAULT NULL,
+    spyne_scene      TEXT DEFAULT NULL,
     thumb_path       TEXT,
     card_path        TEXT,
     original_name    TEXT,

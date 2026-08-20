@@ -482,7 +482,11 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             <?php foreach ($images as $imageIndex => $image): ?>
                 <div class="upload-item <?= (int) $image['is_main'] === 1 ? 'is-main' : '' ?> <?= $imageIndex >= $visibleImages ? 'is-overflow' : '' ?>"
                      data-image-id="<?= (int) $image['id'] ?>"
-                     data-cutout="<?= (string) ($image['cutout_path'] ?? '') !== '' ? '1' : '0' ?>">
+                     data-cutout="<?= (string) ($image['cutout_path'] ?? '') !== '' ? '1' : '0' ?>"
+                     <?php if ((string) ($image['spyne_job'] ?? '') !== ''): ?>
+                        data-spyne-job="<?= e((string) $image['spyne_job']) ?>"
+                        data-spyne-scene="<?= e((string) ($image['spyne_scene'] ?? '')) ?>"
+                     <?php endif; ?>>
                     <img src="<?= e(upload_url((string) ($image['thumb_path'] ?? $image['file_path']))) ?>" alt="">
                     <?php if ((int) $image['is_main'] === 1): ?><span class="main-tag"><?= t('vehicle.main_image') ?></span><?php endif; ?>
                     <?php if ($image['ai_quality_score'] !== null): ?>
@@ -1132,6 +1136,7 @@ $jsDocDone       = $js('document.done', ['count' => '{COUNT}']);
 $jsDocNothing    = $js('document.nothing');
 $jsUploadFailed  = $js('create.upload_failed');
 $jsBgSpyneWait   = $js('background.spyne_wait');
+$jsBgSpyneSlow   = $js('background.spyne_slow');
 $pageScripts = <<<HTML
 <script>
 (function () {
@@ -1349,6 +1354,48 @@ $pageScripts = <<<HTML
     }
 
 
+    /**
+     * Fragt Spyne in Abstaenden nach dem Ergebnis eines Auftrags.
+     * done(ok, timedOut) wird genau einmal aufgerufen.
+     */
+    function spynePoll(id, key, job, item, done) {
+        var tries = 0;
+        (function poll() {
+            if (++tries > 144) {   // 144 x 5s = 12 Minuten
+                bgMarkWorking(id, false);
+                done(false, true);
+                return;
+            }
+            setTimeout(function () {
+                apiFetch('api/vehicles/image-background.php', {
+                    method: 'POST',
+                    body: { action: 'spyne_status', image_id: id, background: key, job: job }
+                }).then(function (st) {
+                    if (st.success && st.data && st.data.pending) { poll(); return; }
+                    bgMarkWorking(id, false);
+                    if (st.success) {
+                        if (item) { item.dataset.cutout = '1'; }
+                        refreshImage(st.data, id);
+                    } else {
+                        showToast(st.error || {$jsUploadFailed}, 'danger');
+                    }
+                    done(!!st.success, false);
+                });
+            }, 5000);
+        })();
+    }
+
+    // Beim Oeffnen der Seite: Fotos mit noch laufendem Spyne-Auftrag
+    // weiterverfolgen, damit ein Seitenwechsel nichts verliert.
+    document.querySelectorAll('.upload-item[data-spyne-job]').forEach(function (item) {
+        var id = parseInt(item.dataset.imageId, 10);
+        bgMarkWorking(id, true);
+        bgSetHint({$jsBgSpyneWait});
+        spynePoll(id, item.dataset.spyneScene || '', item.dataset.spyneJob, item, function (ok, timedOut) {
+            if (timedOut) { showToast({$jsBgSpyneSlow}, 'info'); }
+        });
+    });
+
     function applyBackgroundToAll(key, swatch) {
         if (bgBusy) { return; }
         bgBusy = true;
@@ -1379,33 +1426,14 @@ $pageScripts = <<<HTML
                 // angestossen, hier wird alle paar Sekunden nachgefragt.
                 if (res.success && res.data && res.data.pending) {
                     bgSetHint({$jsBgSpyneWait} + ' (' + pos + '/' + total + ')');
-                    var tries = 0;
-                    var poll = function () {
-                        tries++;
-                        if (tries > 45) {
-                            bgMarkWorking(id, false);
-                            showToast({$jsUploadFailed}, 'danger');
-                            cb(false);
-                            return;
-                        }
-                        setTimeout(function () {
-                            apiFetch('api/vehicles/image-background.php', {
-                                method: 'POST',
-                                body: { action: 'spyne_status', image_id: id, background: key, job: res.data.job }
-                            }).then(function (st) {
-                                if (st.success && st.data && st.data.pending) { poll(); return; }
-                                bgMarkWorking(id, false);
-                                if (st.success) {
-                                    if (item) { item.dataset.cutout = '1'; }
-                                    refreshImage(st.data, id);
-                                } else {
-                                    showToast(st.error || {$jsUploadFailed}, 'danger');
-                                }
-                                cb(!!st.success);
-                            });
-                        }, 4000);
-                    };
-                    poll();
+                    // Spyne braucht je Foto mehrere Minuten. Bis zu zwoelf
+                    // Minuten wird nachgefragt; danach laeuft der Auftrag
+                    // trotzdem weiter und wird beim naechsten Oeffnen der
+                    // Seite abgeholt. Kein "Upload-Fehler" mehr.
+                    spynePoll(id, key, res.data.job, item, function (ok, timedOut) {
+                        if (timedOut) { showToast({$jsBgSpyneSlow}, 'info'); }
+                        cb(ok);
+                    });
                     return;
                 }
                 bgMarkWorking(id, false);

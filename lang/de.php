@@ -405,6 +405,7 @@ return [
     'background.opt_plate_logo' => 'Logo aufs Kennzeichen setzen',
     'background.opt_plate_white' => 'Kennzeichen weiss überdecken (kein Logo hinterlegt)',
     'background.opt_banner'    => 'Banner aufs Foto legen',
+    'background.spyne_slow'   => 'Spyne braucht für dieses Foto länger. Der Auftrag läuft weiter; öffne die Seite später erneut, dann ist das Bild da.',
     'background.spyne_wait'   => 'Spyne verarbeitet das Foto, das dauert bis zu zwei Minuten',
     'background.applied'      => 'Hintergrund gesetzt.',
     'background.reset_done'   => 'Originalfoto wiederhergestellt.',

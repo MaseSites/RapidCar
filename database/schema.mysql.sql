@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS vehicle_images (
     cutout_path    VARCHAR(255) DEFAULT NULL,
     composed_path  VARCHAR(255) DEFAULT NULL,
     background_key VARCHAR(80) DEFAULT NULL,
+    spyne_job      VARCHAR(120) DEFAULT NULL,
+    spyne_scene    VARCHAR(80)  DEFAULT NULL,
     thumb_path            VARCHAR(255) DEFAULT NULL,
     card_path             VARCHAR(255) DEFAULT NULL,
     original_name         VARCHAR(255) DEFAULT NULL,

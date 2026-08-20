@@ -808,7 +808,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 16', str_contains($migratorSource2, 'CURRENT_VERSION = 16'));
+check('Schema-Version 17', str_contains($migratorSource2, 'CURRENT_VERSION = 17'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));
@@ -1299,6 +1299,25 @@ check('Sammel-Eingabe hat ein Themenfeld',
 check('Auswahl gruppiert und blendet ab der fuenften Kachel aus',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'data-bg-extra')
     && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'Mehr anzeigen'));
+
+// Spyne braucht je Foto Minuten: der Auftrag wird am Bild gemerkt und
+// nach einem Seitenwechsel weiterverfolgt, statt in einen falschen
+// "Upload-Fehler" zu laufen.
+$bgEndpoint2 = file_get_contents(BASE_PATH . '/api/vehicles/image-background.php');
+check('Auftrag wird am Foto gemerkt',
+    str_contains($bgEndpoint2, chr(39) . 'spyne_job' . chr(39) . ' => $job'));
+check('Auftrag wird nach Erfolg geloescht',
+    str_contains($bgEndpoint2, chr(39) . 'spyne_job' . chr(39) . '      => null'));
+check('gemerkter Auftrag wird ohne Angabe genutzt',
+    str_contains($bgEndpoint2, '$image[' . chr(39) . 'spyne_job' . chr(39) . ']'));
+$vehiclePage = file_get_contents(BASE_PATH . '/dashboard/vehicle.php');
+check('offene Auftraege werden beim Oeffnen weiterverfolgt',
+    str_contains($vehiclePage, 'data-spyne-job') && str_contains($vehiclePage, 'spynePoll'));
+check('Wartezeit reicht fuer Spyne',
+    str_contains($vehiclePage, 'tries > 144'));
+check('Zeitueberschreitung meldet ehrlich statt Upload-Fehler',
+    str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'background.spyne_slow'));
+
 
 
 

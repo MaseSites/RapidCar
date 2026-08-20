@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 16;
+    private const CURRENT_VERSION = 17;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -150,6 +150,9 @@ final class Migrator
             }
             if ($installed < 16) {
                 self::migrateToVersion16();
+            }
+            if ($installed < 17) {
+                self::migrateToVersion17();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -367,6 +370,18 @@ final class Migrator
         if ($isSqlite) {
             Database::run('CREATE INDEX IF NOT EXISTS idx_sent_emails_recipient ON sent_emails (recipient)');
         }
+    }
+
+    /**
+     * Version 17: laufender Spyne-Auftrag je Foto. Die Verarbeitung dauert
+     * mehrere Minuten; ohne Notiz waere das Ergebnis verloren, sobald der
+     * Nutzer die Seite verlaesst.
+     */
+    private static function migrateToVersion17(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        self::addColumn('vehicle_images', 'spyne_job', ($isSqlite ? 'TEXT' : 'VARCHAR(120)') . ' DEFAULT NULL');
+        self::addColumn('vehicle_images', 'spyne_scene', ($isSqlite ? 'TEXT' : 'VARCHAR(80)') . ' DEFAULT NULL');
     }
 
     /**

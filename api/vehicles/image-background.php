@@ -98,6 +98,11 @@ switch ($action) {
         // Holt das Ergebnis eines frueher angestossenen Spyne-Auftrags ab.
         $key = (string) ($input['background'] ?? '');
         $job = (string) ($input['job'] ?? '');
+        // Ohne Angabe: der gemerkte Auftrag des Fotos (nach Seitenwechsel)
+        if ($job === '') {
+            $job = (string) ($image['spyne_job'] ?? '');
+            $key = $key !== '' ? $key : (string) ($image['spyne_scene'] ?? '');
+        }
         if (!preg_match('/^[a-f0-9-]{8,64}$/i', $job)) {
             json_response(false, null, 'Unbekannter Auftrag.', 422);
         }
@@ -122,7 +127,11 @@ switch ($action) {
             json_response(false, null, 'Das Ergebnis konnte nicht gespeichert werden.', 500);
         }
         $paths = store_display_variants($image, $relative);
-        Database::update('vehicle_images', $imageId, ['background_key' => $key]);
+        Database::update('vehicle_images', $imageId, [
+            'background_key' => $key,
+            'spyne_job'      => null,
+            'spyne_scene'    => null,
+        ]);
         ActivityLogger::log(
             (int) $currentUser['id'],
             'image.background',
@@ -186,6 +195,9 @@ switch ($action) {
             } catch (\Throwable $e) {
                 json_response(false, null, $e->getMessage(), 422);
             }
+            // Auftrag am Foto merken: die Verarbeitung dauert Minuten und
+            // soll einen Seitenwechsel ueberleben.
+            Database::update('vehicle_images', $imageId, ['spyne_job' => $job, 'spyne_scene' => $key]);
             json_response(true, ['pending' => true, 'job' => $job]);
         }
         if (false) {
