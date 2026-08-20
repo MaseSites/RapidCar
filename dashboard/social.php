@@ -289,9 +289,9 @@ else:
                     <h3 style="font-size:15.5px">Bild bearbeiten</h3>
                     <button class="btn btn-primary btn-sm" type="button" id="editorClose">Fertig</button>
                 </div>
-                <div class="post-tools">
-                    <div class="post-tool">
-                        <label class="form-label">Schrift</label>
+                <div class="editor-toolbar">
+                    <div class="editor-tool">
+                        <span class="editor-tool-label">Schrift</span>
                         <select class="form-control" id="fontSelect">
                             <option value="sans">Modern (serifenlos)</option>
                             <option value="serif">Klassisch (Serifen)</option>
@@ -300,12 +300,19 @@ else:
                             <option value="mono">Technisch</option>
                         </select>
                     </div>
-                    <div class="post-tool">
-                        <label class="form-label">Schriftgrösse</label>
-                        <input type="range" id="fontScale" min="70" max="140" value="100" step="5">
+                    <div class="editor-tool editor-tool-size">
+                        <span class="editor-tool-label">Schriftgrösse</span>
+                        <div class="size-slider">
+                            <span class="size-a" aria-hidden="true">A</span>
+                            <input type="range" id="fontScale" min="70" max="140" value="100" step="5"
+                                   aria-label="Schriftgrösse">
+                            <span class="size-a size-a-big" aria-hidden="true">A</span>
+                        </div>
                     </div>
-                    <div class="post-tool" style="align-self:end">
-                        <button class="btn btn-secondary btn-sm" type="button" id="resetImage">Bild zurücksetzen</button>
+                    <div class="editor-tool editor-tool-reset">
+                        <button class="btn btn-secondary btn-sm" type="button" id="resetImage">
+                            <?= icon('refresh', 13) ?> Zurücksetzen
+                        </button>
                     </div>
                 </div>
                 <div class="post-edit-wrap" id="postEditWrap">
@@ -728,8 +735,16 @@ $pageScripts = <<<HTML
         fontKey = this.value;
         render();
     });
-    document.getElementById('fontScale').addEventListener('input', function () {
+    var fontScaleInput = document.getElementById('fontScale');
+    function updateSliderFill() {
+        var min = parseInt(fontScaleInput.min, 10), max = parseInt(fontScaleInput.max, 10);
+        var pct = ((parseInt(fontScaleInput.value, 10) - min) / (max - min)) * 100;
+        fontScaleInput.style.setProperty('--fill', pct + '%');
+    }
+    updateSliderFill();
+    fontScaleInput.addEventListener('input', function () {
         fontScale = parseInt(this.value, 10) / 100;
+        updateSliderFill();
         render();
     });
     document.getElementById('resetImage').addEventListener('click', function () {
