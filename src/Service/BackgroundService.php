@@ -48,8 +48,13 @@ final class BackgroundService
     {
         if (\App\Integration\SpyneService::isConfigured()) {
             $scenes = [];
-            foreach (\App\Integration\SpyneService::backgrounds() as $id => $label) {
-                $scenes[$id] = ['label' => $label, 'file' => '', 'scene' => true];
+            foreach (\App\Integration\SpyneService::scenes() as $id => $scene) {
+                $preview = $scene['preview'];
+                // Relative Pfade zeigen auf /uploads (selbst erzeugte Vorschau)
+                if ($preview !== '' && !preg_match('#^https?://#i', $preview)) {
+                    $preview = upload_url($preview);
+                }
+                $scenes[$id] = ['label' => $scene['label'], 'file' => $preview, 'scene' => true];
             }
             return $scenes;
         }

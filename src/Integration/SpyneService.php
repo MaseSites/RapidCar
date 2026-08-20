@@ -58,25 +58,37 @@ final class SpyneService
      *
      * @return array<string, string> background_id => Anzeigename
      */
-    public static function backgrounds(): array
+    /**
+     * Szenen mit allen Angaben: Name und (falls vorhanden) Vorschaubild.
+     * Gespeichert wird je Szene entweder nur der Name (alt) oder ein
+     * Objekt {label, preview}; beide Formen werden gelesen.
+     *
+     * @return array<string, array{label: string, preview: string}>
+     */
+    public static function scenes(): array
     {
-        // Drei Quellen, in dieser Reihenfolge zusammengefuehrt:
-        //   1. Vom Betreiber im Admin gepflegte Szenen (Einstellungen)
-        //   2. Szenen aus der Konfigurationsdatei
-        //   3. Rueckfall: die von Spyne dokumentierte Standard-Kennung 923,
-        //      damit der Hintergrundwechsel sofort funktioniert. Eine Liste
-        //      der Konto-Hintergruende bietet Spyne per API nicht an; die
-        //      Kennungen kommen aus dem Spyne-Konto (Darkroom).
-        $backgrounds = [];
+        $scenes = [];
+
+        $normalize = static function ($value, string $id): array {
+            if (is_array($value)) {
+                $label = trim((string) ($value['label'] ?? ''));
+                return [
+                    'label'   => $label !== '' ? $label : $id,
+                    'preview' => trim((string) ($value['preview'] ?? '')),
+                ];
+            }
+            $label = trim((string) $value);
+            return ['label' => $label !== '' ? $label : $id, 'preview' => ''];
+        };
 
         $stored = \App\Service\SettingsService::get('spyne_scenes');
         if ($stored !== null) {
             $decoded = json_decode($stored, true);
             if (is_array($decoded)) {
-                foreach ($decoded as $id => $label) {
+                foreach ($decoded as $id => $value) {
                     $id = trim((string) $id);
                     if ($id !== '') {
-                        $backgrounds[$id] = trim((string) $label) !== '' ? (string) $label : $id;
+                        $scenes[$id] = $normalize($value, $id);
                     }
                 }
             }
@@ -84,16 +96,25 @@ final class SpyneService
 
         $configured = Config::get('background.scenes', []);
         if (is_array($configured)) {
-            foreach ($configured as $id => $label) {
+            foreach ($configured as $id => $value) {
                 $id = trim((string) $id);
-                if ($id !== '' && !isset($backgrounds[$id])) {
-                    $backgrounds[$id] = trim((string) $label) !== '' ? (string) $label : $id;
+                if ($id !== '' && !isset($scenes[$id])) {
+                    $scenes[$id] = $normalize($value, $id);
                 }
             }
         }
 
-        if ($backgrounds === []) {
-            $backgrounds[self::DEFAULT_BACKGROUND] = 'Studio (Standard)';
+        if ($scenes === []) {
+            $scenes[self::DEFAULT_BACKGROUND] = ['label' => 'Studio (Standard)', 'preview' => ''];
+        }
+        return $scenes;
+    }
+
+    public static function backgrounds(): array
+    {
+        $backgrounds = [];
+        foreach (self::scenes() as $id => $scene) {
+            $backgrounds[(string) $id] = $scene['label'];
         }
         // Achtung fuer Abnehmer: PHP fuehrt rein numerische Schluessel
         // ('923') zwingend als Zahl. Wer den Schluessel an eine mit string

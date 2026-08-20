@@ -1273,6 +1273,25 @@ check('Fehler der Boerse werden mit Details gemeldet',
 check('Fahrzeugseite bietet mobile.de-Uebertragung',
     str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'api/mobilede/publish.php'));
 
+// Hintergrund-Vorschauen: alte und neue Speicherform lesbar, Kacheln
+// zeigen das Bild, Erzeugung laeuft asynchron ueber den Admin-Endpunkt
+App\Service\SettingsService::set('spyne_scenes', (string) json_encode([
+    'p1' => 'Nur Name',
+    'p2' => ['label' => 'Mit Bild', 'preview' => 'backgrounds/x.jpg'],
+]));
+$prevScenes = App\Integration\SpyneService::scenes();
+check('altes Szenenformat bleibt lesbar',
+    $prevScenes['p1']['label'] === 'Nur Name' && $prevScenes['p1']['preview'] === '');
+check('neues Szenenformat traegt die Vorschau',
+    $prevScenes['p2']['preview'] === 'backgrounds/x.jpg');
+App\Service\SettingsService::set('spyne_scenes', '');
+check('Vorschau-Erzeuger vorhanden und asynchron',
+    str_contains((string) file_get_contents(BASE_PATH . '/api/admin/spyne-preview.php'), "'start'")
+    && str_contains((string) file_get_contents(BASE_PATH . '/api/admin/spyne-preview.php'), 'checkJob'));
+check('Sammel-Eingabe nimmt Bildadressen an',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'https://' . chr(92) . 'S+'));
+
+
 
 
 

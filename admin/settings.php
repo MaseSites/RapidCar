@@ -51,8 +51,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($sceneId === '') {
                 continue;
             }
-            $label = trim($m[2]);
-            $scenes[$sceneId] = $label !== '' ? $label : $sceneId;
+            $rest = trim($m[2]);
+            // Optionale Vorschau-Adresse als letzter Teil: "Kennung = Name = https://bild"
+            $preview = '';
+            if (preg_match('#^(.*?)[=:,;\t]\s*(https://\S+)\s*$#', $rest, $pm)) {
+                $rest = trim($pm[1]);
+                $preview = trim($pm[2]);
+            }
+            $scenes[$sceneId] = [
+                'label'   => $rest !== '' ? $rest : $sceneId,
+                'preview' => $preview,
+            ];
             $added++;
         }
         if ($added > 0) {
@@ -73,7 +82,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } else {
             $scenes = json_decode((string) SettingsService::get('spyne_scenes'), true);
             $scenes = is_array($scenes) ? $scenes : [];
-            $scenes[$sceneId] = $sceneLabel !== '' ? $sceneLabel : $sceneId;
+            $scenes[$sceneId] = ['label' => $sceneLabel !== '' ? $sceneLabel : $sceneId, 'preview' => ''];
             SettingsService::set('spyne_scenes', (string) json_encode($scenes));
             ActivityLogger::log((int) $currentUser['id'], 'admin.spyne_scene_added', 'Spyne-Hintergrund hinzugefuegt: ' . $sceneId);
             Session::flash('success', 'Hintergrund gespeichert.');
@@ -130,19 +139,76 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                     Du findest sie in der Spyne-Konsole (console.spyne.ai) bei den
                     Hintergründen, oder du bekommst sie von deinem Spyne-Ansprechpartner.
                 </p>
-                <?php $spyneScenes = \App\Integration\SpyneService::backgrounds(); ?>
+                <?php $spyneScenes = \App\Integration\SpyneService::scenes(); ?>
                 <div class="mb-2">
-                    <?php foreach ($spyneScenes as $sceneId => $sceneLabel): ?>
-                        <form method="post" style="display:inline-flex;align-items:center;gap:6px;margin:0 8px 8px 0;padding:6px 10px;border:1px solid var(--border);border-radius:999px">
-                            <?= App\Core\Csrf::field() ?>
-                            <input type="hidden" name="action" value="spyne_scene_remove">
-                            <input type="hidden" name="scene_id" value="<?= e((string) $sceneId) ?>">
-                            <span class="text-sm fw-600"><?= e($sceneLabel) ?></span>
-                            <span class="text-xs text-muted"><?= e((string) $sceneId) ?></span>
-                            <button class="icon-btn" type="submit" title="Entfernen" style="width:22px;height:22px"><?= icon('x', 12) ?></button>
-                        </form>
+                    <?php foreach ($spyneScenes as $sceneId => $scene): ?>
+                        <?php
+                        $previewUrl = $scene['preview'];
+                        if ($previewUrl !== '' && !str_starts_with($previewUrl, 'http')) {
+                            $previewUrl = upload_url($previewUrl);
+                        }
+                        ?>
+                        <div style="display:inline-flex;align-items:center;gap:8px;margin:0 8px 8px 0;padding:6px 10px;border:1px solid var(--border);border-radius:14px" data-scene-chip="<?= e((string) $sceneId) ?>">
+                            <?php if ($previewUrl !== ''): ?>
+                                <img src="<?= e($previewUrl) ?>" alt="" data-scene-preview style="width:52px;height:34px;object-fit:cover;border-radius:8px">
+                            <?php else: ?>
+                                <span data-scene-preview class="text-xs text-muted" style="width:52px;text-align:center">ohne<br>Bild</span>
+                            <?php endif; ?>
+                            <span>
+                                <span class="text-sm fw-600"><?= e($scene['label']) ?></span>
+                                <span class="text-xs text-muted"><?= e((string) $sceneId) ?></span>
+                            </span>
+                            <button class="btn btn-secondary btn-sm" type="button" data-scene-generate="<?= e((string) $sceneId) ?>" title="Setzt ein Beispielauto in diesen Hintergrund (eine Spyne-Verarbeitung)">
+                                Vorschau erzeugen
+                            </button>
+                            <form method="post" style="display:inline">
+                                <?= App\Core\Csrf::field() ?>
+                                <input type="hidden" name="action" value="spyne_scene_remove">
+                                <input type="hidden" name="scene_id" value="<?= e((string) $sceneId) ?>">
+                                <button class="icon-btn" type="submit" title="Entfernen" style="width:22px;height:22px"><?= icon('x', 12) ?></button>
+                            </form>
+                        </div>
                     <?php endforeach; ?>
                 </div>
+                <script>
+                (function () {
+                    var csrf = document.querySelector('input[name="_csrf"]').value;
+                    function call(body) {
+                        return fetch('<?= base_url('api/admin/spyne-preview.php') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                            body: JSON.stringify(body)
+                        }).then(function (r) { return r.json(); });
+                    }
+                    document.querySelectorAll('[data-scene-generate]').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            var scene = btn.dataset.sceneGenerate;
+                            btn.disabled = true;
+                            btn.textContent = 'Spyne arbeitet...';
+                            call({ action: 'start', scene: scene }).then(function (res) {
+                                if (!res.success) { btn.textContent = res.error || 'Fehler'; return; }
+                                var tries = 0;
+                                (function poll() {
+                                    if (++tries > 45) { btn.textContent = 'Zeit abgelaufen'; return; }
+                                    setTimeout(function () {
+                                        call({ action: 'status', scene: scene, job: res.data.job }).then(function (st) {
+                                            if (st.success && st.data && st.data.pending) { poll(); return; }
+                                            if (!st.success) { btn.textContent = st.error || 'Fehler'; return; }
+                                            var chip = document.querySelector('[data-scene-chip="' + scene + '"]');
+                                            var holder = chip.querySelector('[data-scene-preview]');
+                                            var img = document.createElement('img');
+                                            img.src = st.data.preview + '?v=' + Date.now();
+                                            img.style.cssText = 'width:52px;height:34px;object-fit:cover;border-radius:8px';
+                                            holder.replaceWith(img);
+                                            btn.remove();
+                                        });
+                                    }, 4000);
+                                })();
+                            });
+                        });
+                    });
+                })();
+                </script>
                 <?php
                 $spynePlate = (string) (\App\Service\SettingsService::get('spyne_plate') ?? 'off');
                 $spyneBanner = (string) (\App\Service\SettingsService::get('spyne_banner_url') ?? '');
@@ -170,7 +236,7 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                     <div class="form-group">
                         <label class="form-label">Viele auf einmal übernehmen</label>
                         <textarea class="form-control" name="scene_bulk" rows="4" placeholder="75282 = Studio hell&#10;85879 = Showroom dunkel&#10;91234"></textarea>
-                        <div class="form-hint">Eine Kennung je Zeile, wahlweise mit Name (Kennung = Name). Einfach die Liste aus der Spyne-Konsole einfügen.</div>
+                        <div class="form-hint">Eine Kennung je Zeile, wahlweise mit Name und Bildadresse: Kennung = Name = https://bild. Oder nach dem Übernehmen je Eintrag "Vorschau erzeugen" drücken.</div>
                     </div>
                     <button class="btn btn-secondary" type="submit"><?= icon('plus', 15) ?> Liste übernehmen</button>
                 </form>
