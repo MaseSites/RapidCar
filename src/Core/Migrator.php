@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 17;
+    private const CURRENT_VERSION = 18;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -153,6 +153,9 @@ final class Migrator
             }
             if ($installed < 17) {
                 self::migrateToVersion17();
+            }
+            if ($installed < 18) {
+                self::migrateToVersion18();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -382,6 +385,43 @@ final class Migrator
         $isSqlite = Database::driver() === 'sqlite';
         self::addColumn('vehicle_images', 'spyne_job', ($isSqlite ? 'TEXT' : 'VARCHAR(120)') . ' DEFAULT NULL');
         self::addColumn('vehicle_images', 'spyne_scene', ($isSqlite ? 'TEXT' : 'VARCHAR(80)') . ' DEFAULT NULL');
+    }
+
+    /**
+     * Version 18: die vollstaendigen Inseratsdaten, wie sie die grossen
+     * Fahrzeugboersen fuehren (Technik, Masse, Gewichte, Energie, Zustand,
+     * Garantie). Ohne sie fehlten im Inserat genau die Angaben, nach denen
+     * Kaeufer filtern.
+     */
+    private static function migrateToVersion18(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        self::addColumn('vehicles', 'body_type', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(40) DEFAULT NULL');
+        self::addColumn('vehicles', 'condition_state', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(20) DEFAULT NULL');
+        self::addColumn('vehicles', 'cylinders', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'engine_layout', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(20) DEFAULT NULL');
+        self::addColumn('vehicles', 'gears', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'consumption', $isSqlite ? 'REAL DEFAULT NULL' : 'DECIMAL(5,2) DEFAULT NULL');
+        self::addColumn('vehicles', 'co2_emission', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'energy_class', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(3) DEFAULT NULL');
+        self::addColumn('vehicles', 'euro_norm', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(30) DEFAULT NULL');
+        self::addColumn('vehicles', 'length_mm', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'width_mm', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'height_mm', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'weight_empty_kg', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'weight_total_kg', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'payload_kg', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'type_certificate', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(20) DEFAULT NULL');
+        self::addColumn('vehicles', 'license_category', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(5) DEFAULT NULL');
+        self::addColumn('vehicles', 'is_import', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'is_tuned', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'is_race_car', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'is_accessible', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'has_mfk', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'accident_free', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'has_warranty', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
+        self::addColumn('vehicles', 'warranty_months', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
+        self::addColumn('vehicles', 'warranty_note', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(190) DEFAULT NULL');
     }
 
     /**

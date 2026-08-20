@@ -65,7 +65,11 @@ $secret = 'autoscout-token-äöü-12345';
 $encrypted = Encryption::encrypt($secret);
 check('verschlüsselt (kein Klartext)', !str_contains($encrypted, 'autoscout'));
 check('entschlüsselt korrekt', Encryption::decrypt($encrypted) === $secret);
-$tampered = base64_encode(substr((string) base64_decode($encrypted, true), 0, -1) . 'X');
+// Letztes Byte kippen statt es fest zu setzen: sonst schlaegt der Test
+// zufaellig fehl, wenn dort bereits derselbe Wert stand.
+$rawBytes = (string) base64_decode($encrypted, true);
+$lastByte = $rawBytes[strlen($rawBytes) - 1];
+$tampered = base64_encode(substr($rawBytes, 0, -1) . chr(ord($lastByte) ^ 0xFF));
 try {
     Encryption::decrypt($tampered);
     check('erkennt manipulierte Daten', false);
@@ -808,7 +812,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 17', str_contains($migratorSource2, 'CURRENT_VERSION = 17'));
+check('Schema-Version 18', str_contains($migratorSource2, 'CURRENT_VERSION = 18'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));
@@ -1767,6 +1771,48 @@ check('Instagram braucht das Abo',
     str_contains((string) file_get_contents(BASE_PATH . '/api/social/publish-post.php'), "guard_subscription(\$dealershipId, 'instagram')"));
 check('TikTok-Dienst ist entfernt',
     !is_file(BASE_PATH . '/src/Integration/TikTokService.php'));
+
+echo "
+"; echo "Vollstaendige Inseratsdaten"; echo "
+";
+
+// Die Felder, nach denen Kaeufer auf den Boersen filtern.
+$vehicleCols = array_column(App\Core\Database::fetchAll('PRAGMA table_info(vehicles)'), 'name');
+foreach (['body_type', 'cylinders', 'engine_layout', 'gears', 'consumption', 'co2_emission',
+          'energy_class', 'euro_norm', 'length_mm', 'weight_empty_kg', 'payload_kg',
+          'type_certificate', 'accident_free', 'has_warranty', 'has_mfk'] as $needed) {
+    check('Feld ' . $needed . ' vorhanden', in_array($needed, $vehicleCols, true));
+}
+
+check('KI erkennt die neuen Felder mit',
+    in_array('cylinders', App\AI\OpenAiProvider::FIELDS, true)
+    && in_array('consumption', App\AI\OpenAiProvider::FIELDS, true)
+    && in_array('weight_total_kg', App\AI\OpenAiProvider::FIELDS, true));
+check('Auswahlfelder decken Aufbau und Zustand ab',
+    isset(App\AI\OpenAiProvider::ENUM_FIELDS['body_type'],
+          App\AI\OpenAiProvider::ENUM_FIELDS['condition_state']));
+
+$providerSrc = file_get_contents(BASE_PATH . '/src/AI/OpenAiProvider.php');
+check('Werksangaben kommen aus dem Modellwissen',
+    str_contains($providerSrc, 'Alle WERKSANGABEN der erkannten Baureihe'));
+check('Gemessenes wird nie geraten',
+    str_contains($providerSrc, 'duerfen nur aus Bildern')
+    && str_contains($providerSrc, 'Ohne Beleg: null'));
+
+// Die Beschreibung folgt den Daten: aendert sich ein Feld, aendert sich der Text.
+$demo = ['make' => 'Lamborghini', 'cylinders' => 10, 'engine_layout' => 'v',
+         'consumption' => 13.9, 'body_type' => 'coupe', 'drivetrain' => 'rwd',
+         'weight_empty_kg' => 1620];
+$rendered = App\Service\ListingTemplate::render(
+    '{{make}}, {{cylinders}} Zylinder in {{engine_layout}}, {{consumption}}, {{body_type}}, {{drivetrain}}, {{weight_empty_kg}}',
+    $demo
+);
+check('Codes werden zu lesbaren Woertern',
+    str_contains($rendered, 'V') && str_contains($rendered, 'Coupé')
+    && str_contains($rendered, 'Hinterradantrieb'));
+check('Zahlen bekommen ihre Einheit',
+    str_contains($rendered, '13.9 l/100 km') && str_contains($rendered, "1'620 kg"));
+
 
 
 // ---------------------------------------------------------------------------

@@ -41,17 +41,41 @@ final class OpenAiProvider implements AIProviderInterface
 
     /** Felder, die das Modell bestimmen soll. */
     public const FIELDS = [
+        // Kern
         'make', 'model', 'variant', 'year', 'first_registration', 'mileage',
         'price', 'power_hp', 'power_kw', 'displacement_ccm', 'transmission',
         'drivetrain', 'fuel_type', 'color', 'doors', 'seats',
         'vin', 'previous_owners',
+        // Technik und Aufbau
+        'body_type', 'condition_state', 'cylinders', 'engine_layout', 'gears',
+        // Energie
+        'consumption', 'co2_emission', 'energy_class', 'euro_norm',
+        // Masse und Gewichte
+        'length_mm', 'width_mm', 'height_mm',
+        'weight_empty_kg', 'weight_total_kg', 'payload_kg',
+        // Papiere und Zustand
+        'type_certificate', 'license_category', 'is_import', 'is_tuned',
+        'is_race_car', 'is_accessible', 'has_mfk', 'accident_free',
+        'has_warranty', 'warranty_months', 'warranty_note',
     ];
 
     /** Felder mit fester Auswahl: das Modell muss einen dieser Codes liefern. */
     public const ENUM_FIELDS = [
-        'transmission' => ['manual', 'automatic', 'semi_automatic'],
-        'drivetrain'   => ['fwd', 'rwd', 'awd'],
-        'fuel_type'    => ['petrol', 'diesel', 'electric', 'hybrid', 'plug_in_hybrid', 'gas'],
+        'transmission'    => ['manual', 'automatic', 'semi_automatic'],
+        'drivetrain'      => ['fwd', 'rwd', 'awd'],
+        'fuel_type'       => ['petrol', 'diesel', 'electric', 'hybrid', 'plug_in_hybrid', 'gas'],
+        'body_type'       => ['coupe', 'limousine', 'kombi', 'suv', 'cabriolet', 'kleinwagen', 'van', 'pickup'],
+        'condition_state' => ['new', 'used', 'oldtimer', 'demo'],
+        'engine_layout'   => ['reihe', 'v', 'boxer', 'w', 'rotationskolben'],
+        'energy_class'    => ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        // Ja/Nein-Angaben kommen als Text, damit "unbekannt" moeglich bleibt
+        'is_import'       => ['ja', 'nein'],
+        'is_tuned'        => ['ja', 'nein'],
+        'is_race_car'     => ['ja', 'nein'],
+        'is_accessible'   => ['ja', 'nein'],
+        'has_mfk'         => ['ja', 'nein'],
+        'accident_free'   => ['ja', 'nein'],
+        'has_warranty'    => ['ja', 'nein'],
     ];
 
     public function mode(): string
@@ -345,13 +369,25 @@ Dokumenttext:
             . "3. Bist du unsicher zwischen mehreren Möglichkeiten, trage die wahrscheinlichste "
             . "in value ein und ALLE ernsthaft in Frage kommenden Möglichkeiten in alternatives. "
             . "Das ist besonders wichtig bei Modell und Variante, wo sich Baureihen ähneln.\n"
-            . "4. Ausnahme zu Regel 1: Leistung (power_hp, power_kw) und Hubraum "
-            . "(displacement_ccm) leitest du aus dem erkannten Modell und der Variante ab, "
-            . "auch wenn sie auf keinem Bild stehen. Das sind bekannte Werksangaben der "
-            . "Baureihe. Gibt es die Baureihe mit mehreren Leistungsstufen (zum Beispiel "
-            . "600 und 640 PS), trage die wahrscheinlichste in value ein und die übrigen "
-            . "Stufen in alternatives. Bist du dir bei der Variante nicht sicher, lass die "
-            . "Leistung leer.\n"
+            . "4. Ausnahme zu Regel 1: Alle WERKSANGABEN der erkannten Baureihe und "
+            . "Variante traegst du aus deinem Modellwissen ein, auch wenn sie auf keinem "
+            . "Bild stehen. Das betrifft: Leistung (power_hp, power_kw), Hubraum "
+            . "(displacement_ccm), Zylinderzahl (cylinders), Motorbauart (engine_layout), "
+            . "Gangzahl (gears), Aufbau (body_type), Tueren und Sitze, Normverbrauch "
+            . "(consumption), CO2-Ausstoss (co2_emission), Energieeffizienz "
+            . "(energy_class), Abgasnorm (euro_norm), Laenge, Breite, Hoehe (length_mm, "
+            . "width_mm, height_mm) sowie Leergewicht und Gesamtgewicht "
+            . "(weight_empty_kg, weight_total_kg). Nutzlast (payload_kg) ist die Differenz "
+            . "aus Gesamt- und Leergewicht. Gibt es die Baureihe mit mehreren Stufen (zum "
+            . "Beispiel 600 und 640 PS), trage die wahrscheinlichste in value ein und die "
+            . "uebrigen in alternatives. Bist du dir bei der Variante nicht sicher, lass "
+            . "diese Felder leer statt zu raten.\n"
+            . "4b. Diese Felder stehen NIE im Modellwissen und duerfen nur aus Bildern "
+            . "oder Dokumenten kommen: Kilometerstand, Preis, Fahrgestellnummer, "
+            . "Typenschein-Nummer (type_certificate), Anzahl Vorbesitzer, Unfallfreiheit "
+            . "(accident_free), Garantie (has_warranty, warranty_months, warranty_note), "
+            . "MFK (has_mfk), Import (is_import), Tuning (is_tuned), Rennwagen "
+            . "(is_race_car), behindertengerecht (is_accessible). Ohne Beleg: null.\n"
             . "5. confidence ist eine Zahl von 0 bis 100 und beschreibt, wie sicher du dir bist.\n"
             . "6. Kilometerstand und Preis kannst du nur angeben, wenn sie auf einem Bild lesbar sind "
             . "(z.B. Tacho oder Preisschild). Sonst null.\n"

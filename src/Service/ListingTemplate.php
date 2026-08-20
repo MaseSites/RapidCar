@@ -37,6 +37,30 @@ final class ListingTemplate
         'doors'              => 'Türen',
         'seats'              => 'Sitze',
         'previous_owners'    => 'Vorhalter',
+        // Technik und Aufbau
+        'body_type'          => 'Aufbau',
+        'cylinders'          => 'Zylinder',
+        'engine_layout'      => 'Motorbauart',
+        'gears'              => 'Gänge',
+        'transmission'       => 'Getriebe',
+        'drivetrain'         => 'Antrieb',
+        'fuel_type'          => 'Treibstoff',
+        // Energie
+        'consumption'        => 'Verbrauch',
+        'co2_emission'       => 'CO2',
+        'energy_class'       => 'Energieeffizienz',
+        'euro_norm'          => 'Abgasnorm',
+        // Masse und Gewichte
+        'length_mm'          => 'Länge',
+        'width_mm'           => 'Breite',
+        'height_mm'          => 'Höhe',
+        'weight_empty_kg'    => 'Leergewicht',
+        'weight_total_kg'    => 'Gesamtgewicht',
+        'payload_kg'         => 'Nutzlast',
+        // Zustand und Papiere
+        'condition_state'    => 'Zustand',
+        'type_certificate'   => 'Typenschein-Nr.',
+        'license_category'   => 'Lizenzkategorie',
     ];
 
     /**
@@ -89,12 +113,35 @@ final class ListingTemplate
             return '';
         }
 
+        // Codes werden zu lesbaren Woertern, Zahlen bekommen ihre Einheit.
+        $words = [
+            'transmission'    => ['manual' => 'Schaltgetriebe', 'automatic' => 'Automat', 'semi_automatic' => 'Halbautomat'],
+            'drivetrain'      => ['fwd' => 'Frontantrieb', 'rwd' => 'Hinterradantrieb', 'awd' => 'Allradantrieb'],
+            'fuel_type'       => ['petrol' => 'Benzin', 'diesel' => 'Diesel', 'electric' => 'Elektro',
+                                  'hybrid' => 'Hybrid', 'plug_in_hybrid' => 'Plug-in-Hybrid', 'gas' => 'Gas'],
+            'body_type'       => ['coupe' => 'Coupé', 'limousine' => 'Limousine', 'kombi' => 'Kombi',
+                                  'suv' => 'SUV', 'cabriolet' => 'Cabriolet', 'kleinwagen' => 'Kleinwagen',
+                                  'van' => 'Van', 'pickup' => 'Pick-up'],
+            'condition_state' => ['new' => 'Neu', 'used' => 'Occasion', 'oldtimer' => 'Oldtimer', 'demo' => 'Vorführwagen'],
+            'engine_layout'   => ['reihe' => 'Reihe', 'v' => 'V', 'boxer' => 'Boxer', 'w' => 'W',
+                                  'rotationskolben' => 'Rotationskolben'],
+        ];
+        if (isset($words[$field][(string) $value])) {
+            return $words[$field][(string) $value];
+        }
+
         return match ($field) {
             'mileage'          => number_format((float) $value, 0, '.', "'") . ' km',
             'price'            => format_price($value),
             'power_hp'         => (string) (int) $value . ' PS',
             'power_kw'         => (string) (int) $value . ' kW',
             'displacement_ccm' => number_format((float) $value, 0, '.', "'") . ' ccm',
+            'consumption'      => number_format((float) $value, 1, '.', "'") . ' l/100 km',
+            'co2_emission'     => (string) (int) $value . ' g/km',
+            'length_mm', 'width_mm', 'height_mm'
+                               => number_format((float) $value, 0, '.', "'") . ' mm',
+            'weight_empty_kg', 'weight_total_kg', 'payload_kg'
+                               => number_format((float) $value, 0, '.', "'") . ' kg',
             default            => (string) $value,
         };
     }
