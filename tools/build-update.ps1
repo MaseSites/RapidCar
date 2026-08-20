@@ -25,7 +25,7 @@ $zip = Join-Path $root 'rapidcar-deploy.zip'
 $stage = Join-Path $env:TEMP ('rapidcar-update-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stage | Out-Null
 
-$ausschluss = '^(config/|storage/|uploads/|install/|tests/|tools/|testdaten/|\.git/)|(^|/)config\.php$|\.sqlite$|\.zip$'
+$ausschluss = '^(config/|storage/|uploads/|install/|tests/|tools/|testdaten/|\.git/|\.claude/)|(^|/)config\.php$|\.sqlite$|\.zip$'
 
 if ($Seit -ne '') {
     # Nur geaenderte Dateien seit dem angegebenen Commit
