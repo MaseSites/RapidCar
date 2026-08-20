@@ -26,7 +26,10 @@ final class SpyneService
 {
     public const PROVIDER = 'spyne';
 
-    /** Von Spyne dokumentierte Standard-Hintergrund-Kennung. */
+    /**
+     * Von Spyne dokumentierte Beispiel-Kennung. Nur als Hinweis im Admin
+     * gedacht: ob sie funktioniert, haengt am eigenen Spyne-Konto.
+     */
     public const DEFAULT_BACKGROUND = '923';
 
     // Neue Spyne-API (Bearer-Schluessel aus dem Entwicklerhub der Konsole).
@@ -105,9 +108,10 @@ final class SpyneService
             }
         }
 
-        if ($scenes === []) {
-            $scenes[self::DEFAULT_BACKGROUND] = ['label' => 'Studio (Standard)', 'preview' => '', 'theme' => ''];
-        }
+        // Bewusst kein Rueckfall auf eine erfundene Kennung: Spyne kennt nur
+        // Hintergruende, die dem eigenen Konto zugeordnet sind. Eine geratene
+        // Nummer wird abgelehnt und sieht fuer den Nutzer wie ein Fehler aus.
+        // Ohne Eintraege bleibt die Auswahl leer und sagt das ehrlich.
         return $scenes;
     }
 
@@ -175,6 +179,12 @@ final class SpyneService
         if (!preg_match('#^https?://#i', $imageUrl)) {
             throw new RuntimeException('Spyne holt die Fotos selbst ab. Dafür muss die Anwendung öffentlich erreichbar sein.');
         }
+        if (trim($backgroundId) === '') {
+            throw new RuntimeException(
+                'Es ist kein Hintergrund gewählt. Im Admin unter Einstellungen die '
+                . 'Hintergrund-Kennungen aus der Spyne-Konsole eintragen.'
+            );
+        }
         return self::submit($imageUrl, $backgroundId, $skuName, $options);
     }
 
@@ -225,7 +235,7 @@ final class SpyneService
                 ],
             ],
             'processingDetails' => [
-                'backgroundId'    => $backgroundId !== '' ? $backgroundId : self::DEFAULT_BACKGROUND,
+                'backgroundId'    => $backgroundId,
                 // '0' nichts, '1' weisse Flaeche, oder die Adresse eines
                 // Logos, das Spyne auf das Kennzeichen setzt.
                 'numberPlateLogo' => (string) ($options['plate']

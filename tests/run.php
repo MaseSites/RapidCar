@@ -1164,14 +1164,18 @@ Config::set('background.api_key', 'TESTSCHLUESSEL');
 check('mit Zugang ist Spyne an', App\Integration\SpyneService::isConfigured() === true);
 check('Hintergrundwechsel laeuft ueber Spyne', App\Service\BackgroundService::usesSpyne() === true);
 
-// Ohne gepflegte Szenen muss der dokumentierte Spyne-Standard kommen,
-// sonst steht der Nutzer vor einer leeren Auswahl.
+// Kein geratener Rueckfall: Spyne lehnt fremde Kennungen ab (live geprueft,
+// 923 gehoert nicht zu jedem Konto). Ohne Eintraege bleibt die Auswahl leer.
 Config::set('background.scenes', []);
-$fallbackScenes = App\Integration\SpyneService::backgrounds();
-check('ohne Szenen gilt der Spyne-Standard 923',
-    isset($fallbackScenes['923']) && count($fallbackScenes) >= 1);
-check('Standard ist als Konstante hinterlegt',
-    App\Integration\SpyneService::DEFAULT_BACKGROUND === '923');
+App\Service\SettingsService::set('spyne_scenes', '');
+check('ohne Szenen bleibt die Auswahl leer',
+    App\Integration\SpyneService::backgrounds() === []);
+$spyneSrc = file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php');
+check('kein Rueckfall auf eine geratene Kennung',
+    !str_contains($spyneSrc, "self::DEFAULT_BACKGROUND;")
+    && str_contains($spyneSrc, 'Bewusst kein Rueckfall'));
+check('ohne Hintergrund wird gar nicht erst angefragt',
+    str_contains($spyneSrc, 'Es ist kein Hintergrund gewählt'));
 
 // Im Admin gepflegte Szenen haben Vorrang und lassen sich verwalten
 check('Admin kann Szenen pflegen',

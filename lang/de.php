@@ -379,7 +379,7 @@ return [
     'background.choose_hint'  => 'Hintergrund anklicken: Beim ersten Mal wird jedes Foto einmal freigestellt (dauert bis zu einer Minute pro Foto), danach ist jeder Wechsel sofort da.',
     'background.more'         => 'Mehr',
     'background.library'      => 'Hintergründe',
-    'background.no_scenes'    => 'Im Spyne-Konto ist noch keine Szene hinterlegt.',
+    'background.no_scenes'    => 'Es sind noch keine Hintergründe eingerichtet. Der Betreiber trägt sie im Admin unter Einstellungen ein.',
     'background.tab_recommended' => 'Empfohlen',
     'background.tab_own'      => 'Eigene',
     'background.tab_favorites' => 'Favoriten',
