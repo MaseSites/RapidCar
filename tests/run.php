@@ -24,6 +24,7 @@ use App\Core\Validator;
 use App\Integration\AutoScoutClient;
 use App\Integration\AutoScoutService;
 use App\Integration\ChannelRegistry;
+use App\Service\AiUsageService;
 use App\Service\CreditService;
 use App\Service\ListingScoreEngine;
 
@@ -599,6 +600,67 @@ check('Dokumentauswertung fragt die KI nur mit Guthaben',
     str_contains($documentSource, 'CreditService::hasCredits($dealershipId)'));
 
 
+echo "Schutz vor Mehrfachnutzung eines Guthabens\n";
+// Ein Guthaben zahlt EIN Fahrzeug. Ohne diese Grenze liesse sich dasselbe
+// Inserat als Werkbank missbrauchen: Fotos austauschen, erneut erkennen
+// lassen, die Daten von Hand woanders eintragen.
+$misuseNow = App\Core\Database::now();
+$misuseDealer = App\Core\Database::insert('dealerships', [
+    'name' => '__test_missbrauch', 'account_type' => 'dealer', 'country' => 'CH', 'currency' => 'CHF',
+    'language' => 'de', 'credits' => 1, 'created_at' => $misuseNow, 'updated_at' => $misuseNow,
+]);
+$misuseCar = App\Core\Database::insert('vehicles', [
+    'dealership_id' => $misuseDealer, 'status' => 'draft',
+    'created_at' => $misuseNow, 'updated_at' => $misuseNow,
+]);
+$misuseCar2 = App\Core\Database::insert('vehicles', [
+    'dealership_id' => $misuseDealer, 'status' => 'draft',
+    'created_at' => $misuseNow, 'updated_at' => $misuseNow,
+]);
+
+check('frisches Fahrzeug darf erkannt werden', AiUsageService::canDetect($misuseCar) === true);
+AiUsageService::ensureCharged($misuseDealer, $misuseCar);
+AiUsageService::countDetection($misuseCar);
+check('Erkennung belastet genau ein Guthaben', CreditService::balance($misuseDealer) === 0);
+check('zweite Erkennung am selben Fahrzeug ist gesperrt', AiUsageService::canDetect($misuseCar) === false);
+
+// Weitere KI-Schritte am bezahlten Fahrzeug bleiben frei: der Text darf
+// beliebig oft neu erzeugt werden.
+AiUsageService::ensureCharged($misuseDealer, $misuseCar);
+AiUsageService::ensureCharged($misuseDealer, $misuseCar);
+check('Text neu erzeugen kostet nichts mehr', CreditService::balance($misuseDealer) === 0);
+
+$misuseBlocked = false;
+try {
+    AiUsageService::ensureCharged($misuseDealer, $misuseCar2);
+} catch (RuntimeException $e) {
+    $misuseBlocked = true;
+}
+check('zweites Fahrzeug ohne Guthaben wird abgewiesen', $misuseBlocked === true);
+
+check('drei Dokumente sind erlaubt', AiUsageService::canReadDocument($misuseCar) === true);
+AiUsageService::countDocument($misuseCar);
+AiUsageService::countDocument($misuseCar);
+check('nach zwei Dokumenten geht noch eines', AiUsageService::canReadDocument($misuseCar) === true);
+AiUsageService::countDocument($misuseCar);
+check('das vierte Dokument ist gesperrt', AiUsageService::canReadDocument($misuseCar) === false);
+check('Zaehler zaehlt richtig', AiUsageService::documentsUsed($misuseCar) === 3);
+
+App\Core\Database::run('DELETE FROM credit_transactions WHERE dealership_id = :d', ['d' => $misuseDealer]);
+App\Core\Database::run('DELETE FROM listings WHERE dealership_id = :d', ['d' => $misuseDealer]);
+App\Core\Database::run('DELETE FROM vehicles WHERE dealership_id = :d', ['d' => $misuseDealer]);
+App\Core\Database::run('DELETE FROM dealerships WHERE id = :d', ['d' => $misuseDealer]);
+
+$detectSource = file_get_contents(BASE_PATH . '/api/ai/detect-vehicle.php');
+check('Erkennung prueft die Grenze', str_contains($detectSource, 'AiUsageService::canDetect('));
+check('Erkennung belastet beim ersten Schritt', str_contains($detectSource, 'AiUsageService::ensureCharged('));
+check('Erkennung zaehlt den Verbrauch', str_contains($detectSource, 'AiUsageService::countDetection('));
+$docSource = file_get_contents(BASE_PATH . '/api/ai/extract-document.php');
+check('Dokumentauswertung prueft die Grenze', str_contains($docSource, 'AiUsageService::canReadDocument('));
+check('Dokumentauswertung belastet beim ersten Schritt', str_contains($docSource, 'AiUsageService::ensureCharged('));
+check('Fahrzeug speichert die Zaehler',
+    App\Core\Database::scalar('SELECT COUNT(*) FROM vehicles WHERE ai_detections >= 0 AND ai_documents >= 0') !== null);
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
@@ -812,7 +874,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 18', str_contains($migratorSource2, 'CURRENT_VERSION = 18'));
+check('Schema-Version 19', str_contains($migratorSource2, 'CURRENT_VERSION = 19'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));

@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 18;
+    private const CURRENT_VERSION = 19;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -156,6 +156,9 @@ final class Migrator
             }
             if ($installed < 18) {
                 self::migrateToVersion18();
+            }
+            if ($installed < 19) {
+                self::migrateToVersion19();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -422,6 +425,18 @@ final class Migrator
         self::addColumn('vehicles', 'has_warranty', $isSqlite ? 'INTEGER DEFAULT NULL' : 'TINYINT(1) DEFAULT NULL');
         self::addColumn('vehicles', 'warranty_months', $isSqlite ? 'INTEGER DEFAULT NULL' : 'SMALLINT UNSIGNED DEFAULT NULL');
         self::addColumn('vehicles', 'warranty_note', $isSqlite ? 'TEXT DEFAULT NULL' : 'VARCHAR(190) DEFAULT NULL');
+    }
+
+    /**
+     * Version 19: Zaehler der KI-Erkennungen je Fahrzeug. Ohne ihn liesse
+     * sich ein einziges Guthaben beliebig oft nutzen: Fotos austauschen,
+     * erneut erkennen lassen, Daten abschreiben.
+     */
+    private static function migrateToVersion19(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        self::addColumn('vehicles', 'ai_detections', ($isSqlite ? 'INTEGER' : 'INT') . ' NOT NULL DEFAULT 0');
+        self::addColumn('vehicles', 'ai_documents', ($isSqlite ? 'INTEGER' : 'INT') . ' NOT NULL DEFAULT 0');
     }
 
     /**

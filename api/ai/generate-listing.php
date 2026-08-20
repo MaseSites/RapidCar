@@ -46,6 +46,9 @@ guard_ai_credits($dealershipId);
 // sich sonst gratis herauskopieren. Je Inserat nur einmal; erneutes
 // Erzeugen und das spaetere Veroeffentlichen kosten nichts mehr.
 // Demo-Konten bleiben aussen vor, sie schreiben nichts.
+// Dieselbe Belastung wie bei Erkennung und Dokument: einmal je Fahrzeug.
+// Wurde sie dort schon abgebucht, kostet der Text nichts mehr, und er
+// laesst sich beliebig oft neu erzeugen.
 $isDemoAccount = (int) ($currentUser['is_demo'] ?? 0) === 1;
 $chargedNow = false;
 $listing = null;

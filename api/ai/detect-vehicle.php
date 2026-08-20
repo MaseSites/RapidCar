@@ -37,6 +37,32 @@ if ($vehicle === null) {
 // Ohne Guthaben geht keine Anfrage an die KI
 guard_ai_credits($dealershipId);
 
+// Ein Guthaben zahlt EIN Fahrzeug. Die Erkennung laeuft deshalb je
+// Fahrzeug genau einmal: sonst liesse sich dasselbe Inserat als Werkbank
+// missbrauchen, indem man Fotos austauscht, erneut erkennen laesst und
+// die Daten von Hand woanders eintraegt.
+if (!\App\Service\AiUsageService::canDetect($vehicleId)) {
+    json_response(
+        false,
+        ['already_detected' => true],
+        'Dieses Fahrzeug wurde bereits erkannt. Die Angaben lassen sich von Hand ändern, '
+        . 'und Texte kannst du beliebig oft neu erzeugen. Für ein anderes Fahrzeug bitte '
+        . 'ein neues Inserat anlegen.',
+        409
+    );
+}
+
+// Belastung beim ERSTEN KI-Schritt, nicht erst beim Text: sonst waere die
+// Erkennung kostenlos und das Guthaben liesse sich umgehen.
+$isDemoAccount = (int) ($currentUser['is_demo'] ?? 0) === 1;
+if (!$isDemoAccount) {
+    try {
+        \App\Service\AiUsageService::ensureCharged($dealershipId, $vehicleId, (int) $currentUser['id']);
+    } catch (\RuntimeException $e) {
+        json_response(false, null, t('ai.no_credits'), 402);
+    }
+}
+
 try {
     $detection = AIVehicleService::detectFromImages($vehicleId);
 } catch (AIException $e) {
@@ -67,6 +93,9 @@ if ($apply && $detection['detected'] && $detection['fields'] !== []) {
         $vehicleId,
         $dealershipId
     );
+
+    // Erkennung ist verbraucht: ab jetzt gilt Handarbeit fuer dieses Fahrzeug.
+    \App\Service\AiUsageService::countDetection($vehicleId);
 
     // Sichtbare Ausstattung übernehmen, ohne vorhandene Einträge zu verlieren
     $detectedFeatures = array_filter(array_map('strval', (array) ($detection['features'] ?? [])));

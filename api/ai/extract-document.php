@@ -52,6 +52,19 @@ if (!is_uploaded_file($upload['tmp_name'])) {
 }
 
 $mime = (new finfo(FILEINFO_MIME_TYPE))->file($upload['tmp_name']) ?: '';
+// Drei Dokumente je Fahrzeug reichen fuer Ausweis, Kaufvertrag und
+// Serviceheft. Mehr waere ein Zeichen, dass hier fremde Fahrzeuge
+// durchgeschleust werden.
+if (!\App\Service\AiUsageService::canReadDocument($vehicleId)) {
+    json_response(
+        false,
+        ['limit_reached' => true],
+        'Für dieses Fahrzeug wurden bereits ' . \App\Service\AiUsageService::MAX_DOCUMENTS
+        . ' Dokumente ausgewertet. Die Angaben lassen sich von Hand ergänzen.',
+        409
+    );
+}
+
 $isPdf = $mime === 'application/pdf';
 
 $tempPaths = [];   // wird am Ende restlos entfernt
@@ -150,6 +163,18 @@ try {
     $fields = $checked['fields'];
     if ($checked['notes'] !== []) {
         $note = trim($note . ' ' . implode(' ', $checked['notes']));
+    }
+
+    // Belastung beim ersten KI-Schritt dieses Fahrzeugs, dann nie wieder.
+    if ($usedAi && (int) ($currentUser['is_demo'] ?? 0) !== 1) {
+        try {
+            \App\Service\AiUsageService::ensureCharged($dealershipId, $vehicleId, (int) $currentUser['id']);
+        } catch (\RuntimeException $e) {
+            json_response(false, null, t('ai.no_credits'), 402);
+        }
+    }
+    if ($usedAi) {
+        \App\Service\AiUsageService::countDocument($vehicleId);
     }
 
     $applied = AIVehicleService::applyToEmptyFields($vehicleId, $fields);

@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS vehicles (
     warranty_months  INTEGER DEFAULT NULL,
     warranty_note    TEXT DEFAULT NULL,
     description        TEXT,
+    ai_detections    INTEGER NOT NULL DEFAULT 0,
+    ai_documents     INTEGER NOT NULL DEFAULT 0,
     status             TEXT NOT NULL DEFAULT 'draft',
     created_at         TEXT NOT NULL,
     updated_at         TEXT NOT NULL
