@@ -76,13 +76,14 @@ final class SpyneService
             if (is_array($value)) {
                 $label = trim((string) ($value['label'] ?? ''));
                 return [
-                    'label'   => $label !== '' ? $label : $id,
-                    'preview' => trim((string) ($value['preview'] ?? '')),
-                    'theme'   => trim((string) ($value['theme'] ?? '')),
+                    'label'       => $label !== '' ? $label : $id,
+                    'preview'     => trim((string) ($value['preview'] ?? '')),
+                    'theme'       => trim((string) ($value['theme'] ?? '')),
+                    'unavailable' => (bool) ($value['unavailable'] ?? false),
                 ];
             }
             $label = trim((string) $value);
-            return ['label' => $label !== '' ? $label : $id, 'preview' => '', 'theme' => ''];
+            return ['label' => $label !== '' ? $label : $id, 'preview' => '', 'theme' => '', 'unavailable' => false];
         };
 
         $stored = \App\Service\SettingsService::get('spyne_scenes');
@@ -119,6 +120,9 @@ final class SpyneService
     {
         $backgrounds = [];
         foreach (self::scenes() as $id => $scene) {
+            if ($scene['unavailable']) {
+                continue;   // von Spyne abgelehnt, siehe markUnavailable()
+            }
             $backgrounds[(string) $id] = $scene['label'];
         }
         // Achtung fuer Abnehmer: PHP fuehrt rein numerische Schluessel
@@ -212,6 +216,29 @@ final class SpyneService
         return null;
     }
 
+    /**
+     * Merkt sich, dass Spyne diese Kennung nicht kennt. Solche Szenen
+     * erscheinen nicht mehr in der Auswahl; im Admin bleiben sie sichtbar
+     * und lassen sich dort loeschen oder erneut freigeben.
+     */
+    private static function markUnavailable(string $sceneId): void
+    {
+        try {
+            $stored = json_decode((string) \App\Service\SettingsService::get('spyne_scenes'), true);
+            if (!is_array($stored) || !isset($stored[$sceneId])) {
+                return;
+            }
+            $entry = $stored[$sceneId];
+            $entry = is_array($entry) ? $entry : ['label' => (string) $entry, 'preview' => '', 'theme' => ''];
+            $entry['unavailable'] = true;
+            $stored[$sceneId] = $entry;
+            \App\Service\SettingsService::set('spyne_scenes', (string) json_encode($stored));
+            Logger::warning('Spyne-Hintergrund nicht freigeschaltet, aus der Auswahl entfernt: ' . $sceneId);
+        } catch (\Throwable $e) {
+            Logger::warning('Hintergrund konnte nicht markiert werden: ' . $e->getMessage());
+        }
+    }
+
     /** Meldet das Foto zur Verarbeitung an und gibt die Auftragsnummer zurück. */
     private static function submit(string $imageUrl, string $backgroundId, string $skuName, array $options = []): string
     {
@@ -264,12 +291,14 @@ final class SpyneService
         if (!empty($summary['isRequestRejected'])) {
             $reason = (string) ($summary['displayError']['message'] ?? 'kein Grund genannt');
             if (stripos($reason, 'BackgroundId') !== false) {
-                // Die Kennung mitnennen: nur so laesst sich erkennen, ob eine
-                // alte oder eine falsch eingetragene Nummer verwendet wurde.
+                // Nicht jede Kennung aus dem Spyne-Katalog ist dem eigenen
+                // Konto zugeordnet. Statt den Nutzer wieder hineinlaufen zu
+                // lassen, verschwindet der Hintergrund aus der Auswahl.
+                $rejectedId = (string) $payload['processingDetails']['backgroundId'];
+                self::markUnavailable($rejectedId);
                 throw new RuntimeException(
-                    'Spyne kennt den Hintergrund ' . $payload['processingDetails']['backgroundId']
-                    . ' in deinem Konto nicht. Im Admin unter Einstellungen die Kennungen '
-                    . 'aus der Spyne-Konsole eintragen und den Hintergrund neu waehlen.'
+                    'Der Hintergrund ' . $rejectedId . ' ist in deinem Spyne-Konto nicht '
+                    . 'freigeschaltet und wurde aus der Auswahl entfernt. Bitte einen anderen waehlen.'
                 );
             }
             throw new RuntimeException('Spyne hat die Anfrage abgelehnt: ' . $reason);

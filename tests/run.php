@@ -1177,6 +1177,24 @@ check('kein Rueckfall auf eine geratene Kennung',
 check('ohne Hintergrund wird gar nicht erst angefragt',
     str_contains($spyneSrc, 'Es ist kein Hintergrund gewählt'));
 
+// Nicht jede Kennung aus dem Spyne-Katalog gehoert zum eigenen Konto
+// (live geprueft: 12933 abgelehnt, 11475 angenommen). Abgelehnte
+// Kennungen verschwinden automatisch aus der Auswahl.
+App\Service\SettingsService::set('spyne_scenes', (string) json_encode([
+    'a1' => ['label' => 'Gut', 'preview' => '', 'theme' => 'T'],
+    'a2' => ['label' => 'Abgelehnt', 'preview' => '', 'theme' => 'T', 'unavailable' => true],
+]));
+check('abgelehnte Hintergruende sind nicht mehr waehlbar',
+    !isset(App\Integration\SpyneService::backgrounds()['a2'])
+    && isset(App\Integration\SpyneService::backgrounds()['a1']));
+check('im Admin bleiben sie sichtbar',
+    count(App\Integration\SpyneService::scenes()) === 2);
+App\Service\SettingsService::set('spyne_scenes', '');
+check('Ablehnung markiert die Kennung',
+    str_contains($spyneSrc, 'markUnavailable')
+    && str_contains($spyneSrc, 'aus der Auswahl entfernt'));
+
+
 // Im Admin gepflegte Szenen haben Vorrang und lassen sich verwalten
 check('Admin kann Szenen pflegen',
     str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_scene_add')

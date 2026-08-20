@@ -49,6 +49,9 @@ final class BackgroundService
         if (\App\Integration\SpyneService::isConfigured()) {
             $scenes = [];
             foreach (\App\Integration\SpyneService::scenes() as $id => $scene) {
+                if ($scene['unavailable']) {
+                    continue;   // Spyne kennt diese Kennung nicht
+                }
                 $preview = $scene['preview'];
                 // Relative Pfade zeigen auf /uploads (selbst erzeugte Vorschau)
                 if ($preview !== '' && !preg_match('#^https?://#i', $preview)) {
