@@ -319,6 +319,32 @@ else:
                         </button>
                     </div>
                 </div>
+                <div class="editor-effects">
+                    <div class="fx">
+                        <span class="editor-tool-label">Helligkeit</span>
+                        <div class="fx-slider">
+                            <input type="range" id="fxBrightness" min="50" max="150" value="100" step="2" aria-label="Helligkeit">
+                        </div>
+                    </div>
+                    <div class="fx">
+                        <span class="editor-tool-label">Kontrast</span>
+                        <div class="fx-slider">
+                            <input type="range" id="fxContrast" min="50" max="150" value="100" step="2" aria-label="Kontrast">
+                        </div>
+                    </div>
+                    <div class="fx">
+                        <span class="editor-tool-label">Sättigung</span>
+                        <div class="fx-slider">
+                            <input type="range" id="fxSaturation" min="0" max="200" value="100" step="2" aria-label="Sättigung">
+                        </div>
+                    </div>
+                    <div class="fx">
+                        <span class="editor-tool-label">Vignette</span>
+                        <div class="fx-slider">
+                            <input type="range" id="fxVignette" min="0" max="100" value="0" step="2" aria-label="Vignette">
+                        </div>
+                    </div>
+                </div>
                 <div class="post-edit-wrap" id="postEditWrap">
                     <canvas id="postEditCanvas" width="1080" height="1080"></canvas>
                     <input type="text" id="inlineTextInput" class="inline-text-input" autocomplete="off" style="display:none">
@@ -327,7 +353,22 @@ else:
                 </div>
                 <div class="text-xs text-muted mt-1">
                     Bild ziehen zum Verschieben, lila Eckpunkte ziehen zum Vergrössern.
-                    Auf einen Text klicken und direkt tippen.
+                    Auf einen Text klicken und direkt tippen; Texte lassen sich auch ziehen.
+                </div>
+
+                <!-- Vorlagen: die Gestaltung merken und bei jedem Post wiederverwenden -->
+                <div class="tpl-bar">
+                    <div class="font-picker" id="tplPicker" style="min-width:150px">
+                        <button type="button" class="font-picker-btn" id="tplBtn"
+                                aria-haspopup="listbox" aria-expanded="false">
+                            <span id="tplBtnLabel">Vorlagen</span>
+                            <?= icon('chevron-down', 14) ?>
+                        </button>
+                        <div class="font-picker-menu tpl-menu" id="tplMenu" role="listbox" hidden></div>
+                    </div>
+                    <input class="form-control" type="text" id="tplName" maxlength="80"
+                           placeholder="Name der Vorlage" style="flex:1;min-width:0">
+                    <button class="btn btn-secondary btn-sm" type="button" id="tplSave">Speichern</button>
                 </div>
             </dialog>
             <div class="flex gap-1 mt-2" style="flex-wrap:wrap">
@@ -487,6 +528,9 @@ $pageScripts = <<<HTML
     var fontKey = 'sans';
     var fontScale = 1;
 
+    // Bildeffekte in Prozent; 100 bedeutet unveraendert, Vignette 0 ist aus.
+    var effects = { brightness: 100, contrast: 100, saturation: 100, vignette: 0 };
+
     // Freie Transformation des Fotos: Position und Groesse in Bildpunkten
     // der 1080er-Flaeche. null bedeutet: passend einsetzen (cover).
     var imgT = null;
@@ -534,7 +578,21 @@ $pageScripts = <<<HTML
             c.beginPath();
             c.rect(0, 0, W, 700);
             c.clip();
+            c.filter = 'brightness(' + (effects.brightness / 100)
+                + ') contrast(' + (effects.contrast / 100)
+                + ') saturate(' + (effects.saturation / 100) + ')';
             c.drawImage(currentImage, imgT.x, imgT.y, iw, ih);
+            c.filter = 'none';
+
+            // Vignette: zur Bildmitte hin klar, zu den Raendern hin dunkler
+            if (effects.vignette > 0) {
+                var strength = (effects.vignette / 100) * 0.8;
+                var vg = c.createRadialGradient(W / 2, 350, 200, W / 2, 350, 780);
+                vg.addColorStop(0, 'rgba(0,0,0,0)');
+                vg.addColorStop(1, 'rgba(0,0,0,' + strength.toFixed(3) + ')');
+                c.fillStyle = vg;
+                c.fillRect(0, 0, W, 700);
+            }
             c.restore();
 
             var grad = c.createLinearGradient(0, 520, 0, 700);
@@ -841,7 +899,211 @@ $pageScripts = <<<HTML
         updateSliderFill();
         render();
     });
-    // Alles auf Anfang: Bild, Texte, Positionen, Schrift
+    // ------------------------------------------------ Effekte-Regler
+    var fxInputs = {
+        brightness: document.getElementById('fxBrightness'),
+        contrast:   document.getElementById('fxContrast'),
+        saturation: document.getElementById('fxSaturation'),
+        vignette:   document.getElementById('fxVignette')
+    };
+
+    function fillOf(input) {
+        var min = parseInt(input.min, 10), max = parseInt(input.max, 10);
+        var pct = ((parseInt(input.value, 10) - min) / (max - min)) * 100;
+        input.style.setProperty('--fill', pct + '%');
+    }
+
+    Object.keys(fxInputs).forEach(function (key) {
+        var input = fxInputs[key];
+        fillOf(input);
+        input.addEventListener('input', function () {
+            effects[key] = parseInt(input.value, 10);
+            fillOf(input);
+            render();
+        });
+    });
+
+    function syncFxInputs() {
+        Object.keys(fxInputs).forEach(function (key) {
+            fxInputs[key].value = effects[key];
+            fillOf(fxInputs[key]);
+        });
+    }
+
+    // ------------------------------------------------ Einstellungen buendeln
+    var FONT_LABELS = { sans: 'Modern', serif: 'Klassisch', condensed: 'Schmal', rounded: 'Rund', mono: 'Technisch' };
+
+    function currentSettings() {
+        return {
+            font: fontKey,
+            font_scale: Math.round(fontScale * 100),
+            effects: {
+                brightness: effects.brightness,
+                contrast: effects.contrast,
+                saturation: effects.saturation,
+                vignette: effects.vignette
+            },
+            text_pos: JSON.parse(JSON.stringify(textPos)),
+            badge: texts.badge
+        };
+    }
+
+    function applyFontKey(key) {
+        fontKey = FONTS[key] ? key : 'sans';
+        fontPickerLabel.textContent = FONT_LABELS[fontKey];
+        fontPickerLabel.style.fontFamily = fontKey === 'sans' ? '' : FONTS[fontKey];
+        fontPickerMenu.querySelectorAll('[data-font]').forEach(function (o) {
+            o.classList.toggle('is-active', o.dataset.font === fontKey);
+        });
+    }
+
+    function applySettings(st) {
+        applyFontKey(String(st.font || 'sans'));
+        fontScale = Math.max(0.7, Math.min(1.4, (parseInt(st.font_scale, 10) || 100) / 100));
+        fontScaleInput.value = Math.round(fontScale * 100);
+        updateSliderFill();
+        var fx = st.effects || {};
+        effects.brightness = Math.max(50, Math.min(150, parseInt(fx.brightness, 10) || 100));
+        effects.contrast   = Math.max(50, Math.min(150, parseInt(fx.contrast, 10) || 100));
+        effects.saturation = Math.max(0, Math.min(200, isNaN(parseInt(fx.saturation, 10)) ? 100 : parseInt(fx.saturation, 10)));
+        effects.vignette   = Math.max(0, Math.min(100, parseInt(fx.vignette, 10) || 0));
+        syncFxInputs();
+        textPos = (st.text_pos && typeof st.text_pos === 'object') ? st.text_pos : {};
+        if (typeof st.badge === 'string') {
+            texts.badge = st.badge;
+        }
+        render();
+    }
+
+    // ------------------------------------------------ Vorlagen verwalten
+    var tplBtn = document.getElementById('tplBtn');
+    var tplMenu = document.getElementById('tplMenu');
+    var tplName = document.getElementById('tplName');
+    var templates = [];
+
+    function closeTplMenu() {
+        tplMenu.hidden = true;
+        tplBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderTplMenu() {
+        tplMenu.innerHTML = '';
+        if (templates.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'tpl-empty';
+            empty.textContent = 'Noch keine Vorlagen. Unten einen Namen eingeben und speichern.';
+            tplMenu.appendChild(empty);
+            return;
+        }
+        templates.forEach(function (tpl) {
+            var row = document.createElement('div');
+            row.className = 'tpl-row';
+
+            var load = document.createElement('button');
+            load.type = 'button';
+            load.className = 'tpl-load';
+            load.textContent = tpl.name;
+            load.addEventListener('click', function () {
+                applySettings(tpl.settings || {});
+                tplName.value = tpl.name;
+                closeTplMenu();
+            });
+
+            var rename = document.createElement('button');
+            rename.type = 'button';
+            rename.className = 'tpl-action';
+            rename.title = 'Umbenennen';
+            rename.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+            rename.addEventListener('click', function () {
+                startTplRename(row, tpl);
+            });
+
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'tpl-action tpl-action-danger';
+            remove.title = 'Löschen';
+            remove.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+            remove.addEventListener('click', function () {
+                templateRequest({ action: 'delete', id: tpl.id });
+            });
+
+            row.appendChild(load);
+            row.appendChild(rename);
+            row.appendChild(remove);
+            tplMenu.appendChild(row);
+        });
+    }
+
+    /** Umbenennen direkt in der Zeile, ohne Browser-Fenster. */
+    function startTplRename(row, tpl) {
+        row.innerHTML = '';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control tpl-rename';
+        input.maxLength = 80;
+        input.value = tpl.name;
+        row.appendChild(input);
+        input.focus();
+        input.select();
+        var done = false;
+        function submit() {
+            if (done) { return; }
+            done = true;
+            var value = input.value.trim();
+            if (value === '' || value === tpl.name) {
+                renderTplMenu();
+                return;
+            }
+            templateRequest({ action: 'rename', id: tpl.id, name: value });
+        }
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') { submit(); }
+            if (event.key === 'Escape') { done = true; renderTplMenu(); }
+        });
+        input.addEventListener('blur', submit);
+    }
+
+    function templateRequest(body) {
+        apiFetch('api/social/templates.php', { method: 'POST', body: body }).then(function (res) {
+            if (res && res.success) {
+                templates = res.data.templates || [];
+                renderTplMenu();
+            } else if (res && res.error) {
+                window.alert(res.error);
+            }
+        });
+    }
+
+    apiFetch('api/social/templates.php').then(function (res) {
+        if (res && res.success) {
+            templates = res.data.templates || [];
+            renderTplMenu();
+        }
+    });
+
+    tplBtn.addEventListener('click', function () {
+        var open = tplMenu.hidden;
+        tplMenu.hidden = !open;
+        tplBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    editDialog.addEventListener('pointerdown', function (event) {
+        var picker = document.getElementById('tplPicker');
+        if (!picker.contains(event.target)) {
+            closeTplMenu();
+        }
+    });
+
+    document.getElementById('tplSave').addEventListener('click', function () {
+        var name = tplName.value.trim();
+        if (name === '') {
+            tplName.focus();
+            tplName.placeholder = 'Zuerst einen Namen eingeben';
+            return;
+        }
+        templateRequest({ action: 'save', name: name, settings: currentSettings() });
+    });
+
+    // Alles auf Anfang: Bild, Texte, Positionen, Schrift, Effekte
     document.getElementById('resetImage').addEventListener('click', function () {
         imgT = null;
         textPos = {};
@@ -851,15 +1113,12 @@ $pageScripts = <<<HTML
             facts:  [data.powerHp, data.mileage, data.price].filter(Boolean).join('   ·   '),
             dealer: data.dealer
         };
-        fontKey = 'sans';
         fontScale = 1;
         fontScaleInput.value = 100;
         updateSliderFill();
-        fontPickerLabel.textContent = 'Modern';
-        fontPickerLabel.style.fontFamily = '';
-        fontPickerMenu.querySelectorAll('[data-font]').forEach(function (o) {
-            o.classList.toggle('is-active', o.dataset.font === 'sans');
-        });
+        applyFontKey('sans');
+        effects = { brightness: 100, contrast: 100, saturation: 100, vignette: 0 };
+        syncFxInputs();
         render();
     });
 

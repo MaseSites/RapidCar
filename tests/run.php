@@ -732,6 +732,18 @@ check('Veroeffentlichen verlangt die Angaben',
 $headerPage = file_get_contents(BASE_PATH . '/includes/layout/dash-header.php');
 check('Angaben stehen in der Navigation', str_contains($headerPage, 'dashboard/details.php'));
 
+echo "Effekte und Vorlagen im Beitrags-Editor\n";
+$socialSrc2 = file_get_contents(BASE_PATH . '/dashboard/social.php');
+check('Vignette und Bildeffekte vorhanden',
+    str_contains($socialSrc2, 'fxVignette') && str_contains($socialSrc2, 'createRadialGradient')
+    && str_contains($socialSrc2, 'brightness('));
+check('Vorlagen speicher-, umbenenn- und loeschbar',
+    str_contains($socialSrc2, 'templateRequest') && str_contains($socialSrc2, 'startTplRename'));
+check('Vorlagen-Endpunkt sichert das Konto ab',
+    str_contains(file_get_contents(BASE_PATH . '/api/social/templates.php'), 'dealership_id = :d'));
+check('Vorlagen-Tabelle existiert',
+    App\Core\Database::scalar('SELECT COUNT(*) FROM post_templates') !== null);
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
@@ -945,7 +957,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 20', str_contains($migratorSource2, 'CURRENT_VERSION = 20'));
+check('Schema-Version 21', str_contains($migratorSource2, 'CURRENT_VERSION = 21'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));

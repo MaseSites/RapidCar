@@ -614,3 +614,15 @@ CREATE TABLE IF NOT EXISTS sent_emails (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Gestaltungsvorlagen fuer Social-Posts (Schrift, Effekte, Positionen)
+CREATE TABLE IF NOT EXISTS post_templates (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    dealership_id INT          NOT NULL,
+    name          VARCHAR(80)  NOT NULL,
+    settings      TEXT         NOT NULL,
+    created_at    DATETIME     NOT NULL,
+    updated_at    DATETIME     NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_post_templates_dealer (dealership_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

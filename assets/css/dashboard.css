@@ -2041,7 +2041,7 @@ body:has(.post-editor-dialog[open]) {
     position: relative;
     /* Quadratische Flaeche: Fensterhoehe minus Kopf und Werkzeuge, damit
        alles ohne Rollen sichtbar bleibt */
-    width: min(100%, calc(96vh - 240px));
+    width: min(100%, calc(96vh - 360px));
     margin: 0 auto;
 }
 .post-edit-wrap canvas {
@@ -2116,7 +2116,8 @@ body:has(.post-editor-dialog[open]) {
 .size-a-big { font-size: 19px; }
 
 /* Der Regler selbst: schmale runde Spur, links gefuellt, runder Griff */
-.size-slider input[type=range] {
+.size-slider input[type=range],
+.fx-slider input[type=range] {
     -webkit-appearance: none;
     appearance: none;
     flex: 1;
@@ -2126,7 +2127,8 @@ body:has(.post-editor-dialog[open]) {
     outline: none;
     cursor: pointer;
 }
-.size-slider input[type=range]::-webkit-slider-thumb {
+.size-slider input[type=range]::-webkit-slider-thumb,
+.fx-slider input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 19px;
@@ -2137,8 +2139,10 @@ body:has(.post-editor-dialog[open]) {
     box-shadow: 0 1px 4px rgba(16, 24, 40, .22);
     transition: transform .12s;
 }
-.size-slider input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.12); }
-.size-slider input[type=range]::-moz-range-thumb {
+.size-slider input[type=range]::-webkit-slider-thumb:hover,
+.fx-slider input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+.size-slider input[type=range]::-moz-range-thumb,
+.fx-slider input[type=range]::-moz-range-thumb {
     width: 17px;
     height: 17px;
     border-radius: 50%;
@@ -2146,7 +2150,8 @@ body:has(.post-editor-dialog[open]) {
     border: 2px solid var(--primary);
     box-shadow: 0 1px 4px rgba(16, 24, 40, .22);
 }
-.size-slider input[type=range]:focus-visible {
+.size-slider input[type=range]:focus-visible,
+.fx-slider input[type=range]:focus-visible {
     box-shadow: 0 0 0 3px rgba(29, 79, 215, .25);
 }
 
@@ -2228,4 +2233,71 @@ body:has(.post-editor-dialog[open]) {
     background: #fef3f2;
     transform: scale(1.08);
 }
+
+/* Effekte: vier kompakte Regler in einer Reihe */
+.editor-effects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px 18px;
+    background: var(--bg, #f6f7f9);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 16px 12px;
+    margin-bottom: 14px;
+}
+.fx { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fx-slider { display: flex; align-items: center; height: 26px; }
+
+/* Vorlagen-Leiste unter dem Bild */
+.tpl-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+.tpl-bar .form-control { border-radius: 10px; padding: 7px 10px; font-size: 13.5px; }
+.tpl-menu { max-height: 260px; overflow-y: auto; bottom: calc(100% + 6px); top: auto; }
+.tpl-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.tpl-load {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tpl-load:hover { background: var(--bg, #f4f6f9); }
+.tpl-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.tpl-action:hover { background: var(--bg, #f4f6f9); color: var(--text); }
+.tpl-action-danger:hover { background: #fef3f2; color: #d92d20; }
+.tpl-empty {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.tpl-rename { margin: 4px; }
 

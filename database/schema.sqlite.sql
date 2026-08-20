@@ -418,3 +418,14 @@ CREATE TABLE IF NOT EXISTS sent_emails (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sent_emails_recipient ON sent_emails (recipient);
+
+-- Gestaltungsvorlagen fuer Social-Posts (Schrift, Effekte, Positionen)
+CREATE TABLE IF NOT EXISTS post_templates (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    dealership_id INTEGER NOT NULL,
+    name          TEXT    NOT NULL,
+    settings      TEXT    NOT NULL,
+    created_at    TEXT    NOT NULL,
+    updated_at    TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_post_templates_dealer ON post_templates (dealership_id);

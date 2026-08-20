@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 20;
+    private const CURRENT_VERSION = 21;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -162,6 +162,9 @@ final class Migrator
             }
             if ($installed < 20) {
                 self::migrateToVersion20();
+            }
+            if ($installed < 21) {
+                self::migrateToVersion21();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -457,6 +460,28 @@ final class Migrator
         self::addColumn('vehicles', 'towing_capacity_kg', $int . ' DEFAULT NULL');
         self::addColumn('vehicles', 'new_price', ($isSqlite ? 'REAL' : 'DECIMAL(10,2)') . ' DEFAULT NULL');
         self::addColumn('vehicles', 'stamm_number', ($isSqlite ? 'TEXT' : 'VARCHAR(30)') . ' DEFAULT NULL');
+    }
+
+    /**
+     * Version 21: gespeicherte Gestaltungsvorlagen fuer Social-Posts.
+     * Schrift, Effekte und Textpositionen, die sich auf jeden neuen
+     * Beitrag anwenden lassen.
+     */
+    private static function migrateToVersion21(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        $intType = $isSqlite ? 'INTEGER' : 'INT';
+        self::createTable('post_templates', "
+            id            {$intType} " . ($isSqlite ? 'PRIMARY KEY AUTOINCREMENT' : 'UNSIGNED NOT NULL AUTO_INCREMENT') . ",
+            dealership_id {$intType} NOT NULL,
+            name          " . ($isSqlite ? 'TEXT' : 'VARCHAR(80)') . " NOT NULL,
+            settings      TEXT NOT NULL,
+            created_at    " . ($isSqlite ? 'TEXT' : 'DATETIME') . " NOT NULL,
+            updated_at    " . ($isSqlite ? 'TEXT' : 'DATETIME') . " NOT NULL
+            " . ($isSqlite ? '' : ', PRIMARY KEY (id), KEY idx_post_templates_dealer (dealership_id)'));
+        if ($isSqlite) {
+            Database::run('CREATE INDEX IF NOT EXISTS idx_post_templates_dealer ON post_templates (dealership_id)');
+        }
     }
 
     /**
