@@ -2584,3 +2584,178 @@ body:has(.post-editor-dialog[open]) {
     .plus-hero { margin: -16px; padding: 40px 16px; }
 }
 
+/* Guthaben aufladen: Pakete links, Zusammenfassung rechts */
+.topup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    max-width: 1180px;
+}
+@media (min-width: 1020px) {
+    .topup { grid-template-columns: minmax(0, 1fr) 360px; gap: 40px; }
+}
+.topup-title { font-size: 30px; font-weight: 800; letter-spacing: -.8px; margin: 4px 0 6px; }
+.topup-sub { font-size: 14.5px; color: var(--text-muted); margin-bottom: 26px; }
+.topup-step {
+    font-size: 16px;
+    font-weight: 700;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+.topup-main > .topup-step + * { margin-bottom: 28px; }
+
+/* Die vier Paketkarten */
+.topup-packages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+}
+.topup-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 22px 12px 18px;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .15s, box-shadow .15s, transform .12s;
+}
+.topup-card:hover { border-color: #b9c4dd; transform: translateY(-1px); }
+.topup-card input { position: absolute; opacity: 0; pointer-events: none; }
+.topup-card-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+}
+.topup-card:has(input:checked) {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(29, 79, 215, .12);
+}
+.topup-card:has(input:checked) .topup-card-check { display: flex; }
+.topup-card-amount { font-size: 15px; font-weight: 700; }
+.topup-card-price { font-size: 20px; font-weight: 800; letter-spacing: -.4px; margin-top: 2px; }
+.topup-card-unit { font-size: 12px; color: var(--text-muted); }
+.topup-card-chip {
+    margin-top: 8px;
+    padding: 3px 11px;
+    border-radius: 999px;
+    background: rgba(29, 79, 215, .09);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Zahlungshinweis */
+.topup-payinfo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+.topup-payinfo-text { font-size: 13.5px; color: var(--text-secondary, #444b57); }
+.topup-paybadges { display: flex; flex-wrap: wrap; gap: 7px; }
+.topup-paybadges span {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg, #f6f7f9);
+}
+
+/* Vertrauenszeile */
+.topup-trust { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 4px; }
+.topup-trust-item { display: flex; align-items: center; gap: 11px; }
+.topup-trust-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+.topup-trust-item strong { display: block; font-size: 13.5px; }
+.topup-trust-item span:last-child span,
+.topup-trust-item div span { display: block; font-size: 12px; color: var(--text-muted); }
+
+/* Rechte Spalte: Guthaben-Karte in Blau, Zusammenfassung, Gruende */
+.topup-side { display: flex; flex-direction: column; gap: 16px; }
+.topup-balance {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 24px;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(120deg, #1d4fd7, #3f6ff0);
+    color: #fff;
+}
+.topup-balance-label { font-size: 13px; opacity: .85; }
+.topup-balance-figure { font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin-top: 4px; }
+.topup-balance-figure span { font-size: 15px; font-weight: 600; opacity: .85; margin-left: 4px; }
+.topup-balance-icon { position: absolute; right: 22px; top: 24px; opacity: .35; }
+.topup-summary {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 16px 16px;
+    padding: 20px 24px 22px;
+    margin-top: -16px;
+}
+.topup-summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    padding: 7px 0;
+    color: var(--text-secondary, #444b57);
+}
+.topup-summary-row span:last-child { font-weight: 600; color: var(--text); }
+.topup-summary-saving { color: #067647 !important; }
+.topup-summary-divider { border-top: 1px solid var(--border); margin: 10px 0 12px; }
+.topup-summary-get { font-size: 13px; color: var(--text-muted); }
+.topup-summary-figure {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    color: var(--primary);
+    margin: 2px 0 16px;
+}
+.topup-summary-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+.topup-why {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 22px;
+}
+.topup-why-title { font-size: 14.5px; font-weight: 700; margin-bottom: 12px; }
+.topup-why ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.topup-why li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-secondary, #444b57); }
+.topup-why li .icon, .topup-why li svg { color: var(--primary); flex-shrink: 0; }
+

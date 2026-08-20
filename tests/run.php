@@ -1166,7 +1166,7 @@ echo "
 
 check('Guthaben-Seite ohne Werbe-Beiwerk',
     !str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'climate-note')
-    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'credit-balance-figure'));
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/credits.php'), 'topup-balance-figure'));
 check('Systemcheck zeigt die Stripe-Zahlarten',
     str_contains((string) file_get_contents(BASE_PATH . '/systemcheck.php'), 'methodOverview'));
 check('Zahlarten-Abfrage nur mit eingerichtetem Stripe',

@@ -122,81 +122,124 @@ $activeNav = 'credits';
 require BASE_PATH . '/includes/layout/dash-header.php';
 ?>
 
-<div class="credit-page">
-    <div class="credit-layout">
+<div class="topup">
+    <div class="topup-main">
+        <h1 class="topup-title">Guthaben aufladen</h1>
+        <p class="topup-sub">Ein Guthaben veröffentlicht ein Inserat. Erstellen und Bearbeiten sind kostenlos.</p>
 
-        <!-- ------------------------------------------ Links: der Kontostand -->
-        <div class="credit-copy-intro">
-            <div class="credit-kicker"><?= t('sidebar.credits') ?></div>
-            <div class="credit-balance-figure"><?= (int) \App\Service\CreditService::balance($dealershipId) ?></div>
-            <div class="credit-balance-caption"><?= t('credits.balance') ?></div>
-            <p class="credit-balance-note">Ein Guthaben veröffentlicht ein Inserat. Erstellen und Bearbeiten sind kostenlos, das Guthaben verfällt nicht.</p>
+        <!-- ------------------------------------------------ 1. Paket -->
+        <div class="topup-step">1. Paket wählen</div>
+        <div class="topup-packages">
+            <?php foreach ($packages as $key => $package): ?>
+                <?php
+                $credits = (int) $package['credits'];
+                $saving = $credits * $singlePrice - $package['price'];
+                $percent = $credits > 1 ? (int) round($saving / ($credits * $singlePrice) * 100) : 0;
+                ?>
+                <label class="topup-card">
+                    <input type="radio" name="pkg_choice" value="<?= e($key) ?>"
+                           data-credits="<?= $credits ?>"
+                           data-price-label="<?= e($package['currency'] . ' ' . $fmt($package['price'])) ?>"
+                           data-saving-label="<?= $saving > 0 ? e('- ' . $package['currency'] . ' ' . $fmt2($saving)) : '' ?>"
+                           <?= $key === $defaultKey ? 'checked' : '' ?>>
+                    <span class="topup-card-check"><?= icon('check', 12) ?></span>
+                    <span class="topup-card-amount"><?= $credits ?> <?= $credits === 1 ? t('pricing.unit_one') : t('pricing.unit_many') ?></span>
+                    <span class="topup-card-price"><?= e($package['currency']) ?> <?= $fmt($package['price']) ?></span>
+                    <span class="topup-card-unit"><?= e($package['currency']) ?> <?= $fmt2($package['price'] / max(1, $credits)) ?> pro Inserat</span>
+                    <?php if ($percent > 0): ?>
+                        <span class="topup-card-chip">-<?= $percent ?>%</span>
+                    <?php endif; ?>
+                </label>
+            <?php endforeach; ?>
         </div>
 
-        <!-- ---------------------------------------------- Rechts: Kaufkarte -->
-        <div class="credit-buy">
-            <div class="credit-buy-title"><?= t('credits.choose_package') ?></div>
-
-
-            <div class="credit-options">
-                <?php foreach ($packages as $key => $package): ?>
-                    <?php
-                    $credits = (int) $package['credits'];
-                    $saving = $credits * $singlePrice - $package['price'];
-                    $percent = $credits > 1 ? (int) round($saving / ($credits * $singlePrice) * 100) : 0;
-                    ?>
-                    <label class="credit-option">
-                        <input type="radio" name="pkg_choice" value="<?= e($key) ?>"
-                               data-credits="<?= $credits ?>"
-                               data-price-label="<?= e($package['currency'] . ' ' . $fmt($package['price'])) ?>"
-                               data-saving="<?= $saving > 0 ? e($package['currency'] . ' ' . $fmt2($saving)) : '' ?>"
-                               <?= $key === $defaultKey ? 'checked' : '' ?>>
-                        <span class="credit-option-dot"></span>
-                        <span class="credit-option-body">
-                            <span class="credit-option-name">
-                                <?= $credits ?> <?= $credits === 1 ? t('pricing.unit_one') : t('pricing.unit_many') ?>
-                            </span>
-                            <span class="credit-option-unit">
-                                <?= t('credits.per_unit', ['price' => $package['currency'] . ' ' . $fmt2($package['price'] / max(1, $credits))]) ?>
-                            </span>
-                        </span>
-                        <span class="credit-option-right">
-                            <span class="credit-option-price"><?= e($package['currency']) ?> <?= $fmt($package['price']) ?></span>
-                            <?php if ($percent > 0): ?>
-                                <span class="credit-option-save"><?= t('credits.percent_off', ['percent' => $percent]) ?></span>
-                            <?php endif; ?>
-                        </span>
-                    </label>
-                <?php endforeach; ?>
+        <!-- ------------------------------------------------ 2. Zahlung -->
+        <div class="topup-step">2. Zahlung</div>
+        <div class="topup-payinfo">
+            <div class="topup-payinfo-text">
+                Die Zahlungsart wählst du im nächsten Schritt sicher bei Stripe.
             </div>
-
-            <div class="credit-sum">
-                <div class="credit-sum-row">
-                    <span><?= t('credits.total') ?></span>
-                    <strong id="creditTotal"></strong>
-                </div>
+            <div class="topup-paybadges">
+                <span>Karte</span><span>TWINT</span><span>Apple Pay</span><span>Google Pay</span><span>PayPal</span>
             </div>
+        </div>
 
-            <?php // Direkt zur Stripe-Kasse, kein Zwischenschritt. Das Paket
-                  // schreibt das Skript beim Absenden aus der Auswahl um. ?>
+        <!-- ------------------------------------------------ Vertrauen -->
+        <div class="topup-trust">
+            <div class="topup-trust-item">
+                <span class="topup-trust-icon"><?= icon('shield', 16) ?></span>
+                <div><strong>Sichere Zahlung</strong><span>SSL-verschlüsselt über Stripe</span></div>
+            </div>
+            <div class="topup-trust-item">
+                <span class="topup-trust-icon"><?= icon('clock', 16) ?></span>
+                <div><strong>Sofort verfügbar</strong><span>Guthaben in Echtzeit</span></div>
+            </div>
+            <div class="topup-trust-item">
+                <span class="topup-trust-icon"><?= icon('x', 16) ?></span>
+                <div><strong>Kein Abo</strong><span>Einmalige Zahlung</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ---------------------------------------------------- Rechte Spalte -->
+    <div class="topup-side">
+        <div class="topup-balance">
+            <div class="topup-balance-label"><?= t('credits.balance') ?></div>
+            <?php $topupBalance = (int) \App\Service\CreditService::balance($dealershipId); ?>
+            <div class="topup-balance-figure">
+                <?= $topupBalance ?>
+                <span><?= $topupBalance === 1 ? t('pricing.unit_one') : t('pricing.unit_many') ?></span>
+            </div>
+            <span class="topup-balance-icon"><?= icon('tag', 34) ?></span>
+        </div>
+
+        <div class="topup-summary">
+            <div class="topup-summary-row">
+                <span>Paket</span>
+                <span id="sumPackage"></span>
+            </div>
+            <div class="topup-summary-row">
+                <span>Preis</span>
+                <span id="sumPrice"></span>
+            </div>
+            <div class="topup-summary-row" id="sumSavingRow" hidden>
+                <span>Ersparnis zum Einzelkauf</span>
+                <span class="topup-summary-saving" id="sumSaving"></span>
+            </div>
+            <div class="topup-summary-divider"></div>
+            <div class="topup-summary-get">Du erhältst</div>
+            <div class="topup-summary-figure" id="sumGet"></div>
+
             <form method="post" action="<?= base_url('dashboard/credits.php') ?>" id="creditBuyForm">
                 <?= App\Core\Csrf::field() ?>
                 <input type="hidden" name="package" id="payPackage" value="<?= e($defaultKey) ?>">
-                <button class="btn btn-primary btn-block btn-lg credit-cta" type="submit" id="creditBuyBtn">
-                    <?= t('credits.buy') ?> · <span id="creditCtaAmount"></span>
+                <button class="btn btn-primary btn-block btn-lg" type="submit" id="creditBuyBtn" <?= $stripeReady ? '' : 'disabled' ?>>
+                    Weiter zur Zahlung <?= icon('lock', 15) ?>
                 </button>
                 <?php if (!$stripeReady): ?>
                     <div class="form-hint" style="margin-top:8px"><?= t('credits.payment_unavailable') ?></div>
                 <?php endif; ?>
             </form>
-
+            <div class="topup-summary-note">
+                Sichere Abwicklung über Stripe. Es gilt die
+                <a href="<?= base_url('privacy.php') ?>">Datenschutzerklärung</a>.
+            </div>
         </div>
 
-        <!-- ------------------------------------ Links: leise Randangaben -->
-        <div class="credit-copy-points">
-            <?php if ($history !== []): ?>
+        <div class="topup-why">
+            <div class="topup-why-title">Warum Guthaben?</div>
+            <ul>
+                <li><?= icon('check', 14) ?> Schnell und unkompliziert Inserate schalten</li>
+                <li><?= icon('check', 14) ?> Kein Abo, keine Verpflichtung</li>
+                <li><?= icon('check', 14) ?> Volle Kontrolle über die Ausgaben</li>
+                <li><?= icon('check', 14) ?> Guthaben läuft nie ab</li>
+            </ul>
+        </div>
+
+        <?php if ($history !== []): ?>
+            <div class="topup-why">
+                <div class="topup-why-title"><?= t('credits.recent') ?></div>
                 <div class="credit-recent">
-                    <div class="credit-recent-label"><?= t('credits.recent') ?></div>
                     <?php foreach ($history as $entry): ?>
                         <div class="credit-recent-row">
                             <span class="credit-recent-delta <?= (int) $entry['delta'] > 0 ? 'is-plus' : '' ?>">
@@ -207,8 +250,8 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                         </div>
                     <?php endforeach; ?>
                 </div>
-            <?php endif; ?>
-        </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -219,38 +262,29 @@ $pageScripts = <<<HTML
 (function () {
     var radios = document.querySelectorAll('input[name="pkg_choice"]');
     if (!radios.length) { return; }
-
-    var total = document.getElementById('creditTotal');
-    var ctaAmount = document.getElementById('creditCtaAmount');
     var packageField = document.getElementById('payPackage');
+    var unitOne = document.querySelector('.topup-card-amount') ? null : null;
 
-    function selected() {
-        return document.querySelector('input[name="pkg_choice"]:checked');
-    }
-
-    // Summe und Knopfbetrag laufen mit der Auswahl mit
     function paint() {
-        var pick = selected();
+        var pick = document.querySelector('input[name="pkg_choice"]:checked');
         if (!pick) { return; }
-        [total, ctaAmount].forEach(function (el) { el.classList.add('is-swapping'); });
-        setTimeout(function () {
-            total.textContent = pick.dataset.priceLabel;
-            ctaAmount.textContent = pick.dataset.priceLabel;
-            [total, ctaAmount].forEach(function (el) { el.classList.remove('is-swapping'); });
-        }, 120);
+        var credits = parseInt(pick.dataset.credits, 10);
+        var word = credits === 1 ? 'Inserat' : 'Inserate';
+        document.getElementById('sumPackage').textContent = credits + ' ' + word;
+        document.getElementById('sumPrice').textContent = pick.dataset.priceLabel;
+        document.getElementById('sumGet').textContent = credits + ' ' + word;
+        var savingRow = document.getElementById('sumSavingRow');
+        if (pick.dataset.savingLabel) {
+            savingRow.hidden = false;
+            document.getElementById('sumSaving').textContent = pick.dataset.savingLabel;
+        } else {
+            savingRow.hidden = true;
+        }
         packageField.value = pick.value;
     }
 
-    radios.forEach(function (radio) {
-        radio.addEventListener('change', paint);
-    });
-    // Erstbefuellung ohne Ueberblendung
-    (function () {
-        var pick = selected();
-        total.textContent = pick.dataset.priceLabel;
-        ctaAmount.textContent = pick.dataset.priceLabel;
-        packageField.value = pick.value;
-    })();
+    radios.forEach(function (radio) { radio.addEventListener('change', paint); });
+    paint();
 
     // Doppelklick-Schutz: nach dem Absenden sperrt der Knopf
     document.getElementById('creditBuyForm').addEventListener('submit', function () {
