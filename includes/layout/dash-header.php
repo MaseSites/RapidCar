@@ -56,8 +56,15 @@ $creditBalance = $dealershipId !== null ? \App\Service\CreditService::balance($d
 <body data-label-cancel="<?= e(t('common.cancel')) ?>"
       data-label-confirm="<?= e(t('common.confirm')) ?>"
       data-label-delete="<?= e(t('common.delete')) ?>">
+<?php
+// Abo-Stand einmal ermitteln: er steuert das Pro-Zeichen und die Sperren.
+$hasPlus = $dealershipId !== null && \App\Service\SubscriptionService::isActive($dealershipId);
+?>
 <div class="app">
     <aside class="sidebar">
+        <?php if ($hasPlus): ?>
+            <div class="pro-mark" title="RapidCar Plus ist aktiv">Pro</div>
+        <?php endif; ?>
         <nav>
             <a class="nav-item <?= $activeNav === 'dashboard' ? 'active' : '' ?>" href="<?= base_url('dashboard/') ?>">
                 <?= icon('dashboard') ?> <?= t('sidebar.dashboard') ?>
@@ -83,9 +90,7 @@ $creditBalance = $dealershipId !== null ? \App\Service\CreditService::balance($d
             </a>
             <a class="nav-item <?= $activeNav === 'subscription' ? 'active' : '' ?>" href="<?= base_url('dashboard/subscription.php') ?>">
                 <?= icon('star') ?> Abo
-                <?php if ($dealershipId !== null && !\App\Service\SubscriptionService::isActive($dealershipId)): ?>
-                    <span class="count">Plus</span>
-                <?php endif; ?>
+                <?php if (!$hasPlus): ?><span class="pro-badge">Pro</span><?php endif; ?>
             </a>
             <a class="nav-item <?= $activeNav === 'settings' ? 'active' : '' ?>" href="<?= base_url('dashboard/settings.php') ?>">
                 <?= icon('settings') ?> <?= t('sidebar.settings') ?>

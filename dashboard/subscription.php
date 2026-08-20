@@ -90,10 +90,25 @@ require BASE_PATH . '/includes/layout/dash-header.php';
     </div>
     <div class="card-body">
         <ul class="plus-features">
-            <?php foreach (SubscriptionService::FEATURES as $feature): ?>
-                <li><?= icon('check', 15) ?> <span><?= e($feature) ?></span></li>
+            <?php foreach (SubscriptionService::benefits() as $benefit): ?>
+                <li>
+                    <?= icon('check', 15) ?>
+                    <span>
+                        <strong><?= e($benefit['title']) ?></strong>
+                        <span class="plus-feature-text"><?= e($benefit['text']) ?></span>
+                    </span>
+                </li>
             <?php endforeach; ?>
         </ul>
+
+        <details class="plus-planned">
+            <summary>In Arbeit, noch nicht enthalten</summary>
+            <ul>
+                <?php foreach (SubscriptionService::planned() as $planned): ?>
+                    <li><?= e($planned) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </details>
 
         <?php if ($isActive): ?>
             <p class="text-sm text-secondary mb-2">

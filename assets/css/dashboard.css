@@ -1869,3 +1869,76 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 .plus-features li:last-child { border-bottom: 0; }
 .plus-features .icon { color: var(--success); flex-shrink: 0; }
 
+/* RapidCar Plus: Pro-Zeichen und gesperrte Werkzeuge */
+:root {
+    --pro: #7c3aed;
+    --pro-light: #a855f7;
+    --pro-soft: #f3e8ff;
+}
+.pro-mark {
+    margin: 0 0 10px 4px;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(100deg, var(--pro), var(--pro-light));
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .4px;
+}
+.pro-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--pro-soft);
+    color: var(--pro);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    text-decoration: none;
+    vertical-align: middle;
+}
+/* Schimmern: ein heller Streifen wandert langsam durch das Zeichen. */
+.pro-badge.is-shimmer {
+    background: linear-gradient(100deg,
+        var(--pro) 0%, var(--pro) 35%,
+        var(--pro-light) 50%,
+        var(--pro) 65%, var(--pro) 100%);
+    background-size: 300% 100%;
+    color: #fff;
+    animation: pro-shimmer 2.6s ease-in-out infinite;
+}
+@keyframes pro-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pro-badge.is-shimmer { animation: none; }
+}
+/* Gesperrtes Werkzeug: sichtbar, aber erkennbar inaktiv. */
+.bg-global.is-locked .switch-track,
+.bg-global.is-locked .switch-label {
+    opacity: .5;
+}
+.bg-global.is-locked .switch { cursor: default; }
+.btn.is-locked {
+    opacity: .75;
+    text-decoration: none;
+}
+
+.plus-features li span strong { display: block; }
+.plus-feature-text {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.plus-planned {
+    margin: 4px 0 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.plus-planned summary { cursor: pointer; }
+.plus-planned ul { margin: 8px 0 0 18px; }
+

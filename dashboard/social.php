@@ -275,7 +275,12 @@ else:
             <canvas id="postCanvas" width="1080" height="1080" style="width:100%;border-radius:14px;border:1px solid var(--border)"></canvas>
             <div class="flex gap-1 mt-2" style="flex-wrap:wrap">
                 <button class="btn btn-primary" type="button" id="saveBtn"><?= t('common.save') ?></button>
-                <?php if ($instagramStatus === 'connected'): ?>
+                <?php if (!$hasPlus): ?>
+                    <a class="btn btn-secondary is-locked" href="<?= base_url('dashboard/subscription.php') ?>">
+                        Veröffentlichen
+                        <span class="pro-badge is-shimmer">Pro</span>
+                    </a>
+                <?php elseif ($instagramStatus === 'connected'): ?>
                     <button class="btn btn-accent" type="button" id="publishBtn">Veröffentlichen</button>
                 <?php elseif ($instagramTestMode): ?>
                     <button class="btn btn-accent" type="button" id="publishBtn"

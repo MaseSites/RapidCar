@@ -1772,6 +1772,41 @@ check('Instagram braucht das Abo',
 check('TikTok-Dienst ist entfernt',
     !is_file(BASE_PATH . '/src/Integration/TikTokService.php'));
 
+// Vorteile: nur was die Anwendung heute kann; Geplantes ist als solches
+// gekennzeichnet, damit niemand fuer Versprechen zahlt.
+check('Vorteile sind ausformuliert',
+    count(App\Service\SubscriptionService::benefits()) >= 8);
+check('jeder Vorteil hat Titel und Erklaerung', (static function (): bool {
+    foreach (App\Service\SubscriptionService::benefits() as $b) {
+        if (($b['title'] ?? '') === '' || ($b['text'] ?? '') === '') { return false; }
+    }
+    return true;
+})());
+check('Geplantes ist getrennt ausgewiesen',
+    count(App\Service\SubscriptionService::planned()) >= 1
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/subscription.php'), 'noch nicht enthalten'));
+check('Werbung und Automatik stehen nicht als vorhanden da', (static function (): bool {
+    foreach (App\Service\SubscriptionService::benefits() as $b) {
+        if (stripos($b['title'], 'Werbung') !== false || stripos($b['title'], 'Automatisch') !== false) { return false; }
+    }
+    return true;
+})());
+
+// Pro-Kennzeichnung
+check('Pro-Marke beim Logo',
+    str_contains((string) file_get_contents(BASE_PATH . '/includes/layout/dash-header.php'), 'pro-mark'));
+check('Hintergrund-Schalter ist ohne Abo gesperrt',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), "\$hasPlus ? '' : 'is-locked'")
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), "\$hasPlus ? '' : 'disabled'"));
+check('Instagram-Knopf traegt ohne Abo das Pro-Zeichen',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/social.php'), 'pro-badge is-shimmer'));
+$cssSrc = file_get_contents(BASE_PATH . '/assets/css/dashboard.css');
+check('Pro-Zeichen schimmert in Lila',
+    str_contains($cssSrc, '--pro: #7c3aed') && str_contains($cssSrc, 'pro-shimmer'));
+check('Bewegung laesst sich abschalten',
+    str_contains($cssSrc, 'prefers-reduced-motion'));
+
+
 echo "
 "; echo "Vollstaendige Inseratsdaten"; echo "
 ";

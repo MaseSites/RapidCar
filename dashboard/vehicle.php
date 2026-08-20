@@ -525,13 +525,19 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             // einen gesetzten Hintergrund traegt.
             $allReplaced = !array_filter($images, static fn(array $i): bool => (string) ($i['background_key'] ?? '') === '');
             ?>
-            <div class="bg-global mt-2" id="bgGlobal">
+            <div class="bg-global mt-2 <?= $hasPlus ? '' : 'is-locked' ?>" id="bgGlobal">
                 <label class="switch">
-                    <input type="checkbox" id="bgAll" <?= $allReplaced ? 'checked' : '' ?>>
+                    <input type="checkbox" id="bgAll" <?= $allReplaced ? 'checked' : '' ?> <?= $hasPlus ? '' : 'disabled' ?>>
                     <span class="switch-track"></span>
                     <span class="switch-label"><?= t('background.replace') ?></span>
+                    <?php if (!$hasPlus): ?>
+                        <a class="pro-badge is-shimmer" href="<?= base_url('dashboard/subscription.php') ?>"
+                           title="Gehört zu RapidCar Plus">Pro</a>
+                    <?php endif; ?>
                 </label>
-                <div class="text-xs text-muted mt-1" id="bgAllHint"><?= t('background.all_hint') ?></div>
+                <div class="text-xs text-muted mt-1" id="bgAllHint">
+                    <?= $hasPlus ? t('background.all_hint') : 'Gehört zu RapidCar Plus. Im Abo freischalten.' ?>
+                </div>
                 <?php $cutoutProvider = App\Service\CutoutService::providerName(); ?>
                 <?php if ($cutoutProvider !== ''): ?>
                     <div class="text-xs text-muted"><?= t('background.via_service', ['name' => $cutoutProvider]) ?></div>
