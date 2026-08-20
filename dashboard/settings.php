@@ -60,11 +60,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             // Nur Angaben, die auch irgendwo erscheinen: Name, Ort und
             // Telefon stehen in der Inseratsvorschau, das Logo auf den
             // Social-Media-Beiträgen, Währung und Sprache steuern die Ausgabe.
+            // Adresse und Telefon liegen bei den Angaben, nicht hier.
             $data = [
                 'name'       => $v->value('name'),
-                'zip'        => mb_substr($v->value('zip'), 0, 20),
-                'city'       => mb_substr($v->value('city'), 0, 120),
-                'phone'      => mb_substr($v->value('phone'), 0, 50),
                 'currency'   => $v->value('currency') ?: 'CHF',
                 'language'   => $v->value('language') ?: 'de',
                 'updated_at' => Database::now(),
@@ -135,26 +133,14 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 </div>
             </div>
             <?php endif; ?>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label"><?= $isPrivate ? 'Anzeigename' : t('auth.dealership_name') ?></label>
-                    <input class="form-control" type="text" name="name" value="<?= e($dealership['name'] ?? '') ?>" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('auth.phone') ?></label>
-                    <input class="form-control" type="tel" name="phone" value="<?= e($dealership['phone'] ?? '') ?>">
-                </div>
+            <div class="form-group">
+                <label class="form-label"><?= $isPrivate ? 'Anzeigename' : t('auth.dealership_name') ?></label>
+                <input class="form-control" type="text" name="name" value="<?= e($dealership['name'] ?? '') ?>" required>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label"><?= t('settings.zip') ?></label>
-                    <input class="form-control" type="text" name="zip" value="<?= e($dealership['zip'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label class="form-label"><?= t('settings.city') ?></label>
-                    <input class="form-control" type="text" name="city" value="<?= e($dealership['city'] ?? '') ?>">
-                </div>
-            </div>
+            <p class="form-hint" style="margin-top:-6px">
+                Adresse und Telefon stehen unter
+                <a href="<?= base_url('dashboard/details.php') ?>">Angaben</a>.
+            </p>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label"><?= t('settings.currency') ?></label>

@@ -88,14 +88,14 @@ final class VehicleFields
             'merkmale' => [
                 'title'  => 'Fahrzeug-Merkmale',
                 'fields' => [
-                    'make'           => ['label' => 'Marke', 'type' => 'text', 'max' => 100],
+                    'make'           => ['label' => 'Marke', 'type' => 'text', 'max' => 100, 'required' => true],
                     'model'          => ['label' => 'Modell', 'type' => 'text', 'max' => 100],
                     'variant'        => ['label' => 'Version', 'type' => 'text', 'max' => 150],
-                    'body_type'      => ['label' => 'Aufbau', 'type' => 'select', 'options' => self::BODY_TYPES],
+                    'body_type'      => ['label' => 'Aufbau', 'type' => 'select', 'options' => self::BODY_TYPES, 'required' => true],
                     'transmission'   => ['label' => 'Getriebe', 'type' => 'select', 'options' => self::TRANSMISSIONS],
                     'drivetrain'     => ['label' => 'Antrieb', 'type' => 'select', 'options' => self::DRIVETRAINS],
                     'fuel_type'      => ['label' => 'Treibstoff', 'type' => 'select', 'options' => self::FUEL_TYPES],
-                    'color'          => ['label' => 'Fahrzeugfarbe', 'type' => 'text', 'max' => 80],
+                    'color'          => ['label' => 'Fahrzeugfarbe', 'type' => 'text', 'max' => 80, 'required' => true],
                     'interior_color' => ['label' => 'Innenfarbe', 'type' => 'text', 'max' => 80],
                     'metallic'       => ['label' => 'Métalisé', 'type' => 'check'],
                 ],
@@ -103,10 +103,10 @@ final class VehicleFields
             'zustand' => [
                 'title'  => 'Zustand',
                 'fields' => [
-                    'condition_state'    => ['label' => 'Fahrzeugzustand', 'type' => 'select', 'options' => self::CONDITIONS],
+                    'condition_state'    => ['label' => 'Fahrzeugzustand', 'type' => 'select', 'options' => self::CONDITIONS, 'required' => true],
                     'year'               => ['label' => 'Baujahr', 'type' => 'number', 'min' => 1900, 'max' => 2100],
-                    'first_registration' => ['label' => 'Inverkehrsetzung', 'type' => 'month'],
-                    'mileage'            => ['label' => 'Kilometer', 'type' => 'number', 'min' => 0, 'max' => 5000000],
+                    'first_registration' => ['label' => 'Inverkehrsetzung', 'type' => 'month', 'required' => true],
+                    'mileage'            => ['label' => 'Kilometer', 'type' => 'number', 'min' => 0, 'max' => 5000000, 'required' => true],
                     'previous_owners'    => ['label' => 'Vorhalter', 'type' => 'number', 'min' => 0, 'max' => 50],
                     'last_mfk'           => ['label' => 'Letzte MFK', 'type' => 'month'],
                     'has_mfk'            => ['label' => 'Ab MFK', 'type' => 'tri'],
@@ -119,7 +119,7 @@ final class VehicleFields
             'preis' => [
                 'title'  => 'Preis',
                 'fields' => [
-                    'price'     => ['label' => 'Verkaufspreis (CHF)', 'type' => 'price'],
+                    'price'     => ['label' => 'Verkaufspreis (CHF)', 'type' => 'price', 'required' => true],
                     'new_price' => ['label' => 'Neupreis (CHF)', 'type' => 'price'],
                 ],
             ],
@@ -149,7 +149,7 @@ final class VehicleFields
                     'type_certificate'   => ['label' => 'Typengenehmigung', 'type' => 'text', 'max' => 30],
                     'vin'                => ['label' => 'Fahrgestellnummer', 'type' => 'text', 'max' => 30],
                     'stamm_number'       => ['label' => 'Stammnummer', 'type' => 'text', 'max' => 30],
-                    'license_category'   => ['label' => 'Fahrzeugart', 'type' => 'text', 'max' => 60],
+                    'license_category'   => ['label' => 'Fahrzeugart laut Ausweis', 'type' => 'text', 'max' => 60],
                 ],
             ],
             'eigenschaften' => [
@@ -162,6 +162,22 @@ final class VehicleFields
                 ],
             ],
         ];
+    }
+
+    /**
+     * Pflichtfelder fuers Veroeffentlichen: ohne sie nimmt keine
+     * Verkaufsplattform das Inserat an.
+     * @return array<string, string> feldname => Beschriftung
+     */
+    public static function requiredForPublish(): array
+    {
+        $required = [];
+        foreach (self::all() as $name => $definition) {
+            if (($definition['required'] ?? false) === true) {
+                $required[$name] = (string) $definition['label'];
+            }
+        }
+        return $required;
     }
 
     /**

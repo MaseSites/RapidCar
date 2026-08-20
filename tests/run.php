@@ -1949,13 +1949,16 @@ check('Schriftart waehlbar',
     str_contains($socialSrc, 'fontSelect') && str_contains($socialSrc, 'condensed'));
 check('Schriftgroesse einstellbar',
     str_contains($socialSrc, 'fontScale'));
-check('Texte im Bild anklickbar aendern',
-    str_contains($socialSrc, 'textBoxes') && str_contains($socialSrc, "LABELS = { badge:"));
-check('Bild verschieben und zoomen',
-    str_contains($socialSrc, 'pointerdown') && str_contains($socialSrc, 'imgZoom')
-    && str_contains($socialSrc, 'view.offsetX'));
-check('Ausschnitt bleibt im Bild',
-    str_contains($socialSrc, 'Math.max(-maxX, Math.min(maxX, view.offsetX))'));
+check('Texte direkt im Bild tippbar',
+    str_contains($socialSrc, 'textBoxes') && str_contains($socialSrc, 'inlineTextInput')
+    && !str_contains($socialSrc, 'window.prompt'));
+check('Bild frei verschieb- und skalierbar',
+    str_contains($socialSrc, 'pointerdown') && str_contains($socialSrc, "mode = 'scale'")
+    && str_contains($socialSrc, "mode = 'move'"));
+check('Eckpunkte in Lila sichtbar',
+    str_contains($socialSrc, '#7c3aed') && str_contains($socialSrc, 'imageCorners'));
+check('Bearbeitung im eigenen Fenster',
+    str_contains($socialSrc, 'postEditor') && str_contains($socialSrc, 'showModal'));
 check('Ausschnitt zuruecksetzbar',
     str_contains($socialSrc, 'resetImage'));
 check('Wortmarke ueber der Navigation',

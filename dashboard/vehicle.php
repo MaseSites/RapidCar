@@ -60,6 +60,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('dashboard/details.php?vehicle=' . $vehicleId);
         }
 
+        // Pflichtfelder: ohne sie nimmt keine Verkaufsplattform das Inserat an.
+        $missingRequired = [];
+        foreach (\App\Service\VehicleFields::requiredForPublish() as $requiredField => $requiredLabel) {
+            $requiredValue = $vehicle[$requiredField] ?? null;
+            if ($requiredValue === null || trim((string) $requiredValue) === '') {
+                $missingRequired[] = $requiredLabel;
+            }
+        }
+        if ($missingRequired !== []) {
+            Session::flash('warning', 'Zum Veröffentlichen fehlen Pflichtangaben: ' . implode(', ', $missingRequired) . '. Die Felder sind mit einem Stern markiert.');
+            redirect('dashboard/vehicle.php?id=' . $vehicleId);
+        }
+
         // Inserat sicherstellen; fehlen Titel oder Beschreibung, erzeugt sie
         // der Generator aus den Fahrzeugdaten, damit ein Klick genuegt.
         $listing = ListingService::ensureForVehicle($vehicleId, $dealershipId);
@@ -412,6 +425,10 @@ function render_vehicle_field(string $name, array $def, array $vehicle, array $s
         $checked = ((int) ($value ?? 0)) === 1 ? ' checked' : '';
         return '<label class="check-item"><input type="checkbox" name="' . e($name) . '" value="1"' . $checked . '> '
             . '<span>' . $label . '</span></label>';
+    }
+
+    if (($def['required'] ?? false) === true) {
+        $label .= ' <span class="req-star" title="Pflichtfeld für die Veröffentlichung">*</span>';
     }
 
     $html = '<div class="form-group">'

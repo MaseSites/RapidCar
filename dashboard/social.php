@@ -194,7 +194,14 @@ if ($selectedVehicle === null):
 else:
     // Generator für gewähltes Fahrzeug
     $bestImages = AIImageService::bestImages($selectedVehicleId, 8);
-    $caption = AISocialService::generateCaption($selectedVehicleId);
+    // Faellt die KI aus (etwa abgelehnter Schluessel), stirbt die Seite
+    // nicht: der Text bleibt leer und laesst sich von Hand schreiben.
+    try {
+        $caption = AISocialService::generateCaption($selectedVehicleId);
+    } catch (\Throwable $e) {
+        \App\Core\Logger::warning('Beitragstext konnte nicht erzeugt werden: ' . $e->getMessage());
+        $caption = ['caption' => '', 'mode' => 'manual'];
+    }
     $vehicleName = trim(($selectedVehicle['make'] ?? '') . ' ' . ($selectedVehicle['model'] ?? '') . ' ' . ($selectedVehicle['variant'] ?? ''));
 ?>
 <div class="page-head">
@@ -272,37 +279,46 @@ else:
                 <h3 style="font-size:15.5px"><?= t('social.preview') ?> (1080x1080)</h3>
                 <button class="btn btn-secondary btn-sm" type="button" id="regenerateBtn"><?= icon('refresh', 14) ?> <?= t('social.regenerate') ?></button>
             </div>
-            <div class="post-tools">
-                <div class="post-tool">
-                    <label class="form-label">Schrift</label>
-                    <select class="form-control" id="fontSelect">
-                        <option value="sans">Modern (serifenlos)</option>
-                        <option value="serif">Klassisch (Serifen)</option>
-                        <option value="condensed">Schmal</option>
-                        <option value="rounded">Rund</option>
-                        <option value="mono">Technisch</option>
-                    </select>
-                </div>
-                <div class="post-tool">
-                    <label class="form-label">Schriftgrösse</label>
-                    <input type="range" id="fontScale" min="70" max="140" value="100" step="5">
-                </div>
-                <div class="post-tool">
-                    <label class="form-label">Bildausschnitt</label>
-                    <input type="range" id="imgZoom" min="100" max="250" value="100" step="5">
-                    <div class="form-hint">Bild mit der Maus verschieben</div>
-                </div>
-                <div class="post-tool">
-                    <button class="btn btn-secondary btn-sm" type="button" id="resetImage">Ausschnitt zurücksetzen</button>
-                </div>
-            </div>
             <canvas id="postCanvas" width="1080" height="1080"
-                    style="width:100%;border-radius:14px;border:1px solid var(--border);cursor:grab"
-                    title="Auf einen Text klicken, um ihn zu ändern. Bild ziehen, um den Ausschnitt zu wählen."></canvas>
-            <div class="text-xs text-muted mt-1">
-                Auf einen Text im Bild klicken, um ihn zu ändern. Das Foto lässt sich ziehen und mit dem Regler vergrössern.
-            </div>
+                    style="width:100%;border-radius:14px;border:1px solid var(--border)"></canvas>
+
+            <!-- Bearbeitet wird im eigenen Fenster: Bild frei verschieben und
+                 skalieren (lila Eckpunkte), Texte direkt im Bild tippen. -->
+            <dialog id="postEditor" class="post-editor-dialog">
+                <div class="flex-between mb-2">
+                    <h3 style="font-size:15.5px">Bild bearbeiten</h3>
+                    <button class="btn btn-primary btn-sm" type="button" id="editorClose">Fertig</button>
+                </div>
+                <div class="post-tools">
+                    <div class="post-tool">
+                        <label class="form-label">Schrift</label>
+                        <select class="form-control" id="fontSelect">
+                            <option value="sans">Modern (serifenlos)</option>
+                            <option value="serif">Klassisch (Serifen)</option>
+                            <option value="condensed">Schmal</option>
+                            <option value="rounded">Rund</option>
+                            <option value="mono">Technisch</option>
+                        </select>
+                    </div>
+                    <div class="post-tool">
+                        <label class="form-label">Schriftgrösse</label>
+                        <input type="range" id="fontScale" min="70" max="140" value="100" step="5">
+                    </div>
+                    <div class="post-tool" style="align-self:end">
+                        <button class="btn btn-secondary btn-sm" type="button" id="resetImage">Bild zurücksetzen</button>
+                    </div>
+                </div>
+                <div class="post-edit-wrap" id="postEditWrap">
+                    <canvas id="postEditCanvas" width="1080" height="1080"></canvas>
+                    <input type="text" id="inlineTextInput" class="inline-text-input" autocomplete="off" style="display:none">
+                </div>
+                <div class="text-xs text-muted mt-1">
+                    Bild ziehen zum Verschieben, lila Eckpunkte ziehen zum Vergrössern.
+                    Auf einen Text klicken und direkt tippen.
+                </div>
+            </dialog>
             <div class="flex gap-1 mt-2" style="flex-wrap:wrap">
+                <button class="btn btn-secondary" type="button" id="editImageBtn"><?= icon('image', 15) ?> Bild bearbeiten</button>
                 <button class="btn btn-primary" type="button" id="saveBtn"><?= t('common.save') ?></button>
                 <?php if (!$hasPlus): ?>
                     <a class="btn btn-secondary is-locked" href="<?= base_url('dashboard/subscription.php') ?>">
@@ -348,7 +364,6 @@ $pageScripts = <<<HTML
 (function () {
     var data = {$jsData};
     var canvas = document.getElementById('postCanvas');
-    var ctx = canvas.getContext('2d');
     var currentImage = null;
     var currentImageId = null;
     var currentTemplate = null;
@@ -449,9 +464,30 @@ $pageScripts = <<<HTML
     // Wo die Texte liegen: fuer das Anklicken im Bild.
     var textBoxes = {};
 
-    var view = { zoom: 1, offsetX: 0, offsetY: 0 };   // Bildausschnitt
     var fontKey = 'sans';
     var fontScale = 1;
+
+    // Freie Transformation des Fotos: Position und Groesse in Bildpunkten
+    // der 1080er-Flaeche. null bedeutet: passend einsetzen (cover).
+    var imgT = null;
+
+    function ensureTransform() {
+        if (!currentImage) { return; }
+        if (imgT && imgT.img === currentImage) { return; }
+        var base = Math.max(1080 / currentImage.width, 700 / currentImage.height);
+        imgT = {
+            img: currentImage,
+            scale: base,
+            x: (1080 - currentImage.width * base) / 2,
+            y: (700 - currentImage.height * base) / 2
+        };
+    }
+
+    var editDialog = document.getElementById('postEditor');
+    var editCanvas = document.getElementById('postEditCanvas');
+    var editWrap = document.getElementById('postEditWrap');
+    var inlineInput = document.getElementById('inlineTextInput');
+    var HANDLE = 26;   // Kantenlaenge der Eckpunkte in Bildpunkten
 
     function fontFamily() {
         // Vorlage gibt die Grundschrift vor, die Auswahl gewinnt.
@@ -461,54 +497,51 @@ $pageScripts = <<<HTML
         return FONTS[fontKey] || FONTS.sans;
     }
 
-    function render() {
+    /** Zeichnet den Beitrag auf eine Flaeche; editMode zeigt Rahmen und Eckpunkte. */
+    function paintScene(target, editMode) {
         if (!currentTemplate) { return; }
+        var c = target.getContext('2d');
         var W = 1080, H = 1080;
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = currentTemplate.bg || '#111';
-        ctx.fillRect(0, 0, W, H);
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = currentTemplate.bg || '#111';
+        c.fillRect(0, 0, W, H);
 
-        // Fahrzeugbild mit waehlbarem Ausschnitt
         if (currentImage) {
-            var imgH = 700;
-            var base = Math.max(W / currentImage.width, imgH / currentImage.height);
-            var scale = base * view.zoom;
-            var sw = W / scale, sh = imgH / scale;
-            // Verschiebung in Bildpunkten, begrenzt auf das Vorhandene
-            var maxX = Math.max(0, (currentImage.width - sw) / 2);
-            var maxY = Math.max(0, (currentImage.height - sh) / 2);
-            var offX = Math.max(-maxX, Math.min(maxX, view.offsetX));
-            var offY = Math.max(-maxY, Math.min(maxY, view.offsetY));
-            var sx = (currentImage.width - sw) / 2 + offX;
-            var sy = (currentImage.height - sh) / 2 + offY;
-            ctx.drawImage(currentImage, sx, sy, sw, sh, 0, 0, W, imgH);
+            ensureTransform();
+            var iw = currentImage.width * imgT.scale;
+            var ih = currentImage.height * imgT.scale;
+            c.save();
+            c.beginPath();
+            c.rect(0, 0, W, 700);
+            c.clip();
+            c.drawImage(currentImage, imgT.x, imgT.y, iw, ih);
+            c.restore();
 
-            var grad = ctx.createLinearGradient(0, imgH - 180, 0, imgH);
+            var grad = c.createLinearGradient(0, 520, 0, 700);
             grad.addColorStop(0, 'rgba(0,0,0,0)');
             grad.addColorStop(1, currentTemplate.bg || '#111');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, imgH - 180, W, 180);
+            c.fillStyle = grad;
+            c.fillRect(0, 520, W, 180);
         }
 
         var accent = currentTemplate.accent || '#fff';
         var textColor = currentTemplate.text || '#fff';
         var fontName = fontFamily();
-        ctx.textAlign = 'center';
+        c.textAlign = 'center';
         textBoxes = {};
 
-        /** Zeichnet einen Text und merkt sich seine Flaeche zum Anklicken. */
         function drawText(key, value, weight, size, color, y, spacing, alpha) {
             if (!value) { return; }
             var px = Math.round(size * fontScale);
-            ctx.font = weight + ' ' + px + 'px ' + fontName;
-            ctx.letterSpacing = spacing || '0px';
-            ctx.fillStyle = color;
-            ctx.globalAlpha = alpha || 1;
-            ctx.fillText(value, W / 2, y, W - 100);
-            ctx.globalAlpha = 1;
-            var width = Math.min(W - 100, ctx.measureText(value).width);
-            textBoxes[key] = { x: (W - width) / 2, y: y - px, w: width, h: px * 1.3 };
-            ctx.letterSpacing = '0px';
+            c.font = weight + ' ' + px + 'px ' + fontName;
+            c.letterSpacing = spacing || '0px';
+            c.fillStyle = color;
+            c.globalAlpha = alpha || 1;
+            c.fillText(value, W / 2, y, W - 100);
+            c.globalAlpha = 1;
+            var width = Math.min(W - 100, c.measureText(value).width);
+            textBoxes[key] = { x: (W - width) / 2, y: y - px, w: width, h: px * 1.3, size: px, weight: weight, color: color };
+            c.letterSpacing = '0px';
         }
 
         drawText('badge', texts.badge, '700', 34, accent, 790, '8px');
@@ -518,66 +551,179 @@ $pageScripts = <<<HTML
 
         if (logoImage && logoImage.complete && logoImage.naturalWidth > 0) {
             var lh = 64, lw = logoImage.width * (lh / logoImage.height);
-            ctx.drawImage(logoImage, W - lw - 36, 36, lw, lh);
+            c.drawImage(logoImage, W - lw - 36, 36, lw, lh);
         }
 
-        ctx.fillStyle = accent;
-        ctx.fillRect(W / 2 - 40, 745, 80, 4);
+        c.fillStyle = accent;
+        c.fillRect(W / 2 - 40, 745, 80, 4);
+
+        // ---------------- Bearbeitungsrahmen: lila Kontur mit vier Eckpunkten
+        if (editMode && currentImage) {
+            var rx = imgT.x, ry = imgT.y;
+            var rw = currentImage.width * imgT.scale, rh = currentImage.height * imgT.scale;
+            c.save();
+            c.strokeStyle = '#7c3aed';
+            c.lineWidth = 3;
+            c.setLineDash([10, 7]);
+            c.strokeRect(rx, ry, rw, rh);
+            c.setLineDash([]);
+            imageCorners(rx, ry, rw, rh).forEach(function (pt) {
+                c.fillStyle = '#7c3aed';
+                c.fillRect(pt.x - HANDLE / 2, pt.y - HANDLE / 2, HANDLE, HANDLE);
+                c.strokeStyle = '#fff';
+                c.lineWidth = 3;
+                c.strokeRect(pt.x - HANDLE / 2, pt.y - HANDLE / 2, HANDLE, HANDLE);
+            });
+            c.restore();
+        }
     }
 
-    // ---------------------------------------------- Texte im Bild aendern
-    var LABELS = { badge: 'Kopfzeile', name: 'Fahrzeug', facts: 'Eckdaten', dealer: 'Absender' };
+    function imageCorners(x, y, w, h) {
+        return [
+            { x: x, y: y }, { x: x + w, y: y },
+            { x: x, y: y + h }, { x: x + w, y: y + h }
+        ];
+    }
 
-    canvas.addEventListener('click', function (event) {
-        var rect = canvas.getBoundingClientRect();
-        var x = (event.clientX - rect.left) * (1080 / rect.width);
-        var y = (event.clientY - rect.top) * (1080 / rect.height);
+    function render() {
+        paintScene(canvas, false);
+        if (editDialog.open) {
+            paintScene(editCanvas, true);
+        }
+    }
+
+    // ------------------------------------------------ Fenster oeffnen/schliessen
+    document.getElementById('editImageBtn').addEventListener('click', function () {
+        editDialog.showModal();
+        render();
+    });
+    document.getElementById('editorClose').addEventListener('click', function () {
+        commitInlineText();
+        editDialog.close();
+        render();
+    });
+
+    // ------------------------------------------------ Mauskoordinaten der Flaeche
+    function toCanvasPoint(event) {
+        var rect = editCanvas.getBoundingClientRect();
+        return {
+            x: (event.clientX - rect.left) * (1080 / rect.width),
+            y: (event.clientY - rect.top) * (1080 / rect.height)
+        };
+    }
+
+    // ------------------------------------------------ Bild ziehen und skalieren
+    var mode = null;         // 'move' | 'scale'
+    var anchor = null;       // fester Gegenpunkt beim Skalieren
+    var grabDX = 0, grabDY = 0;
+
+    editCanvas.addEventListener('pointerdown', function (event) {
+        commitInlineText();
+        var pt = toCanvasPoint(event);
+
+        // 1. Eckpunkte zuerst: Skalieren um den gegenueberliegenden Punkt
+        if (currentImage) {
+            ensureTransform();
+            var rw = currentImage.width * imgT.scale, rh = currentImage.height * imgT.scale;
+            var corners = imageCorners(imgT.x, imgT.y, rw, rh);
+            for (var k = 0; k < corners.length; k++) {
+                if (Math.abs(pt.x - corners[k].x) <= HANDLE && Math.abs(pt.y - corners[k].y) <= HANDLE) {
+                    mode = 'scale';
+                    anchor = corners[3 - k];   // Gegenueberliegende Ecke bleibt stehen
+                    editCanvas.setPointerCapture(event.pointerId);
+                    return;
+                }
+            }
+        }
+
+        // 2. Texte: anklicken und direkt im Bild tippen
         for (var key in textBoxes) {
             var box = textBoxes[key];
-            if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) {
-                var value = window.prompt(LABELS[key] + ' ändern:', texts[key]);
-                if (value !== null) {
-                    texts[key] = value;
-                    render();
-                }
+            if (pt.x >= box.x - 20 && pt.x <= box.x + box.w + 20 && pt.y >= box.y && pt.y <= box.y + box.h) {
+                openInlineText(key);
                 return;
+            }
+        }
+
+        // 3. Bildflaeche: verschieben
+        if (currentImage) {
+            var w = currentImage.width * imgT.scale, h = currentImage.height * imgT.scale;
+            if (pt.x >= imgT.x && pt.x <= imgT.x + w && pt.y >= imgT.y && pt.y <= imgT.y + h && pt.y <= 700) {
+                mode = 'move';
+                grabDX = pt.x - imgT.x;
+                grabDY = pt.y - imgT.y;
+                editCanvas.style.cursor = 'grabbing';
+                editCanvas.setPointerCapture(event.pointerId);
             }
         }
     });
 
-    // ---------------------------------------------- Bild ziehen und zoomen
-    var dragging = false, dragStartX = 0, dragStartY = 0, startOffX = 0, startOffY = 0;
-
-    canvas.addEventListener('pointerdown', function (event) {
-        if (!currentImage) { return; }
-        var rect = canvas.getBoundingClientRect();
-        var y = (event.clientY - rect.top) * (1080 / rect.height);
-        if (y > 700) { return; }   // unterhalb des Fotos liegt der Textbereich
-        dragging = true;
-        canvas.style.cursor = 'grabbing';
-        canvas.setPointerCapture(event.pointerId);
-        dragStartX = event.clientX;
-        dragStartY = event.clientY;
-        startOffX = view.offsetX;
-        startOffY = view.offsetY;
-    });
-
-    canvas.addEventListener('pointermove', function (event) {
-        if (!dragging) { return; }
-        var rect = canvas.getBoundingClientRect();
-        var factor = (1080 / rect.width) / view.zoom;
-        view.offsetX = startOffX - (event.clientX - dragStartX) * factor;
-        view.offsetY = startOffY - (event.clientY - dragStartY) * factor;
+    editCanvas.addEventListener('pointermove', function (event) {
+        if (!mode || !currentImage) { return; }
+        var pt = toCanvasPoint(event);
+        if (mode === 'move') {
+            imgT.x = pt.x - grabDX;
+            imgT.y = pt.y - grabDY;
+        } else if (mode === 'scale') {
+            // Breite vom festen Gegenpunkt bis zur Maus bestimmt die Groesse
+            var newW = Math.max(120, Math.abs(pt.x - anchor.x));
+            var newScale = newW / currentImage.width;
+            var base = Math.max(1080 / currentImage.width, 700 / currentImage.height);
+            newScale = Math.max(base * 0.25, Math.min(base * 6, newScale));
+            var newH = currentImage.height * newScale;
+            imgT.scale = newScale;
+            // Der Gegenpunkt bleibt stehen; die gezogene Ecke folgt der Maus
+            imgT.x = pt.x > anchor.x ? anchor.x : anchor.x - currentImage.width * newScale;
+            imgT.y = pt.y > anchor.y ? anchor.y : anchor.y - newH;
+        }
         render();
     });
 
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (type) {
-        canvas.addEventListener(type, function () {
-            dragging = false;
-            canvas.style.cursor = 'grab';
+    ['pointerup', 'pointercancel'].forEach(function (type) {
+        editCanvas.addEventListener(type, function () {
+            mode = null;
+            editCanvas.style.cursor = 'default';
         });
     });
 
+    // ------------------------------------------------ Text direkt im Bild tippen
+    var editingKey = null;
+
+    function openInlineText(key) {
+        var box = textBoxes[key];
+        if (!box) { return; }
+        editingKey = key;
+        var rect = editCanvas.getBoundingClientRect();
+        var ratio = rect.width / 1080;
+        inlineInput.value = texts[key];
+        inlineInput.style.display = 'block';
+        inlineInput.style.left = Math.max(0, (box.x - 30) * ratio) + 'px';
+        inlineInput.style.top = (box.y - 6) * ratio + 'px';
+        inlineInput.style.width = Math.min(1040, box.w + 120) * ratio + 'px';
+        inlineInput.style.fontSize = Math.max(13, box.size * ratio * 0.9) + 'px';
+        inlineInput.focus();
+        inlineInput.select();
+    }
+
+    function commitInlineText() {
+        if (editingKey === null) { return; }
+        editingKey = null;
+        inlineInput.style.display = 'none';
+    }
+
+    inlineInput.addEventListener('input', function () {
+        if (editingKey === null) { return; }
+        texts[editingKey] = inlineInput.value;
+        render();   // der Text aendert sich live im Bild
+    });
+    inlineInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === 'Escape') {
+            commitInlineText();
+        }
+    });
+    inlineInput.addEventListener('blur', commitInlineText);
+
+    // ------------------------------------------------ Werkzeuge
     document.getElementById('fontSelect').addEventListener('change', function () {
         fontKey = this.value;
         render();
@@ -586,13 +732,8 @@ $pageScripts = <<<HTML
         fontScale = parseInt(this.value, 10) / 100;
         render();
     });
-    document.getElementById('imgZoom').addEventListener('input', function () {
-        view.zoom = parseInt(this.value, 10) / 100;
-        render();
-    });
     document.getElementById('resetImage').addEventListener('click', function () {
-        view = { zoom: 1, offsetX: 0, offsetY: 0 };
-        document.getElementById('imgZoom').value = 100;
+        imgT = null;
         render();
     });
 

@@ -1962,8 +1962,9 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 .sidebar-brand {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 22px 4px 18px 6px;
+    padding: 22px 4px 18px 4px;
 }
 .sidebar-brand-name {
     font-size: 18px;
@@ -1993,5 +1994,47 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     height: 17px;
     accent-color: var(--accent);
     cursor: pointer;
+}
+
+/* Pflichtstern an Feldern, die die Verkaufsplattformen verlangen */
+.req-star {
+    color: #d92d20;
+    font-weight: 700;
+}
+
+/* Bild-Editor des Beitrags: eigenes Fenster mit freier Transformation */
+.post-editor-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    width: min(92vw, 680px);
+    box-shadow: 0 24px 80px rgba(16, 24, 40, .25);
+}
+.post-editor-dialog::backdrop {
+    background: rgba(15, 18, 25, .55);
+}
+.post-edit-wrap {
+    position: relative;
+}
+.post-edit-wrap canvas {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    touch-action: none;
+    cursor: default;
+    display: block;
+}
+/* Eingabefeld, das beim Klick auf einen Text ueber dem Bild erscheint */
+.inline-text-input {
+    position: absolute;
+    z-index: 5;
+    text-align: center;
+    border: 2px solid #7c3aed;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .96);
+    color: #1a1d23;
+    padding: 4px 8px;
+    outline: none;
+    font-weight: 700;
 }
 

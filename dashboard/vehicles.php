@@ -164,7 +164,6 @@ require BASE_PATH . '/includes/layout/dash-header.php';
 <?php if ($vehicles === []): ?>
     <div class="card">
         <div class="empty-state">
-            <div class="empty-icon"><?= icon('car', 22) ?></div>
             <h3><?= t('vehicles.empty.title') ?></h3>
             <p><?= match ($view) {
                 'paused' => t('vehicles.empty.paused'),
