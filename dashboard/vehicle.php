@@ -344,6 +344,10 @@ $vehicleName = trim(($vehicle['make'] ?? '') . ' ' . ($vehicle['model'] ?? '') .
 
 // AutoScout24-Status dieses Fahrzeugs
 $autoscoutConnected = \App\Integration\AutoScoutService::isConnected($dealershipId);
+$mobiledeConnected = \App\Integration\MobileDeService::isConnected($dealershipId);
+$mobiledeAdId = $mobiledeConnected
+    ? \App\Integration\MobileDePublisher::externalIdForVehicle($dealershipId, $vehicleId)
+    : null;
 $autoscoutListingId = $autoscoutConnected
     ? \App\Integration\AutoScoutPublisher::externalIdForVehicle($dealershipId, $vehicleId)
     : null;
@@ -976,6 +980,48 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <input type="hidden" name="action" value="push">
                 <button class="btn btn-primary" type="submit">
                     <?= icon('external-link', 15) ?> <?= t('autoscout.push') ?>
+                </button>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- ================================================== mobile.de -->
+<?php if ($mobiledeConnected): ?>
+<div class="card mb-3">
+    <div class="card-header">
+        <h2>mobile.de</h2>
+        <?php if ($mobiledeAdId !== null): ?>
+            <span class="badge badge-success"><?= icon('check', 13) ?> Inserat <?= e($mobiledeAdId) ?></span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <?php if ($mobiledeAdId !== null): ?>
+            <div class="flex gap-1" style="flex-wrap:wrap">
+                <form method="post" action="<?= base_url('api/mobilede/publish.php') ?>">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="vehicle_id" value="<?= $vehicleId ?>">
+                    <input type="hidden" name="action" value="push">
+                    <button class="btn btn-secondary btn-sm" type="submit">
+                        <?= icon('refresh', 14) ?> Aktualisieren
+                    </button>
+                </form>
+                <form method="post" action="<?= base_url('api/mobilede/publish.php') ?>" data-confirm="Inserat wirklich von mobile.de entfernen?">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="vehicle_id" value="<?= $vehicleId ?>">
+                    <input type="hidden" name="action" value="remove">
+                    <button class="btn btn-danger btn-sm" type="submit"><?= icon('trash', 14) ?> Entfernen</button>
+                </form>
+            </div>
+        <?php else: ?>
+            <p class="text-secondary mb-2">Überträgt das Inserat mit Fotos und Beschreibung zu mobile.de. Die Börse prüft die Pflichtangaben und meldet Fehlendes zurück.</p>
+            <form method="post" action="<?= base_url('api/mobilede/publish.php') ?>" data-confirm="Fahrzeug jetzt zu mobile.de übertragen?" data-confirm-tone="success">
+                <?= App\Core\Csrf::field() ?>
+                <input type="hidden" name="vehicle_id" value="<?= $vehicleId ?>">
+                <input type="hidden" name="action" value="push">
+                <button class="btn btn-primary" type="submit">
+                    <?= icon('external-link', 15) ?> Zu mobile.de übertragen
                 </button>
             </form>
         <?php endif; ?>

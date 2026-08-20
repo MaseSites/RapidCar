@@ -1247,6 +1247,33 @@ check('Haken haben Vorrang vor den Einstellungen',
 check('Admin nimmt viele Kennungen auf einmal an',
     str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'spyne_scene_bulk'));
 
+echo "
+"; echo "mobile.de (Seller-API)"; echo "
+";
+
+// Gleiche Prinzipien wie AutoScout24: eigene Zugangsdaten je Autohaus,
+// verschluesselt gespeichert, ehrliche Fehler der Boerse.
+check('Basis-URL zeigt auf die Seller-API',
+    str_contains(App\Integration\MobileDeClient::baseUrl(), 'services.mobile.de'));
+check('eigene Verbindungsseite',
+    str_contains(App\Integration\ChannelRegistry::connectUrl('mobile_de'), 'dashboard/mobilede'));
+check('mobile.de gilt als selbst einrichtbar',
+    in_array('mobile_de', App\Integration\ChannelRegistry::SELF_SERVICE, true)
+    && App\Integration\ChannelRegistry::isConfigured('mobile_de'));
+check('ohne Verbindung: getrennt',
+    App\Integration\MobileDeService::status(999999) === 'disconnected'
+    && App\Integration\MobileDeService::credentials(999999) === null);
+$mdPublisher = file_get_contents(BASE_PATH . '/src/Integration/MobileDePublisher.php');
+check('Preis geht nur als Euro an die Boerse',
+    str_contains($mdPublisher, "'currency'           => 'EUR'"));
+check('Erstzulassung wird ins Boersenformat gewandelt',
+    str_contains($mdPublisher, "\$m[2] . \$m[1]"));
+check('Fehler der Boerse werden mit Details gemeldet',
+    str_contains($mdPublisher, 'mobile.de hat das Inserat abgelehnt'));
+check('Fahrzeugseite bietet mobile.de-Uebertragung',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'api/mobilede/publish.php'));
+
+
 
 
 

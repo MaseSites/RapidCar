@@ -231,10 +231,13 @@ final class ChannelRegistry
      * Kanäle, die der Händler selbst mit eigenen Zugangsdaten verbindet und
      * für die daher keine plattformweite Konfiguration nötig ist.
      */
-    public const SELF_SERVICE = ['autoscout24'];
+    public const SELF_SERVICE = ['autoscout24', 'mobile_de'];
 
     /** Eigene Verbindungsseite statt generischem OAuth-Redirect. */
-    public const CONNECT_PAGES = ['autoscout24' => 'dashboard/autoscout.php'];
+    public const CONNECT_PAGES = [
+        'autoscout24' => 'dashboard/autoscout.php',
+        'mobile_de'   => 'dashboard/mobilede.php',
+    ];
 
     public static function isConfigured(string $key): bool
     {
