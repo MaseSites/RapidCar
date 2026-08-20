@@ -1125,7 +1125,7 @@ tr[data-href]:hover td { background: var(--surface-hover); }
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .social-card-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
-.social-card .btn-sm { border-radius: 10px; }
+
 .social-card.is-done:hover { transform: none; border-color: var(--border); box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
 .social-card.is-done:hover .social-card-media img { transform: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -2002,19 +2002,47 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     font-weight: 700;
 }
 
-/* Bild-Editor des Beitrags: eigenes Fenster mit freier Transformation */
+/* Bild-Editor des Beitrags: eigenes Fenster mit freier Transformation.
+   Fest in der Bildschirmmitte; die Groesse richtet sich nach dem Fenster,
+   damit nie gescrollt werden muss. */
 .post-editor-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
     border: none;
-    border-radius: 16px;
-    padding: 20px;
-    width: min(92vw, 680px);
-    box-shadow: 0 24px 80px rgba(16, 24, 40, .25);
+    border-radius: 20px;
+    padding: 22px;
+    width: min(92vw, 640px);
+    max-height: 96vh;
+    overflow: hidden;
+    background: var(--surface, #fff);
+    box-shadow: 0 24px 80px rgba(16, 24, 40, .28);
+    animation: editor-in .18s ease-out;
+}
+@keyframes editor-in {
+    from { opacity: 0; transform: scale(.96); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .post-editor-dialog { animation: none; }
 }
 .post-editor-dialog::backdrop {
     background: rgba(15, 18, 25, .55);
+    backdrop-filter: blur(2px);
+}
+/* Solange das Fenster offen ist, steht die Seite dahinter still */
+body:has(.post-editor-dialog[open]) {
+    overflow: hidden;
+}
+.post-editor-dialog .form-control {
+    border-radius: 10px;
 }
 .post-edit-wrap {
     position: relative;
+    /* Quadratische Flaeche: Fensterhoehe minus Kopf und Werkzeuge, damit
+       alles ohne Rollen sichtbar bleibt */
+    width: min(100%, calc(96vh - 240px));
+    margin: 0 auto;
 }
 .post-edit-wrap canvas {
     width: 100%;

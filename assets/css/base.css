@@ -100,7 +100,7 @@ svg.icon { flex-shrink: 0; vertical-align: -0.18em; }
 .btn-danger { background: var(--surface); color: var(--danger); border-color: #f2c1bd; }
 .btn-danger:hover { background: var(--danger-soft); }
 
-.btn-sm { padding: 6px 12px; font-size: 13px; border-radius: var(--radius-sm); }
+.btn-sm { padding: 6px 14px; font-size: 13px; border-radius: 999px; }
 .btn-lg { padding: 11px 22px; font-size: 15px; }
 .btn-block { width: 100%; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
