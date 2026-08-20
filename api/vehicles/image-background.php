@@ -107,6 +107,11 @@ switch ($action) {
             json_response(false, null, 'Unbekannter Auftrag.', 422);
         }
         if (!BackgroundService::isTemplate($key)) {
+            $known = App\Integration\SpyneService::scenes();
+            if (isset($known[$key]) && $known[$key]['unavailable']) {
+                json_response(false, null,
+                    'Der Hintergrund ' . $key . ' ist in deinem Spyne-Konto nicht freigeschaltet.', 422);
+            }
             json_response(false, null, 'Unbekannter Hintergrund.', 422);
         }
         try {
@@ -151,6 +156,15 @@ switch ($action) {
             json_response(false, null, 'Es wurde kein Hintergrund gewählt.', 422);
         }
         if (!BackgroundService::isTemplate($key) && BackgroundService::ownId($key) === null) {
+            // Unterscheiden: gibt es die Kennung gar nicht, oder hat Spyne sie
+            // vorhin abgelehnt? Sonst steht bei jedem weiteren Foto nur
+            // "Unbekannter Hintergrund", was den Grund verschweigt.
+            $known = App\Integration\SpyneService::scenes();
+            if (isset($known[$key]) && $known[$key]['unavailable']) {
+                json_response(false, null,
+                    'Der Hintergrund ' . $key . ' ist in deinem Spyne-Konto nicht freigeschaltet. '
+                    . 'Bitte einen anderen waehlen.', 422);
+            }
             json_response(false, null, 'Unbekannter Hintergrund.', 422);
         }
 

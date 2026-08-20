@@ -1198,7 +1198,7 @@ $pageScripts = <<<HTML
     }
 
     // Nacheinander statt gleichzeitig: schont Server und API-Kontingent
-    function bgRunSequential(ids, worker, done) {
+    function bgRunSequential(ids, worker, done, stopOnError) {
         var index = 0;
         var failed = 0;
         (function next() {
@@ -1206,7 +1206,12 @@ $pageScripts = <<<HTML
             var id = ids[index];
             index++;
             worker(id, index, ids.length, function (ok) {
-                if (!ok) { failed++; }
+                if (!ok) {
+                    failed++;
+                    // Scheitert der Hintergrund selbst, wuerden alle weiteren
+                    // Fotos dieselbe Meldung erzeugen. Einmal reicht.
+                    if (stopOnError) { done(failed); return; }
+                }
                 next();
             });
         })();
@@ -1449,7 +1454,10 @@ $pageScripts = <<<HTML
             bgBusy = false;
             if (swatch) { swatch.classList.remove('is-busy'); }
             bgSetHint(failed === 0 ? {$jsBgApplied} : {$jsBgChooseHint});
-        });
+            // Hintergrund von Spyne abgelehnt: Kachel verschwindet sofort,
+            // damit niemand ein zweites Mal hineinlaeuft.
+            if (failed > 0 && swatch) { swatch.remove(); }
+        }, true);
     }
 
     /** Tauscht Vorschau und grosses Bild aus, ohne die Seite neu zu laden. */

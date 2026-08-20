@@ -1194,6 +1194,18 @@ check('Ablehnung markiert die Kennung',
     str_contains($spyneSrc, 'markUnavailable')
     && str_contains($spyneSrc, 'aus der Auswahl entfernt'));
 
+// Nach einer Ablehnung duerfen die restlichen Fotos nicht mit
+// "Unbekannter Hintergrund" abgespeist werden.
+$bgEndpoint3 = file_get_contents(BASE_PATH . '/api/vehicles/image-background.php');
+check('abgelehnte Kennung wird klar benannt',
+    substr_count($bgEndpoint3, 'nicht freigeschaltet') >= 2);
+$vehiclePage2 = file_get_contents(BASE_PATH . '/dashboard/vehicle.php');
+check('Lauf bricht nach dem ersten Fehler ab',
+    str_contains($vehiclePage2, 'stopOnError'));
+check('abgelehnte Kachel verschwindet sofort',
+    str_contains($vehiclePage2, 'swatch.remove()'));
+
+
 
 // Im Admin gepflegte Szenen haben Vorrang und lassen sich verwalten
 check('Admin kann Szenen pflegen',
