@@ -264,10 +264,12 @@ final class SpyneService
         if (!empty($summary['isRequestRejected'])) {
             $reason = (string) ($summary['displayError']['message'] ?? 'kein Grund genannt');
             if (stripos($reason, 'BackgroundId') !== false) {
+                // Die Kennung mitnennen: nur so laesst sich erkennen, ob eine
+                // alte oder eine falsch eingetragene Nummer verwendet wurde.
                 throw new RuntimeException(
-                    'Spyne kennt diesen Hintergrund in deinem Konto nicht. '
-                    . 'Trage im Admin unter Einstellungen die Hintergrund-Kennungen '
-                    . 'aus deiner Spyne-Konsole ein.'
+                    'Spyne kennt den Hintergrund ' . $payload['processingDetails']['backgroundId']
+                    . ' in deinem Konto nicht. Im Admin unter Einstellungen die Kennungen '
+                    . 'aus der Spyne-Konsole eintragen und den Hintergrund neu waehlen.'
                 );
             }
             throw new RuntimeException('Spyne hat die Anfrage abgelehnt: ' . $reason);

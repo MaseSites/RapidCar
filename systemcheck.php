@@ -239,6 +239,45 @@ check(
     'Ohne echten Mailversand bleibt die Bestaetigung aus, sonst kaeme niemand hinein.'
 );
 
+// ------------------------------------------------------ Hintergruende (Spyne)
+if (\App\Integration\SpyneService::isConfigured()) {
+    $spyneScenes = \App\Integration\SpyneService::scenes();
+    $sceneIds = array_map('strval', array_keys($spyneScenes));
+    check(
+        'Spyne-Hintergruende',
+        $sceneIds !== [],
+        $sceneIds === []
+            ? 'keine eingetragen'
+            : count($sceneIds) . ' eingetragen: ' . implode(', ', array_slice($sceneIds, 0, 12))
+              . (count($sceneIds) > 12 ? ' ...' : ''),
+        'Im Admin unter Einstellungen die Kennungen aus der Spyne-Konsole eintragen.'
+    );
+
+    // Gespeicherte Hintergruende an Fotos, die es nicht mehr gibt: solche
+    // Fotos wuerden beim naechsten Wechsel eine Ablehnung ausloesen.
+    try {
+        $staleKeys = [];
+        foreach (Database::fetchAll(
+            "SELECT DISTINCT background_key FROM vehicle_images WHERE background_key IS NOT NULL AND background_key != ''"
+        ) as $row) {
+            $usedKey = (string) $row['background_key'];
+            if (!in_array($usedKey, $sceneIds, true) && !str_starts_with($usedKey, 'own:')) {
+                $staleKeys[] = $usedKey;
+            }
+        }
+        if ($staleKeys !== []) {
+            check(
+                'Fotos mit unbekanntem Hintergrund',
+                false,
+                implode(', ', array_slice($staleKeys, 0, 10)),
+                'Diese Kennungen stehen an Fotos, sind aber nicht mehr eingetragen. Hintergrund neu waehlen.'
+            );
+        }
+    } catch (\Throwable) {
+        // Ohne Tabelle keine Pruefung; der Schema-Test meldet das ohnehin.
+    }
+}
+
 // ----------------------------------------------------------------- Zahlung
 $paymentProvider = strtolower(trim((string) Config::get('payment.provider', '')));
 $paymentKey = trim((string) Config::get('payment.api_key', '')) !== '';
