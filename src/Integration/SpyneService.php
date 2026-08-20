@@ -354,7 +354,7 @@ final class SpyneService
      * @param array<string, mixed>|null $payload
      * @return array<string, mixed>
      */
-    private static function request(string $url, ?array $payload): array
+    private static function request(string $url, ?array $payload, bool $retry = true): array
     {
         $bearer = 'Authorization: Bearer ' . trim((string) Config::get('background.api_key', ''));
         $options = [
@@ -382,6 +382,20 @@ final class SpyneService
         }
         if ($status === 401) {
             throw new RuntimeException('Spyne hat den Schlüssel abgelehnt.');
+        }
+        // Stoerung auf Spynes Seite: einmal kurz warten und erneut versuchen.
+        // Solche Fehler kommen sporadisch und haben nichts mit der Anfrage zu tun.
+        if ($status >= 500 && $retry) {
+            Logger::warning('Spyne-Stoerung (HTTP ' . $status . '), zweiter Versuch folgt.');
+            sleep(3);
+            return self::request($url, $payload, false);
+        }
+        if ($status >= 500) {
+            Logger::error('Spyne-Stoerung bleibt bestehen', ['status' => $status]);
+            throw new RuntimeException(
+                'Spyne hat gerade eine Stoerung (HTTP ' . $status . '). '
+                . 'Das liegt nicht an deinen Daten. Bitte in ein paar Minuten erneut versuchen.'
+            );
         }
         if ($status >= 400) {
             // Den Grund mitgeben: Spyne nennt fehlende oder falsche Felder

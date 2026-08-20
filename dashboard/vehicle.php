@@ -1366,7 +1366,7 @@ $pageScripts = <<<HTML
     function spynePoll(id, key, job, item, done) {
         var tries = 0;
         (function poll() {
-            if (++tries > 144) {   // 144 x 5s = 12 Minuten
+            if (++tries > 240) {   // 240 x 15s = 60 Minuten
                 bgMarkWorking(id, false);
                 done(false, true);
                 return;
@@ -1386,7 +1386,7 @@ $pageScripts = <<<HTML
                     }
                     done(!!st.success, false);
                 });
-            }, 5000);
+            }, 15000);
         })();
     }
 

@@ -1205,6 +1205,16 @@ check('Lauf bricht nach dem ersten Fehler ab',
 check('abgelehnte Kachel verschwindet sofort',
     str_contains($vehiclePage2, 'swatch.remove()'));
 
+// Stoerungen bei Spyne (HTTP 5xx) sind keine Ablehnung: einmal
+// wiederholen, dann ehrlich benennen.
+$spyneSrc2 = file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php');
+check('Spyne-Stoerung wird wiederholt',
+    str_contains($spyneSrc2, 'Spyne-Stoerung (HTTP')
+    && str_contains($spyneSrc2, 'self::request($url, $payload, false)'));
+check('Stoerung wird nicht als Ablehnung gemeldet',
+    str_contains($spyneSrc2, 'liegt nicht an deinen Daten'));
+
+
 
 
 // Im Admin gepflegte Szenen haben Vorrang und lassen sich verwalten
@@ -1348,7 +1358,7 @@ $vehiclePage = file_get_contents(BASE_PATH . '/dashboard/vehicle.php');
 check('offene Auftraege werden beim Oeffnen weiterverfolgt',
     str_contains($vehiclePage, 'data-spyne-job') && str_contains($vehiclePage, 'spynePoll'));
 check('Wartezeit reicht fuer Spyne',
-    str_contains($vehiclePage, 'tries > 144'));
+    str_contains($vehiclePage, 'tries > 240'));
 check('Zeitueberschreitung meldet ehrlich statt Upload-Fehler',
     str_contains((string) file_get_contents(BASE_PATH . '/lang/de.php'), 'background.spyne_slow'));
 
