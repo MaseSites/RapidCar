@@ -71,70 +71,67 @@ $activeNav = 'subscription';
 require BASE_PATH . '/includes/layout/dash-header.php';
 ?>
 
-<div class="plus-page">
-    <div class="plus-layout">
+<!-- Vollbild: eine grosse, dunkle Flaeche mit Lichtern, mittig die
+     Botschaft, darunter die Vorteile mit Haken und der Kaufknopf. -->
+<div class="plus-hero">
+    <div class="plus-hero-glow plus-hero-glow-a" aria-hidden="true"></div>
+    <div class="plus-hero-glow plus-hero-glow-b" aria-hidden="true"></div>
+    <svg class="plus-hero-lines" aria-hidden="true" viewBox="0 0 1200 320" preserveAspectRatio="none">
+        <path d="M0 250 C 300 120, 600 320, 1200 140" stroke="rgba(168,85,247,.25)" stroke-width="2" fill="none"/>
+        <path d="M0 290 C 350 180, 700 340, 1200 190" stroke="rgba(124,58,237,.16)" stroke-width="2" fill="none"/>
+        <path d="M0 210 C 280 80, 640 280, 1200 90" stroke="rgba(255,255,255,.06)" stroke-width="1.5" fill="none"/>
+    </svg>
 
-        <!-- ------------------------------------------------ Die Preiskarte -->
-        <div class="plus-price-card">
-            <div class="plus-price-brand">RapidCar <span>Plus</span></div>
-            <div class="plus-price-figure">
-                <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?>
-                <span class="plus-price-currency"><?= e(SubscriptionService::CURRENCY) ?></span>
-            </div>
-            <div class="plus-price-period">pro Monat, monatlich kündbar</div>
+    <div class="plus-hero-inner">
+        <div class="plus-hero-kicker">RapidCar</div>
+        <h1 class="plus-hero-title">Entdecke jetzt <span>RapidCar&nbsp;Plus</span></h1>
+        <div class="plus-hero-price">
+            <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?> <?= e(SubscriptionService::CURRENCY) ?>
+            pro Monat, monatlich kündbar
+        </div>
 
-            <?php if ($isActive): ?>
-                <div class="plus-active-badge"><?= icon('check', 14) ?> Aktiv</div>
-                <?php if ($endsAt !== null): ?>
-                    <p class="plus-price-note">Gekündigt. Nutzbar bis <?= e(format_datetime($endsAt)) ?>.</p>
-                <?php else: ?>
-                    <p class="plus-price-note">Die Abrechnung läuft über Stripe.</p>
-                    <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
-                        <?= App\Core\Csrf::field() ?>
-                        <input type="hidden" name="action" value="cancel">
-                        <button class="btn btn-secondary btn-block" type="submit">Kündigen</button>
-                    </form>
-                <?php endif; ?>
+        <ul class="plus-hero-list">
+            <?php foreach (SubscriptionService::benefits() as $benefit): ?>
+                <li>
+                    <span class="plus-hero-check"><?= icon('check', 14) ?></span>
+                    <span><?= e($benefit['title']) ?></span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+
+        <?php if ($isActive): ?>
+            <div class="plus-active-badge plus-hero-active"><?= icon('check', 14) ?> Aktiv</div>
+            <?php if ($endsAt !== null): ?>
+                <p class="plus-hero-note">Gekündigt. Nutzbar bis <?= e(format_datetime($endsAt)) ?>.</p>
             <?php else: ?>
-                <form method="post">
+                <p class="plus-hero-note">Die Abrechnung läuft über Stripe.</p>
+                <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
                     <?= App\Core\Csrf::field() ?>
-                    <input type="hidden" name="action" value="subscribe">
-                    <button class="btn btn-primary btn-lg btn-block" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
-                        Freischalten
-                    </button>
-                    <?php if (!$stripeReady): ?>
-                        <div class="form-hint" style="margin-top:8px">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
-                    <?php endif; ?>
+                    <input type="hidden" name="action" value="cancel">
+                    <button class="btn btn-secondary" type="submit">Kündigen</button>
                 </form>
-                <p class="plus-price-note">Ohne Abo bleibt alles andere nutzbar.</p>
             <?php endif; ?>
-        </div>
+        <?php else: ?>
+            <form method="post">
+                <?= App\Core\Csrf::field() ?>
+                <input type="hidden" name="action" value="subscribe">
+                <button class="plus-hero-cta" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
+                    Jetzt kaufen
+                </button>
+                <?php if (!$stripeReady): ?>
+                    <div class="plus-hero-note">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
+                <?php endif; ?>
+            </form>
+        <?php endif; ?>
 
-        <!-- ------------------------------------------------ Die Leistungen -->
-        <div class="plus-benefits">
-            <h2>Enthalten</h2>
-            <div class="plus-benefit-grid">
-                <?php foreach (SubscriptionService::benefits() as $benefit): ?>
-                    <div class="plus-benefit">
-                        <span class="plus-benefit-check"><?= icon('check', 14) ?></span>
-                        <div>
-                            <div class="plus-benefit-title"><?= e($benefit['title']) ?></div>
-                            <div class="plus-benefit-text"><?= e($benefit['text']) ?></div>
-                        </div>
-                    </div>
+        <details class="plus-planned plus-hero-planned">
+            <summary>In Arbeit, noch nicht enthalten</summary>
+            <ul>
+                <?php foreach (SubscriptionService::planned() as $planned): ?>
+                    <li><?= e($planned) ?></li>
                 <?php endforeach; ?>
-            </div>
-
-            <details class="plus-planned">
-                <summary>In Arbeit, noch nicht enthalten</summary>
-                <ul>
-                    <?php foreach (SubscriptionService::planned() as $planned): ?>
-                        <li><?= e($planned) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </details>
-        </div>
-
+            </ul>
+        </details>
     </div>
 </div>
 
