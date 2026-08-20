@@ -38,6 +38,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     if ($action === 'spyne_scene_bulk') {
+        $bulkTheme = trim((string) ($_POST['scene_theme'] ?? ''));
         $lines = preg_split('/\r?\n/', (string) ($_POST['scene_bulk'] ?? '')) ?: [];
         $scenes = json_decode((string) SettingsService::get('spyne_scenes'), true);
         $scenes = is_array($scenes) ? $scenes : [];
@@ -61,6 +62,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $scenes[$sceneId] = [
                 'label'   => $rest !== '' ? $rest : $sceneId,
                 'preview' => $preview,
+                'theme'   => $bulkTheme,
             ];
             $added++;
         }
@@ -233,6 +235,11 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                 <form method="post" class="mb-2">
                     <?= App\Core\Csrf::field() ?>
                     <input type="hidden" name="action" value="spyne_scene_bulk">
+                    <div class="form-group">
+                        <label class="form-label">Thema dieser Liste <span class="optional">(optional, z.B. Drehscheibe)</span></label>
+                        <input class="form-control" type="text" name="scene_theme" placeholder="Drehscheibe">
+                        <div class="form-hint">Hintergründe mit Thema erscheinen in der Auswahl gruppiert, je Thema erst 4 mit "Mehr anzeigen".</div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Viele auf einmal übernehmen</label>
                         <textarea class="form-control" name="scene_bulk" rows="4" placeholder="75282 = Studio hell&#10;85879 = Showroom dunkel&#10;91234"></textarea>

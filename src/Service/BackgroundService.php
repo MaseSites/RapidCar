@@ -54,7 +54,7 @@ final class BackgroundService
                 if ($preview !== '' && !preg_match('#^https?://#i', $preview)) {
                     $preview = upload_url($preview);
                 }
-                $scenes[$id] = ['label' => $scene['label'], 'file' => $preview, 'scene' => true];
+                $scenes[$id] = ['label' => $scene['label'], 'file' => $preview, 'scene' => true, 'theme' => $scene['theme']];
             }
             return $scenes;
         }

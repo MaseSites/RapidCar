@@ -1841,3 +1841,14 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     font-size: 13.5px;
 }
 
+/* Themen-Gruppen im Hintergrund-Waehler */
+.bg-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 14px 2px 8px;
+}
+.bg-group-more {
+    margin: 4px 2px 10px;
+}
+

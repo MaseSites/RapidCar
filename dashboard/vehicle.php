@@ -602,9 +602,34 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                             </div>
                         <?php endif; ?>
                         <div class="bg-dialog-body">
-                            <div class="bg-grid" data-pane="recommended">
-                                <?php foreach ($bgTemplates as $key => $template): ?>
-                                    <?= $bgThumb((string) $key, $template['label'], $template['file'] === '' ? '' : (str_starts_with($template['file'], 'http') ? $template['file'] : base_url($template['file']))) ?>
+                            <div data-pane="recommended">
+                                <?php
+                                // Nach Thema gruppieren; ohne Thema unter "Weitere"
+                                $bgGroups = [];
+                                foreach ($bgTemplates as $key => $template) {
+                                    $theme = trim((string) ($template['theme'] ?? ''));
+                                    $bgGroups[$theme][(string) $key] = $template;
+                                }
+                                ksort($bgGroups);
+                                $bgThumbUrl = static fn(array $t): string => $t['file'] === '' ? ''
+                                    : (str_starts_with($t['file'], 'http') ? $t['file'] : base_url($t['file']));
+                                ?>
+                                <?php foreach ($bgGroups as $bgTheme => $bgGroup): ?>
+                                    <?php if (count($bgGroups) > 1 || $bgTheme !== ''): ?>
+                                        <div class="bg-group-title"><?= e($bgTheme !== '' ? $bgTheme : 'Weitere') ?></div>
+                                    <?php endif; ?>
+                                    <div class="bg-grid">
+                                        <?php $bgPos = 0; ?>
+                                        <?php foreach ($bgGroup as $key => $template): ?>
+                                            <?php $bgHidden = $bgPos >= 4 ? ' data-bg-extra="1" hidden' : ''; $bgPos++; ?>
+                                            <?= str_replace('<div class="bg-thumb', '<div' . $bgHidden . ' class="bg-thumb', $bgThumb((string) $key, $template['label'], $bgThumbUrl($template))) ?>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <?php if (count($bgGroup) > 4): ?>
+                                        <button type="button" class="btn btn-secondary btn-sm bg-group-more" data-bg-more>
+                                            Mehr anzeigen (<?= count($bgGroup) - 4 ?>)
+                                        </button>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
                                 <?php if ($bgTemplates === []): ?>
                                     <div class="text-sm text-muted"><?= t('background.no_scenes') ?></div>
@@ -1240,6 +1265,13 @@ $pageScripts = <<<HTML
             document.getElementById('bgDialog').showModal();
         });
 
+        document.querySelectorAll('[data-bg-more]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var grid = btn.previousElementSibling;
+                grid.querySelectorAll('[data-bg-extra]').forEach(function (tile) { tile.hidden = false; });
+                btn.remove();
+            });
+        });
         document.getElementById('bgDialogClose').addEventListener('click', function () {
             document.getElementById('bgDialog').close();
         });

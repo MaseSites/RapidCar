@@ -1291,6 +1291,16 @@ check('Vorschau-Erzeuger vorhanden und asynchron',
 check('Sammel-Eingabe nimmt Bildadressen an',
     str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'https://' . chr(92) . 'S+'));
 
+// Themen-Gruppen: je Thema 4 Kacheln sichtbar, Rest hinter "Mehr anzeigen"
+check('Szenen tragen ein Thema',
+    str_contains((string) file_get_contents(BASE_PATH . '/src/Integration/SpyneService.php'), "'theme'"));
+check('Sammel-Eingabe hat ein Themenfeld',
+    str_contains((string) file_get_contents(BASE_PATH . '/admin/settings.php'), 'scene_theme'));
+check('Auswahl gruppiert und blendet ab der fuenften Kachel aus',
+    str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'data-bg-extra')
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/vehicle.php'), 'Mehr anzeigen'));
+
+
 
 
 

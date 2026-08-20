@@ -75,10 +75,11 @@ final class SpyneService
                 return [
                     'label'   => $label !== '' ? $label : $id,
                     'preview' => trim((string) ($value['preview'] ?? '')),
+                    'theme'   => trim((string) ($value['theme'] ?? '')),
                 ];
             }
             $label = trim((string) $value);
-            return ['label' => $label !== '' ? $label : $id, 'preview' => ''];
+            return ['label' => $label !== '' ? $label : $id, 'preview' => '', 'theme' => ''];
         };
 
         $stored = \App\Service\SettingsService::get('spyne_scenes');
@@ -105,7 +106,7 @@ final class SpyneService
         }
 
         if ($scenes === []) {
-            $scenes[self::DEFAULT_BACKGROUND] = ['label' => 'Studio (Standard)', 'preview' => ''];
+            $scenes[self::DEFAULT_BACKGROUND] = ['label' => 'Studio (Standard)', 'preview' => '', 'theme' => ''];
         }
         return $scenes;
     }
