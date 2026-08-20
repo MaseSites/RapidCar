@@ -165,15 +165,17 @@ try {
         $note = trim($note . ' ' . implode(' ', $checked['notes']));
     }
 
-    // Belastung beim ersten KI-Schritt dieses Fahrzeugs, dann nie wieder.
-    if ($usedAi && (int) ($currentUser['is_demo'] ?? 0) !== 1) {
+    // Bezahlt und gezaehlt wird nur, wenn das Dokument etwas hergibt. Ein
+    // unlesbarer Scan kostet nichts und verbraucht keinen der drei Versuche.
+    $documentSuccessful = $usedAi && ($fields !== [] || $documentFeatures !== []);
+    if ($documentSuccessful && (int) ($currentUser['is_demo'] ?? 0) !== 1) {
         try {
             \App\Service\AiUsageService::ensureCharged($dealershipId, $vehicleId, (int) $currentUser['id']);
         } catch (\RuntimeException $e) {
             json_response(false, null, t('ai.no_credits'), 402);
         }
     }
-    if ($usedAi) {
+    if ($documentSuccessful) {
         \App\Service\AiUsageService::countDocument($vehicleId);
     }
 

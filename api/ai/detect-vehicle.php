@@ -52,16 +52,6 @@ if (!\App\Service\AiUsageService::canDetect($vehicleId)) {
     );
 }
 
-// Belastung beim ERSTEN KI-Schritt, nicht erst beim Text: sonst waere die
-// Erkennung kostenlos und das Guthaben liesse sich umgehen.
-$isDemoAccount = (int) ($currentUser['is_demo'] ?? 0) === 1;
-if (!$isDemoAccount) {
-    try {
-        \App\Service\AiUsageService::ensureCharged($dealershipId, $vehicleId, (int) $currentUser['id']);
-    } catch (\RuntimeException $e) {
-        json_response(false, null, t('ai.no_credits'), 402);
-    }
-}
 
 try {
     $detection = AIVehicleService::detectFromImages($vehicleId);
@@ -74,6 +64,21 @@ $checked = \App\Service\FieldPlausibility::check($detection['fields'] ?? []);
 $detection['fields'] = $checked['fields'];
 if ($checked['notes'] !== []) {
     $detection['note'] = trim(($detection['note'] ?? '') . ' ' . implode(' ', $checked['notes']));
+}
+
+// Bezahlt und gezaehlt wird erst eine ERFOLGREICHE Erkennung. Ein graues
+// Foto oder ein Fehlschlag kostet nichts und verbraucht den Versuch nicht:
+// bessere Fotos hochladen und nochmal geht immer.
+$isDemoAccount = (int) ($currentUser['is_demo'] ?? 0) === 1;
+if ($detection['detected']) {
+    if (!$isDemoAccount) {
+        try {
+            \App\Service\AiUsageService::ensureCharged($dealershipId, $vehicleId, (int) $currentUser['id']);
+        } catch (\RuntimeException $e) {
+            json_response(false, null, t('ai.no_credits'), 402);
+        }
+    }
+    \App\Service\AiUsageService::countDetection($vehicleId);
 }
 
 $applied = [];
@@ -94,8 +99,6 @@ if ($apply && $detection['detected'] && $detection['fields'] !== []) {
         $dealershipId
     );
 
-    // Erkennung ist verbraucht: ab jetzt gilt Handarbeit fuer dieses Fahrzeug.
-    \App\Service\AiUsageService::countDetection($vehicleId);
 
     // Sichtbare Ausstattung übernehmen, ohne vorhandene Einträge zu verlieren
     $detectedFeatures = array_filter(array_map('strval', (array) ($detection['features'] ?? [])));
