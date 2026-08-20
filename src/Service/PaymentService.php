@@ -8,6 +8,7 @@ use App\Core\CaBundle;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Logger;
+use App\Service\SubscriptionService;
 use RuntimeException;
 
 /**
@@ -163,16 +164,51 @@ final class PaymentService
         if (!is_array($event)) {
             throw new RuntimeException('Der Webhook-Inhalt konnte nicht gelesen werden.');
         }
+        $eventType = (string) ($event['type'] ?? '');
+
+        // ------------------------------------------------------------- Abo
+        // Laeuft das Abo aus oder wird es gekuendigt, meldet Stripe das hier.
+        if ($eventType === 'customer.subscription.deleted') {
+            $object = $event['data']['object'] ?? [];
+            $dealershipId = (int) ($object['metadata']['dealership_id'] ?? 0);
+            if ($dealershipId > 0) {
+                SubscriptionService::cancel($dealershipId);
+                Logger::info('Abo beendet fuer Autohaus #' . $dealershipId);
+            }
+            return null;
+        }
+        if ($eventType === 'invoice.paid') {
+            // Verlaengerung: das Abo bleibt aktiv, Enddatum wandert mit.
+            $object = $event['data']['object'] ?? [];
+            $dealershipId = (int) ($object['subscription_details']['metadata']['dealership_id']
+                ?? ($object['lines']['data'][0]['metadata']['dealership_id'] ?? 0));
+            if ($dealershipId > 0) {
+                SubscriptionService::activate($dealershipId);
+                Logger::info('Abo verlaengert fuer Autohaus #' . $dealershipId);
+            }
+            return null;
+        }
+
         // Zwei Wege zum bezahlten Kauf: sofortige Zahlarten melden
         // checkout.session.completed mit payment_status paid; asynchrone
         // (z.B. Bankueberweisung) melden den spaeteren Zahlungseingang als
         // async_payment_succeeded. Beide schreiben gut, doppelt nie.
-        $eventType = (string) ($event['type'] ?? '');
         if (!in_array($eventType, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
             return null;
         }
 
         $session = $event['data']['object'] ?? [];
+
+        // Abo-Kasse: kein Guthaben, sondern Freischaltung
+        if ((string) ($session['metadata']['kind'] ?? '') === 'subscription') {
+            $dealershipId = (int) ($session['metadata']['dealership_id'] ?? 0);
+            if ($dealershipId > 0 && (string) ($session['payment_status'] ?? '') === 'paid') {
+                SubscriptionService::activate($dealershipId);
+                Logger::info('Abo aktiviert fuer Autohaus #' . $dealershipId);
+            }
+            return null;
+        }
+
         $orderId = (int) ($session['metadata']['order_id'] ?? ($session['client_reference_id'] ?? 0));
         if ($orderId <= 0) {
             throw new RuntimeException('Der Webhook enthält keine Bestellnummer.');
@@ -292,6 +328,50 @@ final class PaymentService
             }
         }
         return $overview;
+    }
+
+    /**
+     * Erstellt eine Stripe-Kasse fuer das Monatsabo. Der Preis entsteht
+     * hier auf dem Server; der Kaeufer kann ihn nicht beeinflussen.
+     */
+    public static function createSubscriptionCheckout(
+        int $dealershipId,
+        string $buyerEmail,
+        string $successUrl,
+        string $cancelUrl
+    ): string {
+        if (!self::isStripeReady()) {
+            throw new RuntimeException('Stripe ist nicht konfiguriert.');
+        }
+
+        $params = [
+            'mode'                => 'subscription',
+            'success_url'         => $successUrl,
+            'cancel_url'          => $cancelUrl,
+            'client_reference_id' => 'sub-' . $dealershipId,
+            'line_items[0][quantity]' => '1',
+            'line_items[0][price_data][currency]'    => strtolower(SubscriptionService::CURRENCY),
+            'line_items[0][price_data][unit_amount]' => (string) (int) round(SubscriptionService::PRICE * 100),
+            'line_items[0][price_data][recurring][interval]' => 'month',
+            'line_items[0][price_data][product_data][name]'  => 'RapidCar Plus',
+            'metadata[dealership_id]' => (string) $dealershipId,
+            'metadata[kind]'          => 'subscription',
+            'subscription_data[metadata][dealership_id]' => (string) $dealershipId,
+        ];
+        if ($buyerEmail !== '') {
+            $params['customer_email'] = $buyerEmail;
+        }
+        if (filter_var(Config::get('payment.automatic_tax', false), FILTER_VALIDATE_BOOL)) {
+            $params['automatic_tax[enabled]'] = 'true';
+            $params['billing_address_collection'] = 'required';
+        }
+
+        $response = self::stripeRequest('POST', '/checkout/sessions', $params, 'rapidcar-sub-' . $dealershipId);
+        $url = (string) ($response['url'] ?? '');
+        if ($url === '') {
+            throw new RuntimeException('Stripe hat keine Kassen-URL geliefert.');
+        }
+        return $url;
     }
 
     /** E-Mail des Bestellers: erst der ausloesende Nutzer, sonst der Mandant. */

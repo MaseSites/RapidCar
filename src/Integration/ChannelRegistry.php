@@ -106,27 +106,6 @@ final class ChannelRegistry
                 'region' => 'International',
                 'note'   => 'Instagram Business-Konto und Meta-App erforderlich.',
             ],
-            'tiktok' => [
-                'name'   => 'TikTok',
-                'type'   => self::TYPE_SOCIAL,
-                'icon'   => 'share',
-                'region' => 'International',
-                'note'   => 'TikTok for Business-Konto und App-Zugang erforderlich.',
-            ],
-            'facebook' => [
-                'name'   => 'Facebook Seite',
-                'type'   => self::TYPE_SOCIAL,
-                'icon'   => 'share',
-                'region' => 'International',
-                'note'   => 'Meta Business-Konto erforderlich.',
-            ],
-            'youtube' => [
-                'name'   => 'YouTube',
-                'type'   => self::TYPE_SOCIAL,
-                'icon'   => 'share',
-                'region' => 'International',
-                'note'   => 'Google-Konto mit YouTube-Kanal erforderlich.',
-            ],
         ];
 
         // Der Testkanal steht nur Testkonten offen. Er nimmt Inserate

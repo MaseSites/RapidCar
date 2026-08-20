@@ -57,6 +57,26 @@ function guard_ai_credits(int $dealershipId): void
 }
 
 /**
+ * Werkzeuge des Abos "RapidCar Plus". Ohne aktives Abo bricht die Anfrage
+ * mit 402 ab und sagt klar, dass es zum Abo gehoert. Es wird nichts
+ * vorgetaeuscht und nichts stillschweigend uebergangen.
+ */
+function guard_subscription(int $dealershipId, string $feature = ''): void
+{
+    if (\App\Service\SubscriptionService::isActive($dealershipId)) {
+        return;
+    }
+    $label = \App\Service\SubscriptionService::FEATURES[$feature] ?? 'Diese Funktion';
+    json_response(
+        false,
+        ['needs_subscription' => true],
+        $label . ' gehört zu RapidCar Plus (' . number_format(\App\Service\SubscriptionService::PRICE, 2, '.', "'")
+        . ' ' . \App\Service\SubscriptionService::CURRENCY . ' im Monat). Im Dashboard unter Abo freischalten.',
+        402
+    );
+}
+
+/**
  * Demo-Modus (§64): Schreiboperationen sind deaktiviert.
  * Vor jeder schreibenden Aktion aufrufen.
  */

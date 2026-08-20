@@ -81,6 +81,12 @@ $creditBalance = $dealershipId !== null ? \App\Service\CreditService::balance($d
             <a class="nav-item <?= $activeNav === 'credits' ? 'active' : '' ?>" href="<?= base_url('dashboard/credits.php') ?>">
                 <?= icon('tag') ?> <?= t('sidebar.credits') ?>
             </a>
+            <a class="nav-item <?= $activeNav === 'subscription' ? 'active' : '' ?>" href="<?= base_url('dashboard/subscription.php') ?>">
+                <?= icon('star') ?> Abo
+                <?php if ($dealershipId !== null && !\App\Service\SubscriptionService::isActive($dealershipId)): ?>
+                    <span class="count">Plus</span>
+                <?php endif; ?>
+            </a>
             <a class="nav-item <?= $activeNav === 'settings' ? 'active' : '' ?>" href="<?= base_url('dashboard/settings.php') ?>">
                 <?= icon('settings') ?> <?= t('sidebar.settings') ?>
             </a>

@@ -194,10 +194,10 @@ check('deutscher Händler bekommt mobile.de angeboten',
     isset(ChannelRegistry::forCountry('DE')['mobile_de']));
 check('deutscher Händler bekommt car4you nicht angeboten',
     !isset(ChannelRegistry::forCountry('DE')['car4you']));
-check('soziale Netzwerke gelten überall',
+check('Instagram gilt überall',
     isset(ChannelRegistry::forCountry('CH')['instagram'])
     && isset(ChannelRegistry::forCountry('DE')['instagram'])
-    && isset(ChannelRegistry::forCountry('IT')['tiktok']));
+    && isset(ChannelRegistry::forCountry('IT')['instagram']));
 check('ohne Land bleibt die volle Liste',
     count(ChannelRegistry::forCountry(null)) === count(ChannelRegistry::all()));
 check('ausgeblendete Kanäle sind abrufbar',
@@ -1723,13 +1723,51 @@ check('ohne Abgleich gilt der Stand als veraltet',
 
 echo "Kanäle (ChannelRegistry)\n";
 $channels = ChannelRegistry::all();
-check('TikTok vorhanden', isset($channels['tiktok']) && $channels['tiktok']['type'] === ChannelRegistry::TYPE_SOCIAL);
+check('Instagram als einziges soziales Netz', isset($channels['instagram']) && $channels['instagram']['type'] === ChannelRegistry::TYPE_SOCIAL);
 check('AutoScout24 und mobile.de vorhanden', isset($channels['autoscout24'], $channels['mobile_de']));
 check('Schweizer Plattformen vorhanden', isset($channels['car4you'], $channels['tutti'], $channels['ricardo']));
 check('mindestens 8 Verkaufsplattformen', count(ChannelRegistry::byType(ChannelRegistry::TYPE_MARKETPLACE)) >= 8);
-check('mindestens 4 soziale Netzwerke', count(ChannelRegistry::byType(ChannelRegistry::TYPE_SOCIAL)) >= 4);
-check('ohne Zugangsdaten: nicht konfiguriert', ChannelRegistry::isConfigured('tiktok') === false);
+check('nur Instagram als soziales Netz', count(ChannelRegistry::byType(ChannelRegistry::TYPE_SOCIAL)) === 1);
+check('ohne Zugangsdaten: nicht konfiguriert', ChannelRegistry::isConfigured('instagram') === false);
 check('unbekannter Kanal: exists false', ChannelRegistry::exists('gibt-es-nicht') === false);
+
+echo "
+"; echo "Abo RapidCar Plus"; echo "
+";
+
+// Das Abo schaltet die Werkzeuge frei, die laufende Kosten verursachen.
+// Freigeschaltet wird nur nach bestaetigter Zahlung durch Stripe.
+check('Preis und Waehrung stehen fest',
+    App\Service\SubscriptionService::PRICE === 19.90
+    && App\Service\SubscriptionService::CURRENCY === 'CHF');
+check('vier Werkzeuge im Abo',
+    count(App\Service\SubscriptionService::FEATURES) === 4
+    && isset(App\Service\SubscriptionService::FEATURES['background'],
+             App\Service\SubscriptionService::FEATURES['instagram']));
+check('ohne Abo keine Freischaltung',
+    App\Service\SubscriptionService::isActive(999999) === false);
+
+$paySrc = file_get_contents(BASE_PATH . '/src/Service/PaymentService.php');
+check('Abo-Kasse laeuft im subscription-Modus',
+    str_contains($paySrc, "'mode'                => 'subscription'")
+    && str_contains($paySrc, "recurring][interval]"));
+check('Preis entsteht auf dem Server',
+    str_contains($paySrc, 'SubscriptionService::PRICE * 100'));
+check('Webhook schaltet frei und beendet',
+    str_contains($paySrc, "customer.subscription.deleted")
+    && str_contains($paySrc, 'SubscriptionService::activate'));
+
+$permSrc = file_get_contents(BASE_PATH . '/includes/permissions.php');
+check('Wache fuer Abo-Werkzeuge vorhanden',
+    str_contains($permSrc, 'function guard_subscription')
+    && str_contains($permSrc, '402'));
+check('Hintergrund braucht das Abo',
+    str_contains((string) file_get_contents(BASE_PATH . '/api/vehicles/image-background.php'), "guard_subscription(\$dealershipId, 'background')"));
+check('Instagram braucht das Abo',
+    str_contains((string) file_get_contents(BASE_PATH . '/api/social/publish-post.php'), "guard_subscription(\$dealershipId, 'instagram')"));
+check('TikTok-Dienst ist entfernt',
+    !is_file(BASE_PATH . '/src/Integration/TikTokService.php'));
+
 
 // ---------------------------------------------------------------------------
 echo "\n{$passed} bestanden, {$failed} fehlgeschlagen\n";

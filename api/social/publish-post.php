@@ -16,6 +16,8 @@ use App\Service\ActivityLogger;
 
 $dealershipId = require_dealership();
 guard_demo_mode();
+// Veroeffentlichen auf Instagram gehoert zu RapidCar Plus.
+guard_subscription($dealershipId, 'instagram');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     json_response(false, null, 'Nur POST erlaubt.', 405);

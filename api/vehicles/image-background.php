@@ -26,6 +26,8 @@ use App\Service\ImageService;
 
 $dealershipId = require_dealership();
 guard_demo_mode();
+// Hintergrund, Kennzeichen-Logo und Marken-Logo gehoeren zu RapidCar Plus.
+guard_subscription($dealershipId, 'background');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     json_response(false, null, 'Nur POST erlaubt.', 405);

@@ -109,7 +109,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $allChannels = ChannelRegistry::overview($dealershipId);
 // Im Onboarding nur die wichtigsten Kanäle zeigen
-$onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24', 'mobile_de', 'instagram', 'tiktok']));
+$onboardingChannels = array_intersect_key($allChannels, array_flip(['autoscout24', 'mobile_de', 'instagram']));
 ?>
 <!DOCTYPE html>
 <html lang="de">

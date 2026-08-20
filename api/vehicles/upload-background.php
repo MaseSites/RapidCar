@@ -17,6 +17,7 @@ use App\Service\ImageService;
 
 $dealershipId = require_dealership();
 guard_demo_mode();
+guard_subscription($dealershipId, 'background');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     json_response(false, null, 'Nur POST erlaubt.', 405);
