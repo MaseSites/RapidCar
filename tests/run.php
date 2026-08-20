@@ -1214,6 +1214,10 @@ check('Spyne-Stoerung wird wiederholt',
 check('Stoerung wird nicht als Ablehnung gemeldet',
     str_contains($spyneSrc2, 'liegt nicht an deinen Daten'));
 
+check('Fotos gehen als Aussenaufnahme an Spyne',
+    str_contains($spyneSrc2, "'category' => 'Exterior'"));
+
+
 
 
 

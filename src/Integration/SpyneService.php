@@ -258,7 +258,10 @@ final class SpyneService
             ],
             'mediaInput' => [
                 'imageData' => [
-                    ['url' => $imageUrl],
+                    // Kategorie ausdruecklich mitgeben: ohne sie stuft Spyne
+                    // Fotos als "Miscellaneous" ein und behandelt sie nicht
+                    // als Fahrzeug-Aussenaufnahme.
+                    ['url' => $imageUrl, 'category' => 'Exterior'],
                 ],
             ],
             'processingDetails' => [
