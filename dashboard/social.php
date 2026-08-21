@@ -217,7 +217,6 @@ else:
         <div class="card mb-3">
             <div class="card-header">
                 <h2><?= t('social.best_images') ?></h2>
-                <span class="badge badge-warning" title="Reihenfolge: regelbasierte Bildqualität"><?= t('ai.badge.mock') ?></span>
             </div>
             <div class="card-body">
                 <p class="text-sm text-muted mb-2"><?= t('social.best_images_hint') ?></p>
@@ -268,7 +267,7 @@ else:
             <div class="card-header"><h2><?= t('social.caption') ?></h2></div>
             <div class="card-body">
                 <textarea class="form-control" id="captionInput" rows="7"><?= e($caption['caption']) ?></textarea>
-                <div class="text-xs text-muted mt-1">Automatisch erstellt (<?= $caption['mode'] === 'mock' ? 'regelbasiert' : 'KI' ?>), frei anpassbar.</div>
+                <div class="text-xs text-muted mt-1">Automatisch erstellt, frei anpassbar.</div>
             </div>
         </div>
     </div>

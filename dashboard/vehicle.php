@@ -596,7 +596,6 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                     <img src="<?= e(upload_url((string) ($image['thumb_path'] ?? $image['file_path']))) ?>" alt="">
                     <?php if ((int) $image['is_main'] === 1): ?><span class="main-tag"><?= t('vehicle.main_image') ?></span><?php endif; ?>
                     <?php if ($image['ai_quality_score'] !== null): ?>
-                        <span class="main-tag" style="top:auto;bottom:8px;left:8px;background:rgba(0,0,0,.6)" title="Bildqualität (regelbasiert)">Q<?= (int) $image['ai_quality_score'] ?></span>
                     <?php endif; ?>
                     <?php if ((string) ($image['background_key'] ?? '') !== ''): ?>
                         <span class="bg-tag" title="<?= e(t('background.changed')) ?>"><?= icon('image', 11) ?></span>
@@ -1125,7 +1124,6 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                     <?php if ($channel['connected']): ?>
                         <span class="badge badge-success"><span class="status-dot green"></span> <?= t('channels.status.connected') ?></span>
                     <?php elseif ($channel['testable']): ?>
-                        <span class="badge badge-warning"><?= t('publish.test_only') ?></span>
                     <?php else: ?>
                         <span class="text-xs text-muted"><?= t('channels.status.disconnected') ?></span>
                     <?php endif; ?>

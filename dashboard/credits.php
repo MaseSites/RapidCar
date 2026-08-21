@@ -236,22 +236,6 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             </ul>
         </div>
 
-        <?php if ($history !== []): ?>
-            <div class="topup-why">
-                <div class="topup-why-title"><?= t('credits.recent') ?></div>
-                <div class="credit-recent">
-                    <?php foreach ($history as $entry): ?>
-                        <div class="credit-recent-row">
-                            <span class="credit-recent-delta <?= (int) $entry['delta'] > 0 ? 'is-plus' : '' ?>">
-                                <?= (int) $entry['delta'] > 0 ? '+' : '' ?><?= (int) $entry['delta'] ?>
-                            </span>
-                            <span class="credit-recent-reason"><?= e($reasonLabels[(string) $entry['reason']] ?? (string) $entry['reason']) ?></span>
-                            <span class="credit-recent-time"><?= e(time_ago((string) $entry['created_at'])) ?></span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 

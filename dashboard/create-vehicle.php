@@ -140,7 +140,6 @@ $jsUploadFailed = $js('create.upload_failed');
 $jsMainImage    = $js('vehicle.main_image');
 $jsDetecting    = $js('create.detecting');
 $jsOpening      = $js('create.opening');
-$jsBadgeMock    = $js('ai.badge.mock');
 $jsDetected     = $js('create.detected', ['label' => '{LABEL}']);
 $jsFieldsFilled = $js('create.fields_filled', ['count' => '{COUNT}']);
 $jsCounter      = $js('create.counter', ['count' => '{COUNT}', 'max' => '{MAX}']);
@@ -340,7 +339,7 @@ $pageScripts = <<<HTML
 
     function startDetection() {
         detectionStarted = true;
-        analysisText.innerHTML = escapeHtml({$jsDetecting}) + ' <span class="badge badge-warning">' + escapeHtml({$jsBadgeMock}) + '</span>';
+        analysisText.innerHTML = escapeHtml({$jsDetecting});
         apiFetch('api/ai/detect-vehicle.php', {
             method: 'POST',
             body: { vehicle_id: vehicleId, apply: 1 }

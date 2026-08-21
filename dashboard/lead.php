@@ -135,7 +135,7 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <div class="flex gap-1" style="flex-wrap:wrap">
                     <button class="btn btn-primary" type="submit"><?= icon('send', 15) ?> <?= t('lead.reply') ?></button>
                     <button class="btn btn-secondary" type="button" id="aiDraftBtn">
-                        <?= icon('edit', 15) ?> <?= t('lead.ai_draft') ?> <span class="badge badge-warning" style="margin-left:4px"><?= t('ai.badge.mock') ?></span>
+                        <?= icon('edit', 15) ?> <?= t('lead.ai_draft') ?>
                     </button>
                 </div>
                 <div class="text-xs text-muted mt-1">

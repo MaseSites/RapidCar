@@ -154,7 +154,7 @@ $hasPlus = $dealershipId !== null && \App\Service\SubscriptionService::isActive(
                           zeigt sich an den Ergebnissen. Nur die Demo wird
                           gekennzeichnet, damit niemand echte Erkennung erwartet. */ ?>
                 <?php if ($aiMode === 'mock'): ?>
-                    <span class="badge badge-warning" title="<?= t('ai.mode.mock') ?>"><?= t('ai.badge.test') ?></span>
+                    
                 <?php endif; ?>
                 <div class="dropdown">
                     <button class="icon-btn" data-dropdown="notifMenu" aria-label="<?= t('header.notifications') ?>">
