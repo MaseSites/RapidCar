@@ -71,67 +71,130 @@ $activeNav = 'subscription';
 require BASE_PATH . '/includes/layout/dash-header.php';
 ?>
 
-<!-- Vollbild: eine grosse, dunkle Flaeche mit Lichtern, mittig die
-     Botschaft, darunter die Vorteile mit Haken und der Kaufknopf. -->
-<div class="plus-hero">
-    <div class="plus-hero-glow plus-hero-glow-a" aria-hidden="true"></div>
-    <div class="plus-hero-glow plus-hero-glow-b" aria-hidden="true"></div>
-    <svg class="plus-hero-lines" aria-hidden="true" viewBox="0 0 1200 320" preserveAspectRatio="none">
-        <path d="M0 250 C 300 120, 600 320, 1200 140" stroke="rgba(168,85,247,.25)" stroke-width="2" fill="none"/>
-        <path d="M0 290 C 350 180, 700 340, 1200 190" stroke="rgba(124,58,237,.16)" stroke-width="2" fill="none"/>
-        <path d="M0 210 C 280 80, 640 280, 1200 90" stroke="rgba(255,255,255,.06)" stroke-width="1.5" fill="none"/>
-    </svg>
+<!-- Nach Kundenvorlage: dunkles Banner oben, darunter zweispaltig die
+     Vorteile links und die Preiskarte rechts. -->
+<div class="pl">
 
-    <div class="plus-hero-inner">
-        <div class="plus-hero-kicker">RapidCar</div>
-        <h1 class="plus-hero-title">Entdecke jetzt <span>RapidCar&nbsp;Plus</span></h1>
-        <div class="plus-hero-price">
-            <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?> <?= e(SubscriptionService::CURRENCY) ?>
-            pro Monat, monatlich kündbar
+    <!-- ------------------------------------------------------- Banner -->
+    <div class="pl-hero">
+        <div class="pl-hero-copy">
+            <h1>Mehr Power. Mehr Präsenz.<br><span>RapidCar Plus</span></h1>
+            <p>Entdecke alle Premium-Funktionen und bringe deine Inserate auf das nächste Level.</p>
+            <div class="pl-hero-facts">
+                <span><?= icon('refresh', 15) ?> Monatlich kündbar</span>
+                <span><?= icon('lock', 15) ?> Sicher bezahlen</span>
+                <span><?= icon('activity', 15) ?> Sofort aktiv</span>
+            </div>
+        </div>
+        <div class="pl-hero-art" aria-hidden="true">
+            <span class="pl-orbit pl-orbit-a"></span>
+            <span class="pl-orbit pl-orbit-b"></span>
+            <span class="pl-art-cube"><?= icon('star', 54) ?></span>
+            <span class="pl-art-bubble pl-art-bubble-a"><?= icon('chart', 17) ?></span>
+            <span class="pl-art-bubble pl-art-bubble-b"><?= icon('activity', 17) ?></span>
+            <span class="pl-art-bubble pl-art-bubble-c"><?= icon('image', 17) ?></span>
+        </div>
+    </div>
+
+    <div class="pl-grid">
+        <div class="pl-main">
+            <h2 class="pl-section-title">Deine Vorteile mit RapidCar Plus</h2>
+
+            <div class="pl-benefits">
+                <?php
+                $plBenefits = [
+                    ['image', 'Studio-Hintergründe per KI', 'Entferne oder ersetze Hintergründe automatisch.'],
+                    ['star', 'Schatten und Glanz', 'Verleihe deinen Bildern perfekten Glanz.'],
+                    ['shield', 'Kennzeichen abdecken oder branden', 'Schütze deine Daten oder werbe für deine Marke.'],
+                    ['check-square', 'Logo im Bild platzieren', 'Stärke deine Marke mit deinem Logo.'],
+                    ['camera', 'Alle Fotos auf einmal', 'Lade, bearbeite und verwalte alle Bilder gleichzeitig.'],
+                    ['edit', 'Instagram-Beiträge erstellen', 'Erstelle ansprechende Beiträge automatisch.'],
+                    ['instagram', 'Direkt auf Instagram veröffentlichen', 'Veröffentliche deine Inserate mit nur einem Klick.'],
+                    ['upload', 'Eigene Hintergründe', 'Lade eigene Hintergründe hoch und nutze sie.'],
+                ];
+                ?>
+                <?php foreach ($plBenefits as [$plIcon, $plTitle, $plText]): ?>
+                    <div class="pl-benefit">
+                        <span class="pl-benefit-icon"><?= icon($plIcon, 19) ?></span>
+                        <div>
+                            <div class="pl-benefit-title"><?= e($plTitle) ?></div>
+                            <div class="pl-benefit-text"><?= e($plText) ?></div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="pl-trust">
+                <div class="pl-trust-item">
+                    <span class="pl-trust-icon"><?= icon('shield', 17) ?></span>
+                    <div>
+                        <strong>Sicher &amp; zuverlässig</strong>
+                        <span>Deine Daten sind bei uns sicher. SSL-verschlüsselt &amp; DSGVO-konform.</span>
+                    </div>
+                </div>
+                <div class="pl-trust-item">
+                    <span class="pl-trust-icon"><?= icon('refresh', 17) ?></span>
+                    <div>
+                        <strong>Jederzeit kündbar</strong>
+                        <span>Kündige dein Abo jederzeit mit nur einem Klick.</span>
+                    </div>
+                </div>
+                <div class="pl-trust-item">
+                    <span class="pl-trust-icon"><?= icon('help', 17) ?></span>
+                    <div>
+                        <strong>Unterstützung</strong>
+                        <span>Unser Support-Team ist für dich da.</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <ul class="plus-hero-list">
-            <?php foreach (SubscriptionService::benefits() as $benefit): ?>
-                <li>
-                    <span class="plus-hero-check"><?= icon('check', 14) ?></span>
-                    <span><?= e($benefit['title']) ?></span>
-                </li>
-            <?php endforeach; ?>
-        </ul>
+        <!-- --------------------------------------------------- Preiskarte -->
+        <div class="pl-side">
+            <div class="pl-price-card">
+                <div class="pl-price-name">RapidCar Plus</div>
+                <div class="pl-price-figure">
+                    <?= number_format(SubscriptionService::PRICE, 2, '.', "'") ?>
+                    <span>CHF</span>
+                </div>
+                <div class="pl-price-period">pro Monat, monatlich kündbar</div>
 
-        <?php if ($isActive): ?>
-            <div class="plus-active-badge plus-hero-active"><?= icon('check', 14) ?> Aktiv</div>
-            <?php if ($endsAt !== null): ?>
-                <p class="plus-hero-note">Gekündigt. Nutzbar bis <?= e(format_datetime($endsAt)) ?>.</p>
-            <?php else: ?>
-                <p class="plus-hero-note">Die Abrechnung läuft über Stripe.</p>
-                <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
-                    <?= App\Core\Csrf::field() ?>
-                    <input type="hidden" name="action" value="cancel">
-                    <button class="btn btn-secondary" type="submit">Kündigen</button>
-                </form>
-            <?php endif; ?>
-        <?php else: ?>
-            <form method="post">
-                <?= App\Core\Csrf::field() ?>
-                <input type="hidden" name="action" value="subscribe">
-                <button class="plus-hero-cta" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
-                    Jetzt kaufen
-                </button>
-                <?php if (!$stripeReady): ?>
-                    <div class="plus-hero-note">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
+                <ul class="pl-price-checks">
+                    <li><?= icon('check', 14) ?> Alle Premium-Funktionen inklusive</li>
+                    <li><?= icon('check', 14) ?> Keine Anzeigen</li>
+                    <li><?= icon('check', 14) ?> Priorisierter Support</li>
+                    <li><?= icon('check', 14) ?> Regelmässige Updates</li>
+                </ul>
+
+                <div class="pl-price-divider"></div>
+
+                <?php if ($isActive): ?>
+                    <div class="plus-active-badge"><?= icon('check', 14) ?> Aktiv</div>
+                    <?php if ($endsAt !== null): ?>
+                        <p class="pl-price-note">Gekündigt. Nutzbar bis <?= e(format_datetime($endsAt)) ?>.</p>
+                    <?php else: ?>
+                        <p class="pl-price-note">Die Abrechnung läuft über Stripe.</p>
+                        <form method="post" data-confirm="Abo wirklich kündigen? Die Funktionen bleiben bis zum Ende des bezahlten Monats nutzbar.">
+                            <?= App\Core\Csrf::field() ?>
+                            <input type="hidden" name="action" value="cancel">
+                            <button class="btn btn-secondary btn-block" type="submit">Kündigen</button>
+                        </form>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <p class="pl-price-note">Deine Zahlung ist sicher und verschlüsselt.</p>
+                    <form method="post">
+                        <?= App\Core\Csrf::field() ?>
+                        <input type="hidden" name="action" value="subscribe">
+                        <button class="btn btn-primary btn-block btn-lg" type="submit" <?= $stripeReady ? '' : 'disabled' ?>>
+                            Jetzt abonnieren
+                        </button>
+                        <?php if (!$stripeReady): ?>
+                            <div class="form-hint" style="margin-top:8px">Die Online-Zahlung ist im Moment nicht verfügbar.</div>
+                        <?php endif; ?>
+                    </form>
                 <?php endif; ?>
-            </form>
-        <?php endif; ?>
-
-        <details class="plus-planned plus-hero-planned">
-            <summary>In Arbeit, noch nicht enthalten</summary>
-            <ul>
-                <?php foreach (SubscriptionService::planned() as $planned): ?>
-                    <li><?= e($planned) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </details>
+            </div>
+        </div>
     </div>
 </div>
 

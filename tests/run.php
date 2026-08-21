@@ -1927,9 +1927,9 @@ check('jeder Vorteil hat Titel und Erklaerung', (static function (): bool {
     }
     return true;
 })());
-check('Geplantes ist getrennt ausgewiesen',
-    count(App\Service\SubscriptionService::planned()) >= 1
-    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/subscription.php'), 'noch nicht enthalten'));
+check('Abo-Seite verspricht keine Testphase und nichts Geplantes',
+    !str_contains((string) file_get_contents(BASE_PATH . '/dashboard/subscription.php'), 'kostenlos testen')
+    && str_contains((string) file_get_contents(BASE_PATH . '/dashboard/subscription.php'), 'Jetzt abonnieren'));
 check('Werbung und Automatik stehen nicht als vorhanden da', (static function (): bool {
     foreach (App\Service\SubscriptionService::benefits() as $b) {
         if (stripos($b['title'], 'Werbung') !== false || stripos($b['title'], 'Automatisch') !== false) { return false; }
