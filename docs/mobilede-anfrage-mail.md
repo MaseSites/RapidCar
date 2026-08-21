@@ -53,12 +53,24 @@ Schnittstelle nicht herstellen.
 - Wie lange dauert eine solche Verknüpfung erfahrungsgemäss?
 - Können wir sie wieder lösen, wenn ein Händler uns verlässt?
 
-**3. Private Verkäufer**
+**3. Nur eine Anbindung je Händler?**
+
+Uns wurde berichtet, dass pro Konto nur eine Seller-API-Anbindung
+gleichzeitig aktiv sein kann.
+
+- Stimmt das?
+- Falls ja: Gilt diese Einschränkung auch, wenn wir als TSP für den Händler
+  inserieren? Also müsste ein Händler seine bestehende Anbindung
+  (zum Beispiel sein Händlerverwaltungssystem) abschalten, um zusätzlich
+  über uns zu inserieren?
+- Gibt es einen Weg, beides parallel zu betreiben?
+
+**4. Private Verkäufer**
 
 - Gilt das TSP-Modell auch für private Verkäufer, oder ausschliesslich für
   Händlerkonten?
 
-**4. Sandbox**
+**5. Sandbox**
 
 Wir haben `https://services.sandbox.mobile.de` in Ihrer Dokumentation
 gefunden.
@@ -67,14 +79,14 @@ gefunden.
   Anbindung prüfen können, ohne dass echte Anzeigen entstehen.
 - Sind die Sandbox-Zugangsdaten unabhängig vom späteren Produktivzugang?
 
-**5. Grenzen im Betrieb**
+**6. Grenzen im Betrieb**
 
 - Welche Anfragegrenzen gelten pro Minute und pro Tag?
 - Wie viele Bilder sind je Anzeige zulässig, und welche maximale Dateigrösse?
 - Werden hochgeladene Bilder automatisch entfernt, wenn eine Anzeige gelöscht
   wird?
 
-**6. Preise in Franken**
+**7. Preise in Franken**
 
 Wir sind ein Schweizer Anbieter. Ihre Beispiele zeigen ausschliesslich EUR.
 
