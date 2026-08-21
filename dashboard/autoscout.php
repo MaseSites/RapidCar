@@ -122,6 +122,60 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('dashboard/autoscout.php');
         }
 
+        if ($action === 'request_activation') {
+            // Der Haendler nennt nur seine AutoScout24-Kundennummer. Den Rest
+            // erledigt der Betreiber: er laesst die Nummer seinem Zugang
+            // zuordnen. Der Haendler gibt nie ein Passwort heraus.
+            $reqCustomer = trim(mb_substr((string) ($_POST['as24_customer_ref'] ?? ''), 0, 60));
+            $reqCompany  = trim(mb_substr((string) ($_POST['as24_company'] ?? ''), 0, 190));
+            $reqNote     = trim(mb_substr((string) ($_POST['as24_note'] ?? ''), 0, 500));
+
+            if ($reqCustomer === '' && $reqCompany === '') {
+                Session::flash('warning', 'Bitte die AutoScout24-Kundennummer oder den Firmennamen angeben.');
+                redirect('dashboard/autoscout.php');
+            }
+
+            \App\Service\ActivityLogger::log(
+                (int) $currentUser['id'],
+                'autoscout.activation_requested',
+                'Freischaltung angefragt (Kundennummer: ' . ($reqCustomer !== '' ? $reqCustomer : 'ohne')
+                    . ', Firma: ' . ($reqCompany !== '' ? $reqCompany : 'ohne') . ')',
+                'dealership',
+                $dealershipId,
+                $dealershipId
+            );
+
+            // Betreiber benachrichtigen. Empfaenger ist die Kontaktadresse,
+            // sonst die Absenderadresse der Anwendung.
+            $reqTo = trim((string) \App\Core\Config::get('mail.contact', ''));
+            if ($reqTo === '') {
+                $reqTo = trim((string) \App\Core\Config::get('mail.from', ''));
+            }
+            $reqSent = false;
+            if ($reqTo !== '') {
+                $reqSent = \App\Core\Mailer::send(
+                    $reqTo,
+                    'AutoScout24: Freischaltung angefragt',
+                    '<p>Ein Konto möchte mit AutoScout24 verbunden werden.</p>'
+                    . '<p><strong>Konto:</strong> #' . $dealershipId . '</p>'
+                    . '<p><strong>Angemeldet als:</strong> ' . e((string) ($currentUser['email'] ?? '')) . '</p>'
+                    . '<p><strong>AutoScout24-Kundennummer:</strong> ' . e($reqCustomer !== '' ? $reqCustomer : 'nicht angegeben') . '</p>'
+                    . '<p><strong>Firma:</strong> ' . e($reqCompany !== '' ? $reqCompany : 'nicht angegeben') . '</p>'
+                    . ($reqNote !== '' ? '<p><strong>Bemerkung:</strong> ' . nl2br(e($reqNote)) . '</p>' : '')
+                );
+            }
+
+            // Ehrlich bleiben: ohne eingerichteten Versand wurde nichts
+            // verschickt, die Anfrage steht aber im Verlauf.
+            Session::flash(
+                'success',
+                $reqSent
+                    ? 'Danke, die Anfrage ist unterwegs. Wir melden uns, sobald die Verbindung steht.'
+                    : 'Die Anfrage ist vermerkt. Bitte melde dich zusätzlich kurz bei uns, damit wir sie sicher sehen.'
+            );
+            redirect('dashboard/autoscout.php');
+        }
+
         if ($action === 'test') {
             $result = AutoScoutService::testConnection($dealershipId);
             Session::flash($result['ok'] ? 'success' : 'danger', $result['message']);
@@ -163,6 +217,8 @@ if ($platformMode && !$isConnected) {
 $integration = AutoScoutService::integrationRow($dealershipId);
 $credentials = AutoScoutService::credentials($dealershipId);
 $canManage = AuthService::isDealerAdmin() || AuthService::isSuperAdmin();
+// Fuer die Vorbelegung des Firmennamens in der Anfrage
+$dealership = Database::fetch('SELECT name FROM dealerships WHERE id = :id', ['id' => $dealershipId]) ?? [];
 
 // Übertragene Fahrzeuge
 $pushedVehicles = [];
@@ -450,6 +506,62 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             <div class="alert alert-info mt-2" style="margin-bottom:0">
                 <?= icon('lock', 16) ?>
                 <span class="text-sm"><?= t('autoscout.platform_security') ?></span>
+            </div>
+        </div>
+    </div>
+
+<?php elseif ($platformMode): ?>
+    <!-- ====== Betreiber-Zugang da, dieses Konto aber noch nicht zugeordnet -->
+    <div class="split split-3-2">
+        <div class="card">
+            <div class="card-header"><h2>Verbindung anfordern</h2></div>
+            <div class="card-body">
+                <p class="text-secondary mb-3">
+                    Für dein Konto ist die Verbindung zu AutoScout24 noch nicht freigeschaltet.
+                    Nenne uns deine AutoScout24-Kundennummer, den Rest übernehmen wir.
+                    Du gibst dabei kein Passwort heraus.
+                </p>
+                <?php if ($canManage): ?>
+                    <form method="post">
+                        <?= App\Core\Csrf::field() ?>
+                        <input type="hidden" name="action" value="request_activation">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">AutoScout24-Kundennummer</label>
+                                <input class="form-control" type="text" name="as24_customer_ref" maxlength="60"
+                                       placeholder="steht auf deiner AutoScout24-Rechnung">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Firmenname bei AutoScout24</label>
+                                <input class="form-control" type="text" name="as24_company" maxlength="190"
+                                       value="<?= e((string) ($dealership['name'] ?? '')) ?>">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Bemerkung <span class="optional">(optional)</span></label>
+                            <textarea class="form-control" name="as24_note" rows="3" maxlength="500"></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-lg" type="submit">
+                            <?= icon('send', 16) ?> Verbindung anfordern
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div class="alert alert-warning"><?= icon('info', 16) ?> <span><?= t('autoscout.only_admin') ?></span></div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card card-pad">
+            <h3 style="font-size:15px" class="mb-2">Wie es weitergeht</h3>
+            <ol class="text-secondary text-sm" style="margin:0 0 0 18px;line-height:1.9">
+                <li>Du schickst uns deine Kundennummer.</li>
+                <li>Wir lassen sie bei AutoScout24 unserem Zugang zuordnen.</li>
+                <li>Sobald das steht, erscheint sie hier zur Auswahl.</li>
+                <li>Ein Klick, und deine Inserate gehen automatisch hinaus.</li>
+            </ol>
+            <div class="alert alert-info mt-2" style="margin-bottom:0">
+                <?= icon('lock', 16) ?>
+                <span class="text-sm">Dein AutoScout24-Passwort brauchen wir dafür nie.</span>
             </div>
         </div>
     </div>

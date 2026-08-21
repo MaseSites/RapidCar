@@ -876,6 +876,19 @@ $tlsCheck = file_get_contents(BASE_PATH . '/systemcheck.php');
 check('Selbstpruefung zeigt den Zertifikatsstand',
     str_contains($tlsCheck, 'Zertifikat gültig') && str_contains($tlsCheck, 'capture_peer_cert'));
 
+echo "AutoScout24: Verbindung ohne Passwort des Kunden\n";
+$as24Conn = file_get_contents(BASE_PATH . '/dashboard/autoscout.php');
+check('Kunde kann die Freischaltung anfordern',
+    str_contains($as24Conn, 'request_activation') && str_contains($as24Conn, 'as24_customer_ref'));
+check('Betreiber wird benachrichtigt',
+    str_contains($as24Conn, 'Mailer::send') && str_contains($as24Conn, 'mail.contact'));
+check('Anfrage steht im Verlauf',
+    str_contains($as24Conn, 'autoscout.activation_requested'));
+check('ohne Versand wird kein Versand behauptet',
+    str_contains($as24Conn, 'Die Anfrage ist vermerkt'));
+check('Kunde gibt nie ein Passwort heraus',
+    str_contains($as24Conn, 'Passwort brauchen wir'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
