@@ -13,11 +13,17 @@ Vor dem Senden ausfüllen: die eckigen Klammern am Ende.
 
 Guten Tag
 
-Wir betreiben RapidCar (rapid-car.com), eine Schweizer Software für
+Wir entwickeln derzeit RapidCar, eine Schweizer Software für
 Fahrzeuginserate. Autohäuser und private Verkäufer laden bei uns Fotos eines
 Fahrzeugs hoch, unsere Software erstellt daraus ein vollständiges Inserat mit
 Fahrzeugdaten, Titel, Beschreibung und Ausstattung, und veröffentlicht es
 anschliessend auf AutoScout24.
+
+Wir befinden uns noch in der Entwicklung. Unsere Seite rapid-car.com ist
+zurzeit eine vorläufige Fassung und noch nicht öffentlich freigegeben; wir
+bitten das zu berücksichtigen, falls Sie einen Blick darauf werfen. Wir
+klären den Zugang bewusst jetzt, damit wir die Anbindung von Anfang an
+richtig und regelkonform bauen, statt nachträglich umzustellen.
 
 Wir möchten die Listing Creation API als Integrationspartner nutzen. Unser
 Ziel: Jeder Kunde registriert sich bei uns mit seinem eigenen Konto, verwaltet
@@ -91,11 +97,13 @@ Wir haben den Header `X-Testmode` in Ihrer Beschreibung gefunden.
 
 **Zum Stand unserer Umsetzung**
 
-Die technische Anbindung ist fertig und richtet sich vollständig nach Ihrer
-Beschreibung: Fahrzeugdaten, Marken und Modelle über die Referenz-API
+Die technische Anbindung ist programmiert und richtet sich vollständig nach
+Ihrer Beschreibung: Fahrzeugdaten, Marken und Modelle über die Referenz-API
 aufgelöst, Ausstattung über die Equipment-Referenzen, Bilder über
 `POST /customers/{customerId}/images`, Veröffentlichung und Statuswechsel über
-`publication`. Wir warten allein auf den Zugang.
+`publication`. Getestet haben wir bisher nur gegen die Beschreibung selbst,
+da uns noch kein Zugang vorliegt. Echte Inserate haben wir zu keinem
+Zeitpunkt erzeugt.
 
 Für Rückfragen stehen wir jederzeit zur Verfügung, gerne auch telefonisch.
 
