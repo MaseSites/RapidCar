@@ -146,6 +146,10 @@ return [
     //
     // Der Zugang muss in beiden Fällen bei AutoScout24 beantragt werden.
     'autoscout' => [
+        // Probebetrieb: Inserate werden bei AutoScout24 gespeichert, aber
+        // nicht veroeffentlicht. Zum Pruefen der Anbindung, bevor echte
+        // Inserate erscheinen sollen.
+        'test_mode' => false,
         'platform_username' => '',
         'platform_password' => '',
         'api_url'           => '',  // leer = https://listing-creation.api.autoscout24.com

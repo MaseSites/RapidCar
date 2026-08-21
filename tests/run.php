@@ -889,6 +889,19 @@ check('ohne Versand wird kein Versand behauptet',
 check('Kunde gibt nie ein Passwort heraus',
     str_contains($as24Conn, 'Passwort brauchen wir'));
 
+echo "AutoScout24: Probebetrieb\n";
+check('Probebetrieb ist standardmaessig aus',
+    App\Integration\AutoScoutListings::isTestMode() === false);
+check('ohne Probebetrieb keine zusaetzliche Kopfzeile',
+    App\Integration\AutoScoutListings::testHeaders() === []);
+App\Core\Config::set('autoscout.test_mode', true);
+check('eingeschaltet sendet X-Testmode',
+    App\Integration\AutoScoutListings::testHeaders() === ['X-Testmode: true']);
+App\Core\Config::set('autoscout.test_mode', false);
+$as24List = file_get_contents(BASE_PATH . '/src/Integration/AutoScoutListings.php');
+check('Anlegen und Aktualisieren nutzen den Probebetrieb',
+    substr_count($as24List, 'self::testHeaders()') >= 3);
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');

@@ -37,8 +37,35 @@ final class AutoScoutListings
     public static function create(int $dealershipId, array $payload): array
     {
         $customerId = self::customerId($dealershipId);
-        $response = AutoScoutClient::request($dealershipId, 'POST', "/customers/{$customerId}/listings", $payload);
+        $response = AutoScoutClient::request(
+            $dealershipId,
+            'POST',
+            "/customers/{$customerId}/listings",
+            $payload,
+            null,
+            null,
+            self::testHeaders()
+        );
         return is_array($response['data']) ? $response['data'] : [];
+    }
+
+    /**
+     * Im Probebetrieb wird das Inserat bei AutoScout24 zwar gespeichert, aber
+     * nicht veroeffentlicht. So laesst sich die Anbindung pruefen, ohne dass
+     * echte Inserate auf der Plattform erscheinen.
+     *
+     * Eingeschaltet mit autoscout.test_mode in der Konfiguration.
+     *
+     * @return array<int, string>
+     */
+    public static function testHeaders(): array
+    {
+        return self::isTestMode() ? ['X-Testmode: true'] : [];
+    }
+
+    public static function isTestMode(): bool
+    {
+        return filter_var(\App\Core\Config::get('autoscout.test_mode', false), FILTER_VALIDATE_BOOL);
     }
 
     /** @param array<string, mixed> $payload */
@@ -49,7 +76,10 @@ final class AutoScoutListings
             $dealershipId,
             'PUT',
             "/customers/{$customerId}/listings/" . rawurlencode($listingId),
-            $payload
+            $payload,
+            null,
+            null,
+            self::testHeaders()
         );
         return is_array($response['data']) ? $response['data'] : [];
     }
@@ -62,7 +92,10 @@ final class AutoScoutListings
             $dealershipId,
             'PATCH',
             "/customers/{$customerId}/listings/" . rawurlencode($listingId),
-            $payload
+            $payload,
+            null,
+            null,
+            self::testHeaders()
         );
         return is_array($response['data']) ? $response['data'] : [];
     }
@@ -70,7 +103,17 @@ final class AutoScoutListings
     public static function delete(int $dealershipId, string $listingId): void
     {
         $customerId = self::customerId($dealershipId);
-        AutoScoutClient::request($dealershipId, 'DELETE', "/customers/{$customerId}/listings/" . rawurlencode($listingId));
+        // Ein Probeinserat ist nur mit derselben Kopfzeile erreichbar,
+        // sonst laesst es sich nicht wieder entfernen.
+        AutoScoutClient::request(
+            $dealershipId,
+            'DELETE',
+            "/customers/{$customerId}/listings/" . rawurlencode($listingId),
+            null,
+            null,
+            null,
+            self::testHeaders()
+        );
     }
 
     /** Veröffentlichungsstatus setzen: Active oder Inactive. */

@@ -41,7 +41,8 @@ final class AutoScoutClient
         string $path,
         ?array $jsonBody = null,
         ?string $binaryBody = null,
-        ?string $contentType = null
+        ?string $contentType = null,
+        array $extraHeaders = []
     ): array {
         if (!function_exists('curl_init')) {
             throw new RuntimeException('Die PHP-Erweiterung cURL wird für die AutoScout24-Anbindung benötigt.');
@@ -49,6 +50,9 @@ final class AutoScoutClient
 
         $url = self::baseUrl() . '/' . ltrim($path, '/');
         $headers = ['Accept: application/json'];
+        foreach ($extraHeaders as $extraHeader) {
+            $headers[] = $extraHeader;
+        }
         $options = [
             CURLOPT_CUSTOMREQUEST  => strtoupper($method),
             CURLOPT_RETURNTRANSFER => true,
@@ -115,7 +119,8 @@ final class AutoScoutClient
         string $path,
         ?array $jsonBody = null,
         ?string $binaryBody = null,
-        ?string $contentType = null
+        ?string $contentType = null,
+        array $extraHeaders = []
     ): array {
         $credentials = AutoScoutService::credentials($dealershipId);
         if ($credentials === null) {
@@ -128,7 +133,8 @@ final class AutoScoutClient
             $path,
             $jsonBody,
             $binaryBody,
-            $contentType
+            $contentType,
+            $extraHeaders
         );
     }
 
