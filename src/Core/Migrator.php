@@ -14,7 +14,7 @@ namespace App\Core;
 final class Migrator
 {
     /** Aktuelle Schema-Version. Bei neuen Migrationen erhöhen. */
-    private const CURRENT_VERSION = 21;
+    private const CURRENT_VERSION = 22;
 
     private const VERSION_KEY = 'schema_version';
 
@@ -165,6 +165,9 @@ final class Migrator
             }
             if ($installed < 21) {
                 self::migrateToVersion21();
+            }
+            if ($installed < 22) {
+                self::migrateToVersion22();
             }
 
             self::setVersion(self::CURRENT_VERSION);
@@ -482,6 +485,17 @@ final class Migrator
         if ($isSqlite) {
             Database::run('CREATE INDEX IF NOT EXISTS idx_post_templates_dealer ON post_templates (dealership_id)');
         }
+    }
+
+    /**
+     * Version 22: Kennung des verbundenen Kontos beim Kanal. Fuer Instagram
+     * die Nummer des Geschaeftskontos, damit sie nicht bei jedem Beitrag neu
+     * erfragt werden muss.
+     */
+    private static function migrateToVersion22(): void
+    {
+        $isSqlite = Database::driver() === 'sqlite';
+        self::addColumn('integrations', 'external_id', ($isSqlite ? 'TEXT' : 'VARCHAR(64)') . ' DEFAULT NULL');
     }
 
     /**

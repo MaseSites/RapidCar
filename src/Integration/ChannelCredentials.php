@@ -53,6 +53,40 @@ final class ChannelCredentials
     }
 
     /**
+     * Aktuelle Adressen und Rechte fuer Instagram.
+     *
+     * Meta hat den Weg ueber Facebook-Login abgeschaltet; gueltig ist
+     * "Instagram API with Instagram Login". Diese Werte gelten fest, damit
+     * eine veraltete Konfigurationsdatei die Verbindung nicht lahmlegt.
+     */
+    private const INSTAGRAM_DEFAULTS = [
+        'auth_url'  => 'https://www.instagram.com/oauth/authorize',
+        'token_url' => 'https://api.instagram.com/oauth/access_token',
+        'api_url'   => 'https://graph.instagram.com/v23.0',
+        'scopes'    => 'instagram_business_basic,instagram_business_content_publish',
+    ];
+
+    /**
+     * Werte, die Meta abgeschaltet hat. Sie werden uebergangen, statt eine
+     * Verbindung zu versuchen, die sicher scheitert.
+     */
+    private static function isOutdated(string $channel, string $field, string $value): bool
+    {
+        if ($channel !== 'instagram') {
+            return false;
+        }
+        if ($field === 'scopes') {
+            // Die alten Rechte wurden am 27. Januar 2025 abgeschaltet.
+            return str_contains($value, 'instagram_basic')
+                || str_contains($value, 'instagram_content_publish');
+        }
+        if (in_array($field, ['auth_url', 'token_url', 'api_url'], true)) {
+            return str_contains($value, 'facebook.com');
+        }
+        return false;
+    }
+
+    /**
      * Wert eines Feldes: Konfigurationsdatei zuerst, dann Datenbank.
      */
     public static function value(string $channel, string $field): string
@@ -63,12 +97,22 @@ final class ChannelCredentials
             default       => 'channels.' . $channel,
         };
         $fromConfig = (string) Config::get($prefix . '.' . $field, '');
-        if ($fromConfig !== '') {
+        if ($fromConfig !== '' && !self::isOutdated($channel, $field, $fromConfig)) {
             return $fromConfig;
         }
         $stored = self::stored($channel)[$field] ?? '';
-        if ($stored !== '') {
+        if ($stored !== '' && !self::isOutdated($channel, $field, $stored)) {
             return $stored;
+        }
+
+        // Fuer Instagram gelten feste, aktuelle Adressen. Sie stehen hier,
+        // damit niemand eine Datei auf dem Server anfassen muss, wenn Meta
+        // etwas umstellt.
+        if ($channel === 'instagram') {
+            $current = self::INSTAGRAM_DEFAULTS[$field] ?? '';
+            if ($current !== '') {
+                return $current;
+            }
         }
 
         // Die Rücksprungadresse ergibt sich aus der eigenen Domain. So muss der

@@ -113,6 +113,28 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                     <summary class="text-sm text-secondary" style="cursor:pointer;margin-bottom:12px">
                         <?= e($channel['note']) ?>
                     </summary>
+                    <?php if ($key === 'instagram'): ?>
+                        <div class="alert alert-info mb-2" style="align-items:flex-start">
+                            <?= icon('info', 16) ?>
+                            <div class="text-sm">
+                                <strong>So kommst du an die beiden Werte:</strong>
+                                <ol style="margin:6px 0 0 18px;line-height:1.8">
+                                    <li>Auf developers.facebook.com eine App vom Typ <em>Business</em> anlegen</li>
+                                    <li>Produkt <em>Instagram</em> hinzufügen, dort <em>API mit Instagram-Login einrichten</em></li>
+                                    <li>Client-ID und Geheimnis sind die <strong>Instagram-App-ID</strong> und das
+                                        <strong>Instagram-App-Geheimnis</strong>, nicht die der Facebook-App</li>
+                                    <li>Diese Adresse als gültige Weiterleitung eintragen:<br>
+                                        <code><?= e(\App\Integration\ChannelCredentials::value('instagram', 'redirect_uri')) ?></code></li>
+                                </ol>
+                                <p style="margin:8px 0 0">
+                                    Zum Veröffentlichen für fremde Konten verlangt Meta eine Prüfung der App
+                                    (Rechte <code>instagram_business_basic</code> und
+                                    <code>instagram_business_content_publish</code>). Ohne Prüfung funktioniert
+                                    es nur für Konten, die in der App als Tester eingetragen sind.
+                                </p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <form method="post">
                         <?= App\Core\Csrf::field() ?>
                         <input type="hidden" name="channel" value="<?= e($key) ?>">

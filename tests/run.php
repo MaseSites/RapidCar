@@ -1035,6 +1035,70 @@ check('ohne Versand wird kein Versand behauptet',
 check('Fahrzeugliste steht auf der Kanalseite',
     str_contains($chanPage, 'VehicleFeedService::url'));
 
+echo "Instagram: aktueller Anmeldeweg\n";
+// Meta hat den Weg ueber Facebook-Login abgeschaltet. Eine veraltete
+// Konfiguration darf die Verbindung nicht lahmlegen.
+check('Anmeldeadresse zeigt auf Instagram',
+    App\Integration\ChannelCredentials::value('instagram', 'auth_url')
+    === 'https://www.instagram.com/oauth/authorize');
+check('Schnittstelle ist graph.instagram.com',
+    str_contains(App\Integration\ChannelCredentials::value('instagram', 'api_url'), 'graph.instagram.com'));
+check('nur die gueltigen Rechte werden angefragt',
+    App\Integration\ChannelCredentials::value('instagram', 'scopes')
+    === 'instagram_business_basic,instagram_business_content_publish');
+
+// Selbst wenn jemand die alten Werte einträgt, greifen sie nicht mehr.
+App\Integration\ChannelCredentials::save('instagram', [
+    'scopes'   => 'instagram_basic,instagram_content_publish',
+    'auth_url' => 'https://www.facebook.com/v21.0/dialog/oauth',
+]);
+check('abgeschaltete Rechte werden uebergangen',
+    App\Integration\ChannelCredentials::value('instagram', 'scopes')
+    === 'instagram_business_basic,instagram_business_content_publish');
+check('abgeschaltete Adresse wird uebergangen',
+    !str_contains(App\Integration\ChannelCredentials::value('instagram', 'auth_url'), 'facebook.com'));
+
+// Startadresse mit echten App-Daten
+App\Integration\ChannelCredentials::save('instagram', [
+    'client_id' => '9876543210', 'client_secret' => 'pruef-geheim',
+]);
+check('ohne App-Daten kein Verbinden-Knopf, mit ihnen schon',
+    App\Integration\InstagramService::isConfigured() === true);
+$igUrl = App\Integration\ChannelRegistry::client('instagram')->authorizationUrl('pruefstate');
+parse_str((string) parse_url($igUrl, PHP_URL_QUERY), $igQuery);
+check('Startadresse hat alle Pflichtangaben',
+    str_starts_with($igUrl, 'https://www.instagram.com/oauth/authorize')
+    && ($igQuery['response_type'] ?? '') === 'code'
+    && ($igQuery['client_id'] ?? '') === '9876543210'
+    && ($igQuery['state'] ?? '') === 'pruefstate'
+    && str_contains((string) ($igQuery['scope'] ?? ''), 'instagram_business_content_publish'));
+check('Rueckweg zeigt auf den eigenen Endpunkt',
+    str_contains((string) ($igQuery['redirect_uri'] ?? ''), 'api/channels/callback.php?channel=instagram'));
+// Ueber den Dienst loeschen, damit auch sein Zwischenspeicher stimmt
+App\Service\SettingsService::set('channel_credentials.instagram', '');
+
+echo "Instagram: Veroeffentlichen\n";
+$igSrc = file_get_contents(BASE_PATH . '/src/Integration/InstagramService.php');
+check('langlebiges Token wird geholt',
+    str_contains($igSrc, 'ig_exchange_token') && str_contains($igSrc, 'completeConnection'));
+check('Token wird vor Ablauf erneuert',
+    str_contains($igSrc, 'ig_refresh_token') && str_contains($igSrc, 'refreshIfNeeded'));
+check('auf die Verarbeitung des Bildes wird gewartet',
+    str_contains($igSrc, 'awaitContainer') && str_contains($igSrc, 'FINISHED'));
+check('Kontonummer wird gemerkt statt jedes Mal erfragt',
+    str_contains($igSrc, 'SELECT external_id FROM integrations'));
+check('nur JPEG geht hinaus',
+    str_contains($igSrc, 'nimmt nur JPEG an'));
+$igSave = file_get_contents(BASE_PATH . '/api/social/save-post.php');
+check('Beitragsbild wird als JPEG abgelegt',
+    str_contains($igSave, 'imagejpeg(') && !str_contains($igSave, 'imagepng('));
+$igCallback = file_get_contents(BASE_PATH . '/api/channels/callback.php');
+check('Rueckweg schliesst die Verbindung ab',
+    str_contains($igCallback, 'InstagramService::completeConnection'));
+$igSocial = file_get_contents(BASE_PATH . '/dashboard/social.php');
+check('nicht verbunden fuehrt zum Verbinden',
+    str_contains($igSocial, 'Instagram verbinden'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
@@ -1248,7 +1312,7 @@ echo "
 // Die Plattform steht auch Privatpersonen offen. Die Wahl steht als
 // Umschalter in der Registrierung, das Datenmodell traegt die Kontoart.
 $migratorSource2 = file_get_contents(BASE_PATH . '/src/Core/Migrator.php');
-check('Schema-Version 21', str_contains($migratorSource2, 'CURRENT_VERSION = 21'));
+check('Schema-Version 22', str_contains($migratorSource2, 'CURRENT_VERSION = 22'));
 check('Migration legt die Kontoart an', str_contains($migratorSource2, "'account_type'"));
 check('MySQL-Schema kennt die Kontoart',
     str_contains((string) file_get_contents(BASE_PATH . '/database/schema.mysql.sql'), 'account_type'));

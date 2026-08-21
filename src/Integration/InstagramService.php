@@ -42,6 +42,111 @@ final class InstagramService
     }
 
     /**
+     * Nach dem Verbinden: das kurzlebige Token gegen ein langlebiges tauschen
+     * und den Kontonamen merken.
+     *
+     * Ohne diesen Schritt waere die Verbindung nach etwa einer Stunde tot,
+     * die Oberflaeche wuerde aber weiter "verbunden" anzeigen.
+     */
+    public static function completeConnection(int $dealershipId): void
+    {
+        $tokens = TokenStore::get($dealershipId, self::PROVIDER);
+        $shortLived = (string) ($tokens['access_token'] ?? '');
+        if ($shortLived === '') {
+            return;
+        }
+
+        $secret = ChannelCredentials::value(self::PROVIDER, 'client_secret');
+        $accessToken = $shortLived;
+        $expiresIn = null;
+
+        if ($secret !== '') {
+            try {
+                $exchanged = self::request('GET', self::apiBase() . '/access_token', [
+                    'grant_type'   => 'ig_exchange_token',
+                    'client_secret' => $secret,
+                    'access_token' => $shortLived,
+                ]);
+                if ((string) ($exchanged['access_token'] ?? '') !== '') {
+                    $accessToken = (string) $exchanged['access_token'];
+                    $expiresIn = isset($exchanged['expires_in']) ? (int) $exchanged['expires_in'] : null;
+                    TokenStore::save($dealershipId, self::PROVIDER, $accessToken, null, $expiresIn);
+                }
+            } catch (\Throwable $e) {
+                // Ohne Tausch bleibt das kurzlebige Token; der Fehler steht im Protokoll.
+                \App\Core\Logger::warning('Instagram: Tausch in ein langlebiges Token fehlgeschlagen: ' . $e->getMessage());
+            }
+        }
+
+        // Konto ermitteln und merken, damit der Haendler sieht, was verbunden ist
+        try {
+            $me = self::request('GET', self::apiBase() . '/me', [
+                'fields'       => 'user_id,username',
+                'access_token' => $accessToken,
+            ]);
+            $username = (string) ($me['username'] ?? '');
+            $userId = (string) ($me['user_id'] ?? ($me['id'] ?? ''));
+            if ($userId !== '') {
+                Database::run(
+                    'UPDATE integrations SET account_name = :n, external_id = :e, updated_at = :t
+                     WHERE dealership_id = :d AND provider = :p',
+                    [
+                        'n' => $username !== '' ? '@' . $username : null,
+                        'e' => $userId,
+                        't' => Database::now(),
+                        'd' => $dealershipId,
+                        'p' => self::PROVIDER,
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            \App\Core\Logger::warning('Instagram: Konto konnte nicht ermittelt werden: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Erneuert das Token, wenn es bald ablaeuft. Ein langlebiges Token gilt
+     * 60 Tage und laesst sich jederzeit verlaengern, solange es gueltig ist.
+     */
+    public static function refreshIfNeeded(int $dealershipId): void
+    {
+        $tokens = TokenStore::get($dealershipId, self::PROVIDER);
+        $accessToken = (string) ($tokens['access_token'] ?? '');
+        $expiresAt = (string) ($tokens['expires_at'] ?? '');
+        if ($accessToken === '' || $expiresAt === '') {
+            return;
+        }
+        // Ab sieben Tagen vor Ablauf erneuern
+        if (strtotime($expiresAt) > time() + 7 * 86400) {
+            return;
+        }
+        try {
+            $refreshed = self::request('GET', self::apiBase() . '/refresh_access_token', [
+                'grant_type'   => 'ig_refresh_token',
+                'access_token' => $accessToken,
+            ]);
+            if ((string) ($refreshed['access_token'] ?? '') !== '') {
+                TokenStore::save(
+                    $dealershipId,
+                    self::PROVIDER,
+                    (string) $refreshed['access_token'],
+                    null,
+                    isset($refreshed['expires_in']) ? (int) $refreshed['expires_in'] : null
+                );
+            }
+        } catch (\Throwable $e) {
+            \App\Core\Logger::warning('Instagram: Token konnte nicht erneuert werden: ' . $e->getMessage());
+        }
+    }
+
+    /** Basisadresse der Instagram-Schnittstelle. */
+    private static function apiBase(): string
+    {
+        $api = rtrim(ChannelCredentials::value(self::PROVIDER, 'api_url'), '/');
+        return $api !== '' ? $api : 'https://graph.instagram.com';
+    }
+
+    /**
      * Testbetrieb: Das Autohaus hat den Testkanal verbunden und Instagram
      * nicht. Dann lässt sich das Veröffentlichen durchspielen, ohne dass
      * etwas bei Instagram landet. Der Post wird als Testveröffentlichung
@@ -97,37 +202,46 @@ final class InstagramService
             throw new \RuntimeException('Der Post hat kein Bild.');
         }
 
+        // Laeuft das Token bald ab, wird es zuerst erneuert.
+        self::refreshIfNeeded($dealershipId);
+
         $tokens = TokenStore::get($dealershipId, self::PROVIDER);
         if ($tokens === null || (string) ($tokens['access_token'] ?? '') === '') {
             throw new \RuntimeException('Instagram ist nicht verbunden. Bitte zuerst unter Kanäle verbinden.');
         }
         $accessToken = (string) $tokens['access_token'];
-        $api = rtrim(ChannelCredentials::value(self::PROVIDER, 'api_url'), '/');
-        if ($api === '') {
-            $api = 'https://graph.facebook.com/v21.0';
-        }
+        $api = self::apiBase();
 
-        // Verknuepftes Instagram-Business-Konto der Facebook-Seite ermitteln
-        $accounts = self::request('GET', $api . '/me/accounts', [
-            'fields'       => 'instagram_business_account,name',
-            'access_token' => $accessToken,
-        ]);
-        $igUserId = null;
-        foreach (($accounts['data'] ?? []) as $page) {
-            if (!empty($page['instagram_business_account']['id'])) {
-                $igUserId = (string) $page['instagram_business_account']['id'];
-                break;
-            }
+        // Nummer des Instagram-Kontos: beim Verbinden gemerkt, sonst jetzt
+        // nachholen.
+        $igUserId = (string) (Database::scalar(
+            'SELECT external_id FROM integrations WHERE dealership_id = :d AND provider = :p',
+            ['d' => $dealershipId, 'p' => self::PROVIDER]
+        ) ?? '');
+        if ($igUserId === '') {
+            $me = self::request('GET', $api . '/me', [
+                'fields'       => 'user_id,username',
+                'access_token' => $accessToken,
+            ]);
+            $igUserId = (string) ($me['user_id'] ?? ($me['id'] ?? ''));
         }
-        if ($igUserId === null) {
+        if ($igUserId === '') {
             throw new \RuntimeException(
-                'Mit dem verbundenen Konto ist kein Instagram-Business-Konto verknüpft. '
-                . 'Im Meta Business Manager die Instagram-Verknüpfung der Seite prüfen.'
+                'Das verbundene Konto liefert keine Instagram-Kennung. '
+                . 'Bitte die Verbindung unter Kanäle trennen und neu herstellen.'
             );
         }
 
-        // Bild-URL muss oeffentlich erreichbar sein
-        $imageUrl = base_url('uploads/' . ltrim((string) $post['image_path'], '/'));
+        // Instagram laedt das Bild selbst herunter: die Adresse muss von
+        // aussen erreichbar sein, und nur JPEG wird angenommen.
+        $imagePath = ltrim((string) $post['image_path'], '/');
+        $imageUrl = base_url('uploads/' . $imagePath);
+        if (!str_ends_with(strtolower($imagePath), '.jpg') && !str_ends_with(strtolower($imagePath), '.jpeg')) {
+            throw new \RuntimeException(
+                'Instagram nimmt nur JPEG an. Bitte den Beitrag neu speichern, '
+                . 'damit das Bild im richtigen Format abgelegt wird.'
+            );
+        }
 
         $container = self::request('POST', $api . '/' . $igUserId . '/media', [
             'image_url'    => $imageUrl,
@@ -136,8 +250,12 @@ final class InstagramService
         ]);
         $creationId = (string) ($container['id'] ?? '');
         if ($creationId === '') {
-            throw new \RuntimeException('Meta hat keinen Medien-Container angelegt.');
+            throw new \RuntimeException('Instagram hat keinen Medien-Container angelegt.');
         }
+
+        // Warten, bis Instagram das Bild geholt und verarbeitet hat. Ohne das
+        // scheitert das Veroeffentlichen mit einer unverstaendlichen Meldung.
+        self::awaitContainer($api, $creationId, $accessToken);
 
         $published = self::request('POST', $api . '/' . $igUserId . '/media_publish', [
             'creation_id'  => $creationId,
@@ -155,6 +273,35 @@ final class InstagramService
         ]);
 
         return $mediaId;
+    }
+
+    /**
+     * Wartet, bis der Medien-Container fertig ist. Instagram holt das Bild
+     * selbst ab; das dauert je nach Groesse einige Sekunden.
+     */
+    private static function awaitContainer(string $api, string $creationId, string $accessToken): void
+    {
+        for ($attempt = 0; $attempt < 12; $attempt++) {
+            $state = self::request('GET', $api . '/' . $creationId, [
+                'fields'       => 'status_code,status',
+                'access_token' => $accessToken,
+            ]);
+            $code = (string) ($state['status_code'] ?? '');
+
+            if ($code === 'FINISHED') {
+                return;
+            }
+            if ($code === 'ERROR' || $code === 'EXPIRED') {
+                throw new \RuntimeException(
+                    'Instagram konnte das Bild nicht verarbeiten'
+                    . ((string) ($state['status'] ?? '') !== '' ? ': ' . (string) $state['status'] : '.')
+                );
+            }
+            sleep(3);
+        }
+        throw new \RuntimeException(
+            'Instagram hat das Bild nicht rechtzeitig verarbeitet. Bitte in einigen Minuten erneut versuchen.'
+        );
     }
 
     /** @return array<string, mixed> */

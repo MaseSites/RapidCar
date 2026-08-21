@@ -372,6 +372,7 @@ CREATE TABLE IF NOT EXISTS integrations (
     provider      VARCHAR(50)  NOT NULL,                 -- autoscout24 | instagram | …
     status        VARCHAR(20)  NOT NULL DEFAULT 'disconnected', -- disconnected | connected | error
     account_name  VARCHAR(190) DEFAULT NULL,
+    external_id   VARCHAR(64) DEFAULT NULL,
     connected_at  DATETIME     DEFAULT NULL,
     last_sync_at  DATETIME     DEFAULT NULL,
     created_at    DATETIME NOT NULL,

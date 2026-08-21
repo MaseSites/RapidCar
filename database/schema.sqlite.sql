@@ -277,6 +277,7 @@ CREATE TABLE IF NOT EXISTS integrations (
     provider      TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'disconnected',
     account_name  TEXT,
+    external_id   TEXT,
     connected_at  TEXT,
     last_sync_at  TEXT,
     created_at    TEXT NOT NULL,

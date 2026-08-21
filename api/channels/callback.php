@@ -13,6 +13,7 @@ require_once BASE_PATH . '/includes/permissions.php';
 use App\Core\Database;
 use App\Core\Session;
 use App\Integration\ChannelRegistry;
+use App\Integration\InstagramService;
 use App\Integration\TokenStore;
 use App\Service\ActivityLogger;
 
@@ -53,6 +54,13 @@ try {
             'provider'      => $channelKey,
             'created_at'    => $now,
         ]);
+    }
+
+    // Instagram braucht zwei Schritte mehr: das kurzlebige Token gegen ein
+    // langlebiges tauschen und den Kontonamen merken. Ohne das waere die
+    // Verbindung nach einer Stunde tot.
+    if ($channelKey === InstagramService::PROVIDER) {
+        InstagramService::completeConnection($dealershipId);
     }
 
     ActivityLogger::log(

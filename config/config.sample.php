@@ -160,15 +160,24 @@ return [
     // Facebook-Seite mit dem Instagram-Business-Konto verknüpfen und hier
     // client_id, client_secret und redirect_uri eintragen. Die übrigen Werte
     // sind die Meta-Standardadressen und können bleiben.
-    // Weiterleitungs-URI in der Meta-Konsole: <app.url>/api/channels/callback.php?channel=instagram
+    // Instagram: "Instagram API with Instagram Login".
+    //
+    // Der fruehere Weg ueber Facebook-Login mit den Rechten instagram_basic
+    // und instagram_content_publish wurde von Meta abgeschaltet. Gueltig sind
+    // nur noch instagram_business_basic und instagram_business_content_publish.
+    //
+    // In der Meta-Konsole eintragen:
+    //   App-Typ: Business, Produkt "Instagram" hinzufuegen
+    //   Weiterleitungs-URI: <app.url>/api/channels/callback.php?channel=instagram
+    //   client_id ist die Instagram-App-ID, nicht die Facebook-App-ID
     'instagram' => [
         'client_id'     => '',
         'client_secret' => '',
         'redirect_uri'  => '',
-        'auth_url'      => 'https://www.facebook.com/v21.0/dialog/oauth',
-        'token_url'     => 'https://graph.facebook.com/v21.0/oauth/access_token',
-        'api_url'       => 'https://graph.facebook.com/v21.0',
-        'scopes'        => 'instagram_basic,instagram_content_publish,pages_show_list,business_management',
+        'auth_url'      => 'https://www.instagram.com/oauth/authorize',
+        'token_url'     => 'https://api.instagram.com/oauth/access_token',
+        'api_url'       => 'https://graph.instagram.com/v23.0',
+        'scopes'        => 'instagram_business_basic,instagram_business_content_publish',
     ],
 
     'uploads' => [

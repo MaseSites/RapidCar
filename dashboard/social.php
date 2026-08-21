@@ -385,17 +385,26 @@ else:
                             title="<?= e(t('social.test_publish_hint')) ?>">
                         <?= t('social.test_publish') ?>
                     </button>
+                <?php elseif ($instagramStatus === 'disconnected'): ?>
+                    <?php // Verbinden ist moeglich: direkt dorthin fuehren ?>
+                    <a class="btn btn-accent" href="<?= base_url('dashboard/channels.php') ?>">
+                        <?= icon('instagram', 15) ?> Instagram verbinden
+                    </a>
                 <?php else: ?>
                     <button class="btn btn-secondary" type="button" disabled
-                            title="Instagram ist <?= $instagramStatus === 'not_configured' ? 'nicht konfiguriert' : 'nicht verbunden' ?>. Der Post wird lokal gespeichert.">
-                        Veröffentlichen (Instagram <?= $instagramStatus === 'not_configured' ? 'nicht konfiguriert' : 'nicht verbunden' ?>)
+                            title="Instagram ist nicht konfiguriert. Der Post wird lokal gespeichert.">
+                        Veröffentlichen (Instagram nicht konfiguriert)
                     </button>
                 <?php endif; ?>
             </div>
             <div class="text-xs text-muted mt-1">
-                <?= $instagramTestMode
-                    ? t('social.test_publish_hint')
-                    : 'Gespeicherte Posts bleiben lokal, bis eine Instagram-Verbindung eingerichtet ist. Es wird nichts vorgetäuscht.' ?>
+                <?php if ($instagramTestMode): ?>
+                    <?= t('social.test_publish_hint') ?>
+                <?php elseif ($instagramStatus === 'disconnected'): ?>
+                    Noch nicht verbunden. Ein Klick führt zu den Kanälen, dort meldest du dich einmal bei Instagram an.
+                <?php else: ?>
+                    Gespeicherte Posts bleiben lokal, bis eine Instagram-Verbindung eingerichtet ist. Es wird nichts vorgetäuscht.
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -1127,7 +1136,7 @@ $pageScripts = <<<HTML
     document.getElementById('saveBtn').addEventListener('click', function () {
         var btn = this;
         btn.disabled = true;
-        var imageData = canvas.toDataURL('image/png');
+        var imageData = canvas.toDataURL('image/jpeg', 0.92);
         apiFetch('api/social/save-post.php', {
             method: 'POST',
             body: {
@@ -1153,7 +1162,7 @@ $pageScripts = <<<HTML
     if (igPublishBtn) {
         igPublishBtn.addEventListener('click', function () {
             igPublishBtn.disabled = true;
-            var imageData = canvas.toDataURL('image/png');
+            var imageData = canvas.toDataURL('image/jpeg', 0.92);
             apiFetch('api/social/save-post.php', {
                 method: 'POST',
                 body: {
