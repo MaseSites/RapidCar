@@ -10,6 +10,17 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # -----------------------------------------------------------------------
+    # Immer verschluesselt. Der Webserver leitet um, noch bevor PHP laeuft:
+    # das greift auch bei Dateien, die kein PHP anfassen (Bilder, CSS).
+    # HTTP_X_FORWARDED_PROTO deckt den Fall ab, dass ein Proxy davor steht.
+    # -----------------------------------------------------------------------
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^127\. [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
     # Interne Ordner niemals ausliefern
     RewriteRule ^(src|config|includes|database|storage|lang)(/|$) - [F,L]
 

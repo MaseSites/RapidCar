@@ -852,6 +852,30 @@ check('falscher Zugang wird nicht gespeichert',
     strpos($as24Admin, 'verifyCredentials(' . chr(36) . 'as24User')
     < strpos($as24Admin, 'storePlatformCredentials(' . chr(36) . 'as24User'));
 
+echo "Verschluesselung und Sicherheitskopfzeilen\n";
+$tlsBoot = file_get_contents(BASE_PATH . '/includes/bootstrap.php');
+check('HSTS nur aus einer Quelle',
+    str_contains($tlsBoot, "Config::get('app.hsts', true)")
+    && str_contains($tlsBoot, 'includeSubDomains'));
+check('Vorlade-Liste bleibt eine bewusste Entscheidung',
+    str_contains($tlsBoot, 'hsts_preload'));
+check('Formulare gehen nur an die eigene Seite',
+    str_contains($tlsBoot, "form-action 'self'"));
+check('unsichere Verweise werden hochgestuft',
+    str_contains($tlsBoot, 'upgrade-insecure-requests'));
+check('Herkunft wird sparsam weitergegeben',
+    str_contains($tlsBoot, 'strict-origin-when-cross-origin'));
+check('fremde Fenster ohne Zugriff',
+    str_contains($tlsBoot, 'Cross-Origin-Opener-Policy: same-origin'));
+$tlsHt = file_get_contents(BASE_PATH . '/.htaccess');
+check('Webserver leitet selbst auf HTTPS um',
+    str_contains($tlsHt, 'X-Forwarded-Proto') && str_contains($tlsHt, 'https://%{HTTP_HOST}'));
+check('localhost bleibt ohne Zwang erreichbar',
+    str_contains($tlsHt, '!^localhost'));
+$tlsCheck = file_get_contents(BASE_PATH . '/systemcheck.php');
+check('Selbstpruefung zeigt den Zertifikatsstand',
+    str_contains($tlsCheck, 'Zertifikat gültig') && str_contains($tlsCheck, 'capture_peer_cert'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');

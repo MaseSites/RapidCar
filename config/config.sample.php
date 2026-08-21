@@ -32,7 +32,20 @@ return [
         // Leitet http auf https um. Nur einschalten, wenn ein gueltiges
         // Zertifikat vorhanden ist, sonst entsteht eine Weiterleitungsschleife.
         // Auf Plesk erledigt das ueblicherweise schon die Domain-Einstellung.
-        'force_https' => false,
+        // Auf einer Domain mit gueltigem Zertifikat: an lassen. Die
+        // Anwendung leitet dann jeden Aufruf auf https um.
+        'force_https' => true,
+
+        // Sendet die Anwendung Strict-Transport-Security? Auf false setzen,
+        // wenn der Webserver (Plesk: Hosting-Einstellungen, HSTS) sie schon
+        // schickt. Zwei gleiche Kopfzeilen gelten als ungueltig und der
+        // Schutz faellt dann komplett weg.
+        'hsts' => true,
+
+        // Traegt die Domain zusaetzlich in die Vorlade-Liste der Browser ein.
+        // Erst einschalten, wenn https auf ALLEN Unterdomains laeuft: der
+        // Eintrag laesst sich nur schwer rueckgaengig machen.
+        'hsts_preload' => false,
     ],
 
     // Für den Betrieb ist MySQL oder MariaDB vorgesehen. SQLite ist nur für

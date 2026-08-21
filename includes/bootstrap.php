@@ -126,12 +126,29 @@ if (!Session::isHttps()
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
-    header('Referrer-Policy: same-origin');
-    if (Session::isHttps()) {
-        header('Strict-Transport-Security: max-age=31536000');
+    // Beim Wechsel auf fremde Seiten wird nur die Herkunft uebermittelt,
+    // nie der volle Pfad. Innerhalb der eigenen Seite bleibt alles erhalten.
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    // Kein fremdes Fenster behaelt einen Zugriff auf unseres
+    header('Cross-Origin-Opener-Policy: same-origin');
+    // Alte Flash- und PDF-Regelwerke ausschliessen
+    header('X-Permitted-Cross-Domain-Policies: none');
+
+    // Strict-Transport-Security darf NUR EINMAL gesendet werden. Schickt der
+    // Webserver (Plesk) die Kopfzeile bereits, muss sie hier aus bleiben:
+    // zwei Kopfzeilen gelten als ungueltig, und der Schutz faellt ganz weg.
+    if (Session::isHttps() && filter_var(Config::get('app.hsts', true), FILTER_VALIDATE_BOOL)) {
+        // Ein Jahr, alle Unterdomains. "preload" nur, wenn es ausdruecklich
+        // eingeschaltet wird: der Eintrag in der Browserliste ist nur
+        // schwer rueckgaengig zu machen.
+        $hsts = 'max-age=31536000; includeSubDomains';
+        if (filter_var(Config::get('app.hsts_preload', false), FILTER_VALIDATE_BOOL)) {
+            $hsts .= '; preload';
+        }
+        header('Strict-Transport-Security: ' . $hsts);
     }
     // Seiten nutzen eigene Inline-Skripte, aber niemals fremde Quellen.
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests");
     header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
     // Seiten enthalten ihr Skript inline und aendern sich mit jedem
     // Speichern. Ohne diese Angabe zeigen manche Browser nach dem

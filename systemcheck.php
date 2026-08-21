@@ -57,6 +57,66 @@ check(
     'Die passende PDO-Erweiterung aktivieren.'
 );
 
+// ------------------------------------------------------ Verschluesselung
+//
+// Prueft, was die Anwendung selbst steuert. Das Zertifikat gehoert dem
+// Webserver; hier steht, ob die Verbindung wirklich verschluesselt ankommt.
+$isHttps = \App\Core\Session::isHttps();
+check(
+    'Verbindung verschlüsselt (HTTPS)',
+    $isHttps || $isCli,
+    $isCli ? 'auf der Kommandozeile nicht prüfbar' : ($isHttps ? 'ja' : 'nein'),
+    'Im Hosting ein Zertifikat einrichten (Plesk: SSL/TLS-Zertifikate, Let\'s Encrypt).'
+);
+
+$forceHttps = filter_var(Config::get('app.force_https', false), FILTER_VALIDATE_BOOL);
+check(
+    'Umleitung auf HTTPS eingeschaltet',
+    $forceHttps,
+    $forceHttps ? 'ja' : 'nein',
+    'In config/config.php app.force_https auf true setzen.'
+);
+
+$hstsOwn = filter_var(Config::get('app.hsts', true), FILTER_VALIDATE_BOOL);
+check(
+    'Strict-Transport-Security',
+    true,
+    $hstsOwn ? 'von der Anwendung gesendet' : 'vom Webserver erwartet',
+    'Genau EINE Quelle darf sie senden. Schickt Plesk sie auch, hier app.hsts auf false setzen.'
+);
+
+// Das Zertifikat selbst: Laufzeit pruefen, sofern erreichbar
+$certHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+if ($certHost !== '' && $isHttps && function_exists('stream_socket_client')) {
+    $certInfo = null;
+    $stream = @stream_socket_client(
+        'ssl://' . $certHost . ':443',
+        $errNo,
+        $errStr,
+        5,
+        STREAM_CLIENT_CONNECT,
+        stream_context_create(['ssl' => ['capture_peer_cert' => true, 'SNI_enabled' => true]])
+    );
+    if ($stream !== false) {
+        $params = stream_context_get_params($stream);
+        if (isset($params['options']['ssl']['peer_certificate'])) {
+            $certInfo = openssl_x509_parse($params['options']['ssl']['peer_certificate']);
+        }
+        fclose($stream);
+    }
+    if (is_array($certInfo)) {
+        $validTo = (int) ($certInfo['validTo_time_t'] ?? 0);
+        $daysLeft = $validTo > 0 ? (int) floor(($validTo - time()) / 86400) : 0;
+        check(
+            'Zertifikat gültig',
+            $daysLeft > 14,
+            $daysLeft > 0 ? ('noch ' . $daysLeft . ' Tage, ausgestellt von '
+                . (string) ($certInfo['issuer']['O'] ?? $certInfo['issuer']['CN'] ?? 'unbekannt')) : 'abgelaufen',
+            'Im Hosting erneuern. Mit Let\'s Encrypt geschieht das automatisch.'
+        );
+    }
+}
+
 // --------------------------------------------------------------- Verzeichnisse
 foreach (['storage', 'storage/logs', 'uploads'] as $dir) {
     $path = BASE_PATH . '/' . $dir;
