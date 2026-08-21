@@ -53,49 +53,49 @@ final class ChannelRegistry
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'car',
                 'region' => 'DE',
-                'note'   => 'Händlerkonto und API-Zugang von mobile.de erforderlich.',
+                'note'   => 'Händlerkonto nötig. Wir können auch in deinem Namen inserieren, sobald mobile.de dich unserem Zugang zuordnet.',
             ],
             'car4you' => [
                 'name'   => 'car4you',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'car',
                 'region' => 'CH',
-                'note'   => 'Händlerkonto erforderlich.',
+                'note'   => 'Keine öffentliche Schnittstelle. Wir fragen die Anbindung für dich an.',
             ],
             'autolina' => [
                 'name'   => 'Autolina',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'car',
                 'region' => 'CH',
-                'note'   => 'Händlerkonto erforderlich.',
+                'note'   => 'Keine öffentliche Schnittstelle. Wir fragen die Anbindung für dich an.',
             ],
             'tutti' => [
                 'name'   => 'tutti.ch',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'tag',
                 'region' => 'CH',
-                'note'   => 'Gewerbliches Konto erforderlich.',
+                'note'   => 'Keine öffentliche Schnittstelle. Wir fragen die Anbindung für dich an.',
             ],
             'ricardo' => [
                 'name'   => 'Ricardo',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'tag',
                 'region' => 'CH',
-                'note'   => 'Gewerbliches Konto erforderlich.',
+                'note'   => 'Keine öffentliche Schnittstelle. Über tutti.ch lassen sich Inserate weiterreichen.',
             ],
             'kleinanzeigen' => [
                 'name'   => 'Kleinanzeigen',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'tag',
                 'region' => 'DE',
-                'note'   => 'Gewerbliches Konto erforderlich.',
+                'note'   => 'Keine öffentliche Schnittstelle. mobile.de reicht Inserate auf Wunsch dorthin weiter.',
             ],
             'facebook_marketplace' => [
                 'name'   => 'Facebook Marketplace',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'share',
                 'region' => 'International',
-                'note'   => 'Meta Business-Konto erforderlich.',
+                'note'   => 'Nimmt eine Fahrzeugliste als Datei entgegen. Die Adresse dafür steht unten.',
             ],
 
             // ------------------------------------------------ Soziale Netzwerke
@@ -211,6 +211,36 @@ final class ChannelRegistry
      * für die daher keine plattformweite Konfiguration nötig ist.
      */
     public const SELF_SERVICE = ['autoscout24', 'mobile_de'];
+
+    /**
+     * Wie ein Kanal Fahrzeuge entgegennimmt.
+     *
+     *   api     eigene Schnittstelle, in der Anwendung gebaut
+     *   feed    holt sich eine Fahrzeugliste als Datei ab
+     *   request kein oeffentlicher Weg; die Anbindung wird angefragt
+     *
+     * Geprueft an den Unterlagen der Anbieter. Was hier nicht als "api"
+     * steht, hat auch keine, und das wird nicht vorgetaeuscht.
+     */
+    public const CONNECT_MODE = [
+        'autoscout24'          => 'api',
+        'mobile_de'            => 'api',
+        'facebook_marketplace' => 'feed',
+        'car4you'              => 'request',
+        'autolina'             => 'request',
+        'tutti'                => 'request',
+        'ricardo'              => 'request',
+        'kleinanzeigen'        => 'request',
+    ];
+
+    /**
+     * Kanaele ohne Eintrag haben eine eigene Anbindung (etwa Instagram ueber
+     * OAuth) und behalten ihren gewohnten Verbindungsknopf.
+     */
+    public static function connectMode(string $key): string
+    {
+        return self::CONNECT_MODE[$key] ?? 'api';
+    }
 
     /** Eigene Verbindungsseite statt generischem OAuth-Redirect. */
     public const CONNECT_PAGES = [

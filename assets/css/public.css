@@ -728,3 +728,31 @@
     height: 1px;
     background: var(--border);
 }
+
+/* Oeffentliche Fahrzeugseite */
+.pub-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+.pub-gallery img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--border, #e4e7ec);
+}
+.pub-price {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin: 8px 0 20px;
+}
+.pub-features {
+    columns: 2;
+    column-gap: 32px;
+    margin: 0 0 20px 18px;
+}
+@media (max-width: 640px) { .pub-features { columns: 1; } }
+

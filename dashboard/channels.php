@@ -24,6 +24,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $channelKey = (string) ($_POST['channel'] ?? '');
     $action = (string) ($_POST['action'] ?? '');
 
+    if ($action === 'request_channel') {
+        // Fuer Plattformen ohne oeffentliche Schnittstelle: der Kunde meldet
+        // Interesse, der Betreiber kuemmert sich um die Anbindung.
+        $wanted = (string) ($_POST['channel'] ?? '');
+        $entry = ChannelRegistry::get($wanted);
+        if ($entry === null) {
+            Session::flash('danger', 'Unbekannter Kanal.');
+            redirect('dashboard/channels.php');
+        }
+        $label = (string) ($entry['name'] ?? $wanted);
+
+        ActivityLogger::log(
+            (int) $currentUser['id'],
+            'channel.requested',
+            'Anbindung angefragt: ' . $label,
+            'dealership',
+            $dealershipId,
+            $dealershipId
+        );
+
+        $to = trim((string) \App\Core\Config::get('mail.contact', ''));
+        if ($to === '') {
+            $to = trim((string) \App\Core\Config::get('mail.from', ''));
+        }
+        $sent = false;
+        if ($to !== '') {
+            $sent = \App\Core\Mailer::send(
+                $to,
+                'Anbindung angefragt: ' . $label,
+                '<p>Ein Konto möchte mit <strong>' . e($label) . '</strong> verbunden werden.</p>'
+                . '<p><strong>Konto:</strong> #' . $dealershipId . '</p>'
+                . '<p><strong>Angemeldet als:</strong> ' . e((string) ($currentUser['email'] ?? '')) . '</p>'
+            );
+        }
+        Session::flash(
+            'success',
+            $sent
+                ? ('Danke, deine Anfrage für ' . $label . ' ist unterwegs. Wir melden uns, sobald es geht.')
+                : ('Die Anfrage für ' . $label . ' ist vermerkt. Bitte melde dich zusätzlich kurz bei uns.')
+        );
+        redirect('dashboard/channels.php');
+    }
+
     if (ChannelRegistry::exists($channelKey) && $action === 'disconnect') {
         ChannelRegistry::disconnect($dealershipId, $channelKey);
         ActivityLogger::log(
@@ -102,6 +145,20 @@ function render_channel_card(array $channel): void
                 <a class="btn btn-primary btn-sm" href="<?= e(ChannelRegistry::connectUrl($channel['key'])) ?>">
                     <?= t('channels.connect') ?>
                 </a>
+            <?php elseif (ChannelRegistry::connectMode($channel['key']) === 'request'): ?>
+                <?php // Kein oeffentlicher Weg: der Kunde meldet Interesse an ?>
+                <form method="post">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="channel" value="<?= e($channel['key']) ?>">
+                    <input type="hidden" name="action" value="request_channel">
+                    <button class="btn btn-secondary btn-sm" type="submit">
+                        <?= icon('send', 13) ?> Anbindung anfragen
+                    </button>
+                </form>
+            <?php elseif (ChannelRegistry::connectMode($channel['key']) === 'feed'): ?>
+                <a class="btn btn-secondary btn-sm" href="#fahrzeugliste">
+                    <?= icon('download', 13) ?> Fahrzeugliste
+                </a>
             <?php else: ?>
                 <button class="btn btn-secondary btn-sm" type="button" disabled title="<?= t('channels.prepared') ?>">
                     <?= t('channels.connect') ?>
@@ -165,6 +222,48 @@ require BASE_PATH . '/includes/layout/dash-header.php';
         <?php endforeach; ?>
     </div>
 </div>
+
+<div class="card mb-3" id="fahrzeugliste">
+    <div class="card-header">
+        <h2>Fahrzeugliste zum Abholen</h2>
+        <span class="text-sm text-muted">
+            <?= \App\Service\VehicleFeedService::count($dealershipId) ?> Fahrzeuge
+        </span>
+    </div>
+    <div class="card-body">
+        <p class="text-secondary text-sm mb-2">
+            Manche Plattformen holen sich die Fahrzeuge als Datei ab, statt eine
+            eigene Schnittstelle anzubieten. Facebook Marketplace arbeitet so.
+            Gib dort diese Adresse an, und die Liste aktualisiert sich von selbst.
+            Enthalten sind nur veröffentlichte Fahrzeuge.
+        </p>
+        <div class="feed-url">
+            <input class="form-control" type="text" readonly id="feedUrl"
+                   value="<?= e(\App\Service\VehicleFeedService::url($dealershipId)) ?>">
+            <button class="btn btn-secondary btn-sm" type="button" id="feedCopy">Kopieren</button>
+            <a class="btn btn-secondary btn-sm" href="<?= e(\App\Service\VehicleFeedService::url($dealershipId)) ?>" target="_blank" rel="noopener">
+                Ansehen
+            </a>
+        </div>
+        <p class="form-hint" style="margin-top:8px">
+            Die Adresse enthält eine Unterschrift. Gib sie nur an Plattformen weiter,
+            bei denen du inserieren möchtest.
+        </p>
+    </div>
+</div>
+
+<script>
+document.getElementById('feedCopy')?.addEventListener('click', function () {
+    var field = document.getElementById('feedUrl');
+    field.select();
+    navigator.clipboard.writeText(field.value).then(function () {
+        var button = document.getElementById('feedCopy');
+        var original = button.textContent;
+        button.textContent = 'Kopiert';
+        window.setTimeout(function () { button.textContent = original; }, 1500);
+    });
+});
+</script>
 
 <div class="alert alert-info mt-3">
     <?= icon('info', 16) ?>

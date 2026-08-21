@@ -987,6 +987,54 @@ check('Kunde kann die Freischaltung anfordern',
 check('Verbinden ohne eigenes Passwort moeglich',
     str_contains($mdePage, 'platform_connect'));
 
+echo "Fahrzeugliste zum Abholen\n";
+$feedDid = (int) App\Core\Database::scalar("SELECT dealership_id FROM users WHERE is_demo = 1 LIMIT 1");
+$feedToken = App\Service\VehicleFeedService::token($feedDid);
+check('Unterschrift gilt nur fuer das eigene Konto',
+    App\Service\VehicleFeedService::isValidToken($feedDid, $feedToken) === true
+    && App\Service\VehicleFeedService::isValidToken($feedDid + 1, $feedToken) === false);
+check('leere Unterschrift wird abgewiesen',
+    App\Service\VehicleFeedService::isValidToken($feedDid, '') === false);
+$feedCsv = App\Service\VehicleFeedService::build($feedDid);
+$feedHandle = fopen('php://temp', 'r+');
+fwrite($feedHandle, $feedCsv);
+rewind($feedHandle);
+$feedHeader = fgetcsv($feedHandle);
+$feedRows = [];
+while (($feedRow = fgetcsv($feedHandle)) !== false) { $feedRows[] = $feedRow; }
+fclose($feedHandle);
+check('Kopfzeile enthaelt die Pflichtspalten',
+    in_array('vehicle_id', $feedHeader, true) && in_array('make', $feedHeader, true)
+    && in_array('price', $feedHeader, true) && in_array('url', $feedHeader, true));
+check('jede Zeile hat gleich viele Spalten',
+    array_filter($feedRows, fn(array $r): bool => count($r) !== count($feedHeader)) === []);
+check('Anzahl stimmt mit der Vorschau ueberein',
+    count($feedRows) === App\Service\VehicleFeedService::count($feedDid));
+if ($feedRows !== []) {
+    $feedFirst = array_combine($feedHeader, $feedRows[0]);
+    check('Adresse zeigt auf die oeffentliche Fahrzeugseite',
+        str_contains((string) $feedFirst['url'], 'inserat'));
+    check('Preis ist eine Zahl mit zwei Stellen',
+        preg_match('/^\d+\.\d{2}$/', (string) $feedFirst['price']) === 1);
+}
+check('oeffentliche Fahrzeugseite existiert', is_file(BASE_PATH . '/inserat.php'));
+check('Feed-Endpunkt existiert', is_file(BASE_PATH . '/feed/vehicles.php'));
+
+echo "Kanaele ohne Schnittstelle\n";
+check('Anbindungsart ist je Kanal hinterlegt',
+    App\Integration\ChannelRegistry::connectMode('autoscout24') === 'api'
+    && App\Integration\ChannelRegistry::connectMode('facebook_marketplace') === 'feed'
+    && App\Integration\ChannelRegistry::connectMode('car4you') === 'request');
+check('Kanaele mit eigener Anbindung behalten ihren Knopf',
+    App\Integration\ChannelRegistry::connectMode('instagram') === 'api');
+$chanPage = file_get_contents(BASE_PATH . '/dashboard/channels.php');
+check('Anbindung laesst sich anfragen',
+    str_contains($chanPage, 'request_channel') && str_contains($chanPage, 'channel.requested'));
+check('ohne Versand wird kein Versand behauptet',
+    str_contains($chanPage, 'ist vermerkt'));
+check('Fahrzeugliste steht auf der Kanalseite',
+    str_contains($chanPage, 'VehicleFeedService::url'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');
