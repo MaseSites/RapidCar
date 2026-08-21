@@ -902,6 +902,91 @@ $as24List = file_get_contents(BASE_PATH . '/src/Integration/AutoScoutListings.ph
 check('Anlegen und Aktualisieren nutzen den Probebetrieb',
     substr_count($as24List, 'self::testHeaders()') >= 3);
 
+echo "mobile.de: Uebertragung der Fahrzeugdaten\n";
+$mdeVehicle = [
+    'make' => 'Skoda', 'model' => 'Octavia', 'variant' => 'RS', 'mileage' => 24500,
+    'first_registration' => '05.2023', 'power_hp' => 245, 'displacement_ccm' => 1984,
+    'cylinders' => 4, 'gears' => 7, 'seats' => 5, 'doors' => 5, 'weight_empty_kg' => 1545,
+    'fuel_type' => 'petrol', 'transmission' => 'automatic', 'body_type' => 'kombi',
+    'condition_state' => 'used', 'euro_norm' => 'Euro 6', 'color' => 'Anthrazit Metallic',
+    'interior_color' => 'Schwarz', 'metallic' => 1, 'vin' => 'TMBJJ7NE8P0123456',
+    'previous_owners' => 1, 'accident_free' => 1, 'has_warranty' => 1, 'price' => 36900.0,
+];
+$mdeFeatures = ['Navigationssystem', 'Sitzheizung vorne', 'Klimaautomatik',
+    'Leichtmetallfelgen', 'Apple CarPlay', 'Panoramadach', 'Erfundenes Extra'];
+$mdeMap = new ReflectionMethod(App\Integration\MobileDePublisher::class, 'mapVehicle');
+$mdeMap->setAccessible(true);
+$mdePayload = $mdeMap->invoke(null, $mdeVehicle, ['description' => 'Text.'], 42, $mdeFeatures);
+
+check('Kernangaben werden uebertragen',
+    ($mdePayload['mileage'] ?? null) === 24500
+    && ($mdePayload['make'] ?? null) === 'SKODA'
+    && ($mdePayload['firstRegistration'] ?? null) === '202305');
+check('Leistung wird aus PS in kW umgerechnet',
+    ($mdePayload['power'] ?? null) === 180);
+check('Aufbau wird zur mobile.de-Kategorie',
+    ($mdePayload['category'] ?? null) === 'EstateCar');
+check('Tueren als Auswahlwert',
+    ($mdePayload['doors'] ?? null) === 'FOUR_OR_FIVE');
+check('Abgasnorm im richtigen Format',
+    ($mdePayload['emissionClass'] ?? null) === 'EURO6');
+check('Farbe als Grundfarbe und Herstellername',
+    ($mdePayload['exteriorColor'] ?? null) === 'GREY'
+    && ($mdePayload['manufacturerColorName'] ?? null) === 'Anthrazit Metallic');
+check('Unfallfreiheit wird umgedreht gemeldet',
+    ($mdePayload['accidentDamaged'] ?? null) === false);
+check('Ausstattung wird zu Ja-Feldern',
+    ($mdePayload['navigationSystem'] ?? null) === true
+    && ($mdePayload['alloyWheels'] ?? null) === true
+    && ($mdePayload['carplay'] ?? null) === true
+    && ($mdePayload['panoramicGlassRoof'] ?? null) === true);
+check('Klimatisierung ist ein Auswahlwert',
+    ($mdePayload['climatisation'] ?? null) === 'AUTOMATIC_CLIMATISATION');
+check('unbekannte Ausstattung wird still uebergangen',
+    !in_array('Erfundenes Extra', array_keys($mdePayload), true));
+
+echo "mobile.de: Preis nur in Euro\n";
+$mdeMiss = new ReflectionMethod(App\Integration\MobileDePublisher::class, 'missingFields');
+$mdeMiss->setAccessible(true);
+check('Euro-Preis geht durch', $mdeMiss->invoke(null, $mdeVehicle, [], 'EUR') === []);
+check('Franken-Preis wird abgefangen',
+    count($mdeMiss->invoke(null, $mdeVehicle, [], 'CHF')) === 1);
+check('fehlende Marke wird gemeldet',
+    in_array('Marke', $mdeMiss->invoke(null, ['price' => 1, 'model' => 'X'], [], 'EUR'), true));
+
+echo "mobile.de: Betreiber-Zugang und Probebetrieb\n";
+App\Integration\MobileDeService::storePlatformCredentials('tsp@example.com', 'TspGeheim123');
+check('Betreiber-Zugang wird erkannt',
+    App\Integration\MobileDeService::hasPlatformCredentials() === true);
+$mdeRaw = (string) App\Core\Database::scalar(
+    "SELECT setting_value FROM settings WHERE setting_key = 'mobilede_platform_password'");
+check('Passwort liegt verschluesselt in der Datenbank',
+    $mdeRaw !== '' && !str_contains($mdeRaw, 'TspGeheim'));
+App\Integration\MobileDeService::storePlatformCredentials('', '');
+App\Core\Database::run("DELETE FROM settings WHERE setting_key LIKE 'mobilede_platform%'");
+
+check('Sandbox ist standardmaessig aus',
+    App\Integration\MobileDeClient::isSandbox() === false
+    && App\Integration\MobileDeClient::baseUrl() === 'https://services.mobile.de');
+App\Core\Config::set('channels.mobile_de.sandbox', true);
+check('Sandbox schaltet die Adresse um',
+    App\Integration\MobileDeClient::baseUrl() === 'https://services.sandbox.mobile.de');
+App\Core\Config::set('channels.mobile_de.sandbox', false);
+
+$mdePub = file_get_contents(BASE_PATH . '/src/Integration/MobileDePublisher.php');
+check('Kennung wird vor den Bildern gesichert',
+    strpos($mdePub, 'Sofort sichern, noch vor den Bildern')
+    < strpos($mdePub, '3. Bilder'));
+check('Pflichtangaben werden vor dem Bild-Upload geprueft',
+    strpos($mdePub, 'missingFields(') < strpos($mdePub, 'uploadImage('));
+$mdePage = file_get_contents(BASE_PATH . '/dashboard/mobilede.php');
+check('Passwort steht nicht mehr im Seitenquelltext',
+    !str_contains($mdePage, 'hidden\" name=\"md_password\"'));
+check('Kunde kann die Freischaltung anfordern',
+    str_contains($mdePage, 'request_activation') && str_contains($mdePage, 'mde_customer_ref'));
+check('Verbinden ohne eigenes Passwort moeglich',
+    str_contains($mdePage, 'platform_connect'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');

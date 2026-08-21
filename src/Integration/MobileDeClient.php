@@ -21,10 +21,26 @@ final class MobileDeClient
 
     private const TIMEOUT_SECONDS = 45;
 
+    /** Adresse der Testumgebung von mobile.de. */
+    public const SANDBOX_URL = 'https://services.sandbox.mobile.de';
+
     public static function baseUrl(): string
     {
         $configured = trim((string) \App\Core\Config::get('channels.mobile_de.api_url', ''));
-        return $configured !== '' ? rtrim($configured, '/') : 'https://services.mobile.de';
+        if ($configured !== '') {
+            return rtrim($configured, '/');
+        }
+        // Probebetrieb: mobile.de betreibt dafuer eine eigene Umgebung. Dort
+        // entstehen keine echten Anzeigen. Sie braucht eigene Zugangsdaten.
+        if (self::isSandbox()) {
+            return self::SANDBOX_URL;
+        }
+        return 'https://services.mobile.de';
+    }
+
+    public static function isSandbox(): bool
+    {
+        return filter_var(\App\Core\Config::get('channels.mobile_de.sandbox', false), FILTER_VALIDATE_BOOL);
     }
 
     /**

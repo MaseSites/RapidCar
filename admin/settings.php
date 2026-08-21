@@ -129,6 +129,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
     }
 
+    if ($action === 'mde_platform') {
+        // Betreiber-Zugang fuer mobile.de, gleiches Verfahren wie bei
+        // AutoScout24: pruefen, dann verschluesselt in der Datenbank ablegen.
+        $mdeUser = trim((string) ($_POST['mde_platform_username'] ?? ''));
+        $mdePass = (string) ($_POST['mde_platform_password'] ?? '');
+
+        if ($mdeUser === '') {
+            \App\Integration\MobileDeService::storePlatformCredentials('', '');
+            ActivityLogger::log((int) $currentUser['id'], 'admin.mde_platform_cleared', 'mobile.de-Betreiberzugang entfernt');
+            Session::flash('info', 'Der Betreiber-Zugang wurde entfernt. Händler verbinden sich wieder mit eigenen Zugangsdaten.');
+        } elseif ($mdePass === '') {
+            Session::flash('warning', 'Bitte auch das Passwort eingeben. Ohne Passwort lässt sich der Zugang nicht prüfen.');
+        } else {
+            try {
+                $mdeSellers = \App\Integration\MobileDeService::verifyCredentials($mdeUser, $mdePass);
+                \App\Integration\MobileDeService::storePlatformCredentials($mdeUser, $mdePass);
+                ActivityLogger::log((int) $currentUser['id'], 'admin.mde_platform_set', 'mobile.de-Betreiberzugang hinterlegt');
+                Session::flash('success', 'Betreiber-Zugang gespeichert. ' . count($mdeSellers) . ' Verkäuferkonten sind darüber erreichbar.');
+            } catch (\Throwable $e) {
+                Session::flash('danger', 'mobile.de hat den Zugang abgelehnt: ' . $e->getMessage());
+            }
+        }
+    }
+
     if ($action === 'ai_mode') {
         $mode = ($_POST['ai_mode'] ?? 'mock') === 'live' ? 'live' : 'mock';
 
@@ -289,6 +313,44 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                 </form>
             <?php endif; ?>
         </div>
+</div>
+
+<div class="card mb-3" id="mdeplatform">
+    <div class="card-header">
+        <h2>mobile.de: Betreiber-Zugang</h2>
+        <?php if (\App\Integration\MobileDeService::hasPlatformCredentials()): ?>
+            <span class="badge badge-success"><?= icon('check', 13) ?> Hinterlegt</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <p class="text-sm text-secondary mb-2">
+            mobile.de nennt das einen Transfer Service Provider: ein Zugang, der im
+            Namen mehrerer Verkäufer inseriert. Deine Kunden wählen dann nur noch ihr
+            Verkäuferkonto, ohne eigenes Passwort. Ohne Zugang meldet sich jeder Kunde
+            mit seinen eigenen mobile.de-Daten an.
+        </p>
+        <form method="post">
+            <?= App\Core\Csrf::field() ?>
+            <input type="hidden" name="action" value="mde_platform">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Benutzername</label>
+                    <input class="form-control" type="text" name="mde_platform_username" autocomplete="off"
+                           value="<?= e(\App\Integration\MobileDeService::platformUsername()) ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Passwort</label>
+                    <input class="form-control" type="password" name="mde_platform_password" autocomplete="new-password"
+                           placeholder="<?= \App\Integration\MobileDeService::hasPlatformCredentials() ? 'Unverändert lassen oder neu eingeben' : '' ?>">
+                </div>
+            </div>
+            <p class="form-hint" style="margin-top:-4px">
+                Der Zugang wird zuerst bei mobile.de geprüft und nur bei Erfolg verschlüsselt gespeichert.
+                Benutzername leeren und speichern entfernt ihn wieder.
+            </p>
+            <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Speichern und prüfen</button>
+        </form>
+    </div>
 </div>
 
 <div class="card mb-3" id="as24platform">

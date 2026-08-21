@@ -67,9 +67,15 @@ final class MobileDeService
         string $password,
         string $sellerId,
         string $sellerName,
-        ?int $userId = null
+        ?int $userId = null,
+        bool $viaPlatform = false
     ): void {
-        $encoded = json_encode([
+        // Ueber den Betreiber-Zugang wird bewusst KEIN Passwort des Haendlers
+        // gespeichert; die Zugangsdaten kommen dann aus der Verwaltung.
+        $encoded = json_encode($viaPlatform ? [
+            'mode'      => 'platform',
+            'seller_id' => $sellerId,
+        ] : [
             'username'  => trim($username),
             'password'  => $password,
             'seller_id' => $sellerId,
@@ -106,7 +112,135 @@ final class MobileDeService
         );
     }
 
-    /** @return array{username: string, password: string, seller_id: string}|null */
+    // -----------------------------------------------------------------------
+    // Betreiber-Zugang (bei mobile.de "Transfer Service Provider"): ein
+    // Zugang, der im Namen mehrerer Verkaeufer inseriert. Der Haendler gibt
+    // dann kein eigenes Passwort heraus, er waehlt nur sein Verkaeuferkonto.
+    // -----------------------------------------------------------------------
+
+    public static function hasPlatformCredentials(): bool
+    {
+        return self::platformUsername() !== '' && self::platformPassword() !== '';
+    }
+
+    /**
+     * Benutzername des Betreiber-Zugangs. Die Verwaltung hat Vorrang vor der
+     * Konfigurationsdatei: so laesst er sich eintragen, ohne je eine Datei
+     * auf dem Server anzufassen.
+     */
+    public static function platformUsername(): string
+    {
+        $stored = trim((string) (\App\Service\SettingsService::get('mobilede_platform_username') ?? ''));
+        if ($stored !== '') {
+            return $stored;
+        }
+        return trim((string) \App\Core\Config::get('channels.mobile_de.platform_username', ''));
+    }
+
+    private static function platformPassword(): string
+    {
+        $stored = (string) (\App\Service\SettingsService::get('mobilede_platform_password') ?? '');
+        if ($stored !== '') {
+            try {
+                return Encryption::decrypt($stored);
+            } catch (\Throwable $e) {
+                \App\Core\Logger::warning('Der gespeicherte mobile.de-Betreiberzugang liess sich nicht entschlüsseln.');
+                return '';
+            }
+        }
+        return (string) \App\Core\Config::get('channels.mobile_de.platform_password', '');
+    }
+
+    /** Legt den Betreiber-Zugang verschluesselt ab. Leeres Passwort loescht ihn. */
+    public static function storePlatformCredentials(string $username, string $password): void
+    {
+        \App\Service\SettingsService::set('mobilede_platform_username', trim($username));
+        \App\Service\SettingsService::set(
+            'mobilede_platform_password',
+            $password === '' ? '' : Encryption::encrypt($password)
+        );
+    }
+
+    public static function platformFromDatabase(): bool
+    {
+        return trim((string) (\App\Service\SettingsService::get('mobilede_platform_username') ?? '')) !== '';
+    }
+
+    /**
+     * Verkaeuferkonten, die ueber den Betreiber-Zugang erreichbar sind und
+     * noch keinem anderen Konto gehoeren.
+     *
+     * @return array<int, array{id: string, name: string}>
+     */
+    public static function availablePlatformSellers(int $dealershipId): array
+    {
+        if (!self::hasPlatformCredentials()) {
+            return [];
+        }
+        $sellers = self::verifyCredentials(self::platformUsername(), self::platformPassword());
+        return array_values(array_filter(
+            $sellers,
+            fn(array $seller): bool => self::dealershipUsingSeller((string) $seller['id'], $dealershipId) === null
+        ));
+    }
+
+    /** Welches Konto nutzt dieses Verkaeuferkonto bereits? */
+    public static function dealershipUsingSeller(string $sellerId, ?int $exceptDealershipId = null): ?int
+    {
+        $rows = Database::fetchAll(
+            'SELECT dealership_id, access_token FROM integration_tokens WHERE provider = :p',
+            ['p' => self::PROVIDER]
+        );
+        foreach ($rows as $row) {
+            $owner = (int) $row['dealership_id'];
+            if ($exceptDealershipId !== null && $owner === $exceptDealershipId) {
+                continue;
+            }
+            try {
+                $decoded = json_decode((string) Encryption::decrypt((string) $row['access_token']), true);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if (is_array($decoded) && (string) ($decoded['seller_id'] ?? '') === $sellerId) {
+                return $owner;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Verbindet ein Konto ueber den Betreiber-Zugang. Es wird kein Passwort
+     * des Haendlers gespeichert, nur die Nummer seines Verkaeuferkontos.
+     */
+    public static function connectViaPlatform(
+        int $dealershipId,
+        string $sellerId,
+        ?string $sellerName = null,
+        ?int $userId = null
+    ): void {
+        if (!self::hasPlatformCredentials()) {
+            throw new RuntimeException('Es ist kein Betreiber-Zugang für mobile.de hinterlegt.');
+        }
+        $known = false;
+        foreach (self::verifyCredentials(self::platformUsername(), self::platformPassword()) as $seller) {
+            if ((string) $seller['id'] === $sellerId) {
+                $known = true;
+                $sellerName = $sellerName ?? (string) $seller['name'];
+                break;
+            }
+        }
+        if (!$known) {
+            throw new RuntimeException('Dieses Verkäuferkonto ist über den Betreiber-Zugang nicht erreichbar.');
+        }
+        if (self::dealershipUsingSeller($sellerId, $dealershipId) !== null) {
+            throw new RuntimeException('Dieses Verkäuferkonto ist bereits mit einem anderen Konto verbunden.');
+        }
+        self::connect($dealershipId, '', '', $sellerId, $sellerName, $userId, true);
+    }
+
+    /**
+     * @return array{username: string, password: string, seller_id: string}|null
+     */
     public static function credentials(int $dealershipId): ?array
     {
         $row = Database::fetch(
@@ -117,7 +251,24 @@ final class MobileDeService
             return null;
         }
         $decoded = json_decode((string) Encryption::decrypt((string) $row['access_token']), true);
-        if (!is_array($decoded) || (string) ($decoded['username'] ?? '') === '') {
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        // Ueber den Betreiber-Zugang verbunden: die Zugangsdaten kommen aus
+        // der Verwaltung, gespeichert ist nur das Verkaeuferkonto.
+        if (($decoded['mode'] ?? '') === 'platform') {
+            if (!self::hasPlatformCredentials()) {
+                return null;
+            }
+            return [
+                'username'  => self::platformUsername(),
+                'password'  => self::platformPassword(),
+                'seller_id' => (string) ($decoded['seller_id'] ?? ''),
+            ];
+        }
+
+        if ((string) ($decoded['username'] ?? '') === '') {
             return null;
         }
         return [

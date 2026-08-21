@@ -261,6 +261,10 @@ return [
             'auth_url' => '', 'token_url' => '', 'api_url' => '', 'scopes' => '',
         ],
         'mobile_de' => [
+            // Probebetrieb in der Testumgebung von mobile.de. Dort entstehen
+            // keine echten Anzeigen. Sie braucht eigene Zugangsdaten, die
+            // ueber service@team.mobile.de angefordert werden.
+            'sandbox' => false,
             'client_id' => '', 'client_secret' => '', 'redirect_uri' => '',
             'auth_url' => '', 'token_url' => '', 'api_url' => '', 'scopes' => '',
         ],

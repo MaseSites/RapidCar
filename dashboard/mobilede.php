@@ -55,17 +55,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 Session::flash('success', 'mobile.de ist verbunden.');
                 redirect('dashboard/mobilede.php');
             }
-            // Mehrere Konten: Auswahl unten anzeigen; die Zugangsdaten
-            // kommen beim naechsten Schritt erneut mit (nie in der Session).
+            // Mehrere Konten: Auswahl unten anzeigen. Die Zugangsdaten
+            // werden verschluesselt in der Sitzung zwischengelegt. Frueher
+            // standen sie als verstecktes Feld im Seitenquelltext, also im
+            // Klartext im Browser und in jedem Zwischenspeicher.
+            Session::set('mde_pending', [
+                'username' => $username,
+                'password' => \App\Core\Encryption::encrypt($password),
+            ]);
         }
 
         if ($action === 'choose') {
             $sellerId = (string) ($_POST['seller_id'] ?? '');
             $sellerName = (string) ($_POST['seller_name'] ?? '');
+            $pending = Session::get('mde_pending');
+            if (!is_array($pending) || !isset($pending['username'], $pending['password'])) {
+                Session::flash('warning', 'Die Anmeldung ist abgelaufen. Bitte noch einmal beginnen.');
+                redirect('dashboard/mobilede.php');
+            }
+            try {
+                $username = (string) $pending['username'];
+                $password = \App\Core\Encryption::decrypt((string) $pending['password']);
+            } catch (\Throwable $e) {
+                Session::remove('mde_pending');
+                Session::flash('warning', 'Die Anmeldung ist abgelaufen. Bitte noch einmal beginnen.');
+                redirect('dashboard/mobilede.php');
+            }
             if ($sellerId === '') {
                 $error = 'Bitte ein Verkäuferkonto wählen.';
             } else {
                 MobileDeService::connect($dealershipId, $username, $password, $sellerId, $sellerName, (int) $currentUser['id']);
+                Session::remove('mde_pending');
                 Session::flash('success', 'mobile.de ist verbunden.');
                 redirect('dashboard/mobilede.php');
             }
@@ -74,6 +94,66 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($action === 'test') {
             $result = MobileDeService::testConnection($dealershipId);
             Session::flash($result['ok'] ? 'success' : 'danger', $result['message']);
+            redirect('dashboard/mobilede.php');
+        }
+
+        if ($action === 'platform_connect') {
+            // Verbindung ueber den Betreiber-Zugang: kein Passwort des Kunden
+            MobileDeService::connectViaPlatform(
+                $dealershipId,
+                (string) ($_POST['seller_id'] ?? ''),
+                (string) ($_POST['seller_name'] ?? ''),
+                (int) $currentUser['id']
+            );
+            Session::flash('success', 'mobile.de ist verbunden.');
+            redirect('dashboard/mobilede.php');
+        }
+
+        if ($action === 'request_activation') {
+            // Der Kunde nennt nur seine mobile.de-Kundennummer. Den Rest
+            // erledigt der Betreiber.
+            $reqCustomer = trim(mb_substr((string) ($_POST['mde_customer_ref'] ?? ''), 0, 60));
+            $reqCompany  = trim(mb_substr((string) ($_POST['mde_company'] ?? ''), 0, 190));
+            $reqNote     = trim(mb_substr((string) ($_POST['mde_note'] ?? ''), 0, 500));
+
+            if ($reqCustomer === '' && $reqCompany === '') {
+                Session::flash('warning', 'Bitte die mobile.de-Kundennummer oder den Firmennamen angeben.');
+                redirect('dashboard/mobilede.php');
+            }
+
+            \App\Service\ActivityLogger::log(
+                (int) $currentUser['id'],
+                'mobilede.activation_requested',
+                'Freischaltung angefragt (Kundennummer: ' . ($reqCustomer !== '' ? $reqCustomer : 'ohne')
+                    . ', Firma: ' . ($reqCompany !== '' ? $reqCompany : 'ohne') . ')',
+                'dealership',
+                $dealershipId,
+                $dealershipId
+            );
+
+            $reqTo = trim((string) \App\Core\Config::get('mail.contact', ''));
+            if ($reqTo === '') {
+                $reqTo = trim((string) \App\Core\Config::get('mail.from', ''));
+            }
+            $reqSent = false;
+            if ($reqTo !== '') {
+                $reqSent = \App\Core\Mailer::send(
+                    $reqTo,
+                    'mobile.de: Freischaltung angefragt',
+                    '<p>Ein Konto möchte mit mobile.de verbunden werden.</p>'
+                    . '<p><strong>Konto:</strong> #' . $dealershipId . '</p>'
+                    . '<p><strong>Angemeldet als:</strong> ' . e((string) ($currentUser['email'] ?? '')) . '</p>'
+                    . '<p><strong>mobile.de-Kundennummer:</strong> ' . e($reqCustomer !== '' ? $reqCustomer : 'nicht angegeben') . '</p>'
+                    . '<p><strong>Firma:</strong> ' . e($reqCompany !== '' ? $reqCompany : 'nicht angegeben') . '</p>'
+                    . ($reqNote !== '' ? '<p><strong>Bemerkung:</strong> ' . nl2br(e($reqNote)) . '</p>' : '')
+                );
+            }
+            Session::flash(
+                'success',
+                $reqSent
+                    ? 'Danke, die Anfrage ist unterwegs. Wir melden uns, sobald die Verbindung steht.'
+                    : 'Die Anfrage ist vermerkt. Bitte melde dich zusätzlich kurz bei uns, damit wir sie sicher sehen.'
+            );
             redirect('dashboard/mobilede.php');
         }
 
@@ -90,6 +170,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $isConnected = MobileDeService::isConnected($dealershipId);
+
+// Betreiber-Zugang: dann waehlt der Kunde nur sein Verkaeuferkonto.
+$platformMode = MobileDeService::hasPlatformCredentials();
+$platformSellers = [];
+if ($platformMode && !$isConnected) {
+    try {
+        $platformSellers = MobileDeService::availablePlatformSellers($dealershipId);
+    } catch (\Throwable $e) {
+        // Ist der Betreiber-Zugang gerade nicht erreichbar, bleibt der
+        // gewohnte Weg mit eigenen Zugangsdaten offen.
+        $platformSellers = [];
+    }
+}
+$dealership = App\Core\Database::fetch('SELECT name FROM dealerships WHERE id = :id', ['id' => $dealershipId]) ?? [];
+$canManage = AuthService::isDealerAdmin() || AuthService::isSuperAdmin();
 $integration = App\Core\Database::fetch(
     'SELECT * FROM integrations WHERE dealership_id = :d AND provider = :p',
     ['d' => $dealershipId, 'p' => MobileDeService::PROVIDER]
@@ -133,6 +228,97 @@ require BASE_PATH . '/includes/layout/dash-header.php';
             </div>
         </div>
     </div>
+<?php elseif ($platformMode && $platformSellers !== []): ?>
+    <!-- ============ Betreiber-Zugang: nur das Verkaeuferkonto waehlen -->
+    <div class="card" style="max-width:640px">
+        <div class="card-header">
+            <h2>Verkäuferkonto wählen</h2>
+            <span class="badge badge-success"><?= icon('check', 13) ?> Ohne eigenes Passwort</span>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary mb-3">
+                Wir sind bei mobile.de als Übertragungsdienst hinterlegt. Wähle einfach
+                dein Verkäuferkonto, dein mobile.de-Passwort brauchen wir nicht.
+            </p>
+            <?php if ($canManage): ?>
+                <form method="post">
+                    <?= App\Core\Csrf::field() ?>
+                    <input type="hidden" name="action" value="platform_connect">
+                    <div class="form-group">
+                        <?php foreach ($platformSellers as $index => $seller): ?>
+                            <label class="form-check">
+                                <input type="radio" name="seller_id" value="<?= e((string) $seller['id']) ?>"
+                                       <?= $index === 0 ? 'checked' : '' ?>>
+                                <span><?= e((string) ($seller['name'] ?? '')) ?> (<?= e((string) $seller['id']) ?>)</span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <button class="btn btn-primary btn-lg" type="submit">
+                        <?= icon('check', 16) ?> Verbinden
+                    </button>
+                </form>
+            <?php else: ?>
+                <div class="alert alert-warning"><?= icon('info', 16) ?> <span><?= t('autoscout.only_admin') ?></span></div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+<?php elseif ($platformMode): ?>
+    <!-- ====== Betreiber-Zugang da, dieses Konto aber noch nicht zugeordnet -->
+    <div class="split split-3-2">
+        <div class="card">
+            <div class="card-header"><h2>Verbindung anfordern</h2></div>
+            <div class="card-body">
+                <p class="text-secondary mb-3">
+                    Für dein Konto ist die Verbindung zu mobile.de noch nicht freigeschaltet.
+                    Nenne uns deine mobile.de-Kundennummer, den Rest übernehmen wir.
+                    Du gibst dabei kein Passwort heraus.
+                </p>
+                <?php if ($canManage): ?>
+                    <form method="post">
+                        <?= App\Core\Csrf::field() ?>
+                        <input type="hidden" name="action" value="request_activation">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">mobile.de-Kundennummer</label>
+                                <input class="form-control" type="text" name="mde_customer_ref" maxlength="60"
+                                       placeholder="steht auf deiner mobile.de-Rechnung">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Firmenname bei mobile.de</label>
+                                <input class="form-control" type="text" name="mde_company" maxlength="190"
+                                       value="<?= e((string) ($dealership['name'] ?? '')) ?>">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Bemerkung <span class="optional">(optional)</span></label>
+                            <textarea class="form-control" name="mde_note" rows="3" maxlength="500"></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-lg" type="submit">
+                            <?= icon('send', 16) ?> Verbindung anfordern
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div class="alert alert-warning"><?= icon('info', 16) ?> <span><?= t('autoscout.only_admin') ?></span></div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card card-pad">
+            <h3 style="font-size:15px" class="mb-2">Wie es weitergeht</h3>
+            <ol class="text-secondary text-sm" style="margin:0 0 0 18px;line-height:1.9">
+                <li>Du schickst uns deine Kundennummer.</li>
+                <li>Wir lassen dein Verkäuferkonto unserem Zugang zuordnen.</li>
+                <li>Sobald das steht, erscheint es hier zur Auswahl.</li>
+                <li>Ein Klick, und deine Inserate gehen automatisch hinaus.</li>
+            </ol>
+            <div class="alert alert-info mt-2" style="margin-bottom:0">
+                <?= icon('lock', 16) ?>
+                <span class="text-sm">Dein mobile.de-Passwort brauchen wir dafür nie.</span>
+            </div>
+        </div>
+    </div>
+
 <?php else: ?>
     <div class="card mb-3" style="max-width:560px">
         <div class="card-header"><h2>Mit mobile.de verbinden</h2></div>
@@ -147,7 +333,6 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                     <?= App\Core\Csrf::field() ?>
                     <input type="hidden" name="action" value="choose">
                     <input type="hidden" name="md_username" value="<?= e($formUsername) ?>">
-                    <input type="hidden" name="md_password" value="<?= e((string) ($_POST['md_password'] ?? '')) ?>">
                     <div class="form-group">
                         <label class="form-label">Verkäuferkonto wählen</label>
                         <?php foreach ($sellers as $seller): ?>
