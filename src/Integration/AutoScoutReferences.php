@@ -63,7 +63,13 @@ final class AutoScoutReferences
             return null;
         }
 
-        foreach (self::flattenMakes(self::makes($dealershipId)) as $make) {
+        try {
+            $makes = self::flattenMakes(self::makes($dealershipId));
+        } catch (\Throwable $e) {
+            return null;   // Markenliste nicht erreichbar
+        }
+
+        foreach ($makes as $make) {
             if (self::normalize((string) ($make['name'] ?? '')) === $makeName) {
                 return isset($make['id']) ? (int) $make['id'] : null;
             }
@@ -80,7 +86,13 @@ final class AutoScoutReferences
             return null;
         }
 
-        foreach (self::flattenMakes(self::makes($dealershipId)) as $make) {
+        try {
+            $makes = self::flattenMakes(self::makes($dealershipId));
+        } catch (\Throwable $e) {
+            return null;   // Markenliste nicht erreichbar
+        }
+
+        foreach ($makes as $make) {
             if (self::normalize((string) ($make['name'] ?? '')) !== $makeNameNorm) {
                 continue;
             }
@@ -125,7 +137,15 @@ final class AutoScoutReferences
             return null;
         }
 
-        foreach (self::flattenReferences(self::references($dealershipId, $referenceType, $culture)) as $entry) {
+        // Ist die Referenzliste nicht erreichbar (keine Verbindung, Ausfall),
+        // bleibt der Wert offen statt die ganze Uebertragung abzubrechen.
+        try {
+            $entries = self::flattenReferences(self::references($dealershipId, $referenceType, $culture));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        foreach ($entries as $entry) {
             $name = self::normalize((string) ($entry['name'] ?? $entry['value'] ?? ''));
             if ($name === '') {
                 continue;

@@ -103,6 +103,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         redirect('admin/settings.php');
     }
 
+    if ($action === 'as24_platform') {
+        // Betreiber-Zugang fuer AutoScout24. Er wird verschluesselt in der
+        // Datenbank abgelegt, damit niemand eine Datei auf dem Server
+        // anfassen muss. Ein leeres Feld loescht den Zugang.
+        $as24User = trim((string) ($_POST['as24_platform_username'] ?? ''));
+        $as24Pass = (string) ($_POST['as24_platform_password'] ?? '');
+
+        if ($as24User === '') {
+            \App\Integration\AutoScoutService::storePlatformCredentials('', '');
+            ActivityLogger::log((int) $currentUser['id'], 'admin.as24_platform_cleared', 'AutoScout24-Plattformzugang entfernt');
+            Session::flash('info', 'Der Plattform-Zugang wurde entfernt. Händler verbinden sich wieder mit eigenen Zugangsdaten.');
+        } elseif ($as24Pass === '') {
+            Session::flash('warning', 'Bitte auch das Passwort eingeben. Ohne Passwort lässt sich der Zugang nicht prüfen.');
+        } else {
+            // Erst pruefen, dann speichern: ein falscher Zugang wird nie abgelegt.
+            try {
+                $as24Customers = \App\Integration\AutoScoutService::verifyCredentials($as24User, $as24Pass);
+                \App\Integration\AutoScoutService::storePlatformCredentials($as24User, $as24Pass);
+                ActivityLogger::log((int) $currentUser['id'], 'admin.as24_platform_set', 'AutoScout24-Plattformzugang hinterlegt');
+                Session::flash('success', 'Plattform-Zugang gespeichert. ' . count($as24Customers) . ' Kundennummern sind darüber erreichbar.');
+            } catch (\Throwable $e) {
+                Session::flash('danger', 'AutoScout24 hat den Zugang abgelehnt: ' . $e->getMessage());
+            }
+        }
+    }
+
     if ($action === 'ai_mode') {
         $mode = ($_POST['ai_mode'] ?? 'mock') === 'live' ? 'live' : 'mock';
 
@@ -265,6 +291,44 @@ require BASE_PATH . '/includes/layout/admin-header.php';
         </div>
 </div>
 
+<div class="card mb-3" id="as24platform">
+    <div class="card-header">
+        <h2>AutoScout24: Plattform-Zugang</h2>
+        <?php if (\App\Integration\AutoScoutService::hasPlatformCredentials()): ?>
+            <span class="badge badge-success"><?= icon('check', 13) ?> Hinterlegt</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <p class="text-sm text-secondary mb-2">
+            Mit einem Plattform-Zugang verbinden sich deine Kunden mit einem Klick:
+            Sie wählen nur noch ihre Kundennummer, ohne eigenes Passwort einzugeben.
+            Ohne Zugang meldet sich jeder Kunde mit seinen eigenen AutoScout24-Daten an.
+            Beides funktioniert, der Zugang macht es nur bequemer.
+        </p>
+        <form method="post">
+            <?= App\Core\Csrf::field() ?>
+            <input type="hidden" name="action" value="as24_platform">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Benutzername</label>
+                    <input class="form-control" type="text" name="as24_platform_username" autocomplete="off"
+                           value="<?= e(\App\Integration\AutoScoutService::platformUsername()) ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Passwort</label>
+                    <input class="form-control" type="password" name="as24_platform_password" autocomplete="new-password"
+                           placeholder="<?= \App\Integration\AutoScoutService::hasPlatformCredentials() ? 'Unverändert lassen oder neu eingeben' : '' ?>">
+                </div>
+            </div>
+            <p class="form-hint" style="margin-top:-4px">
+                Der Zugang wird zuerst bei AutoScout24 geprüft und nur bei Erfolg verschlüsselt gespeichert.
+                Benutzername leeren und speichern entfernt ihn wieder.
+            </p>
+            <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Speichern und prüfen</button>
+        </form>
+    </div>
+</div>
+
 <div class="card mb-3">
         <div class="card-header"><h2>KI-Modus (§54)</h2></div>
         <div class="card-body">
@@ -324,9 +388,12 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                 </tr>
                 <tr>
                     <td>AutoScout24 Plattform-Zugang</td>
-                    <td><?= \App\Integration\AutoScoutService::hasPlatformCredentials()
-                        ? '<span class="badge badge-success">Hinterlegt</span>'
-                        : '<span class="badge badge-neutral">Ohne, Händler nutzen eigene Zugangsdaten</span>' ?></td>
+                    <td>
+                        <?= \App\Integration\AutoScoutService::hasPlatformCredentials()
+                            ? '<span class="badge badge-success">Hinterlegt</span>'
+                            : '<span class="badge badge-neutral">Ohne, Händler nutzen eigene Zugangsdaten</span>' ?>
+                        <a class="text-sm" href="#as24platform" style="margin-left:8px">Ändern</a>
+                    </td>
                 </tr>
                 <tr>
                     <td>Instagram-Zugangsdaten</td>

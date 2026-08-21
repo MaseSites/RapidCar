@@ -65,9 +65,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             // Schritt 1: Zugangsdaten prüfen und Kundenliste holen
             $customers = AutoScoutService::verifyCredentials($username, $password);
+            // Das Passwort wird verschluesselt zwischengelegt. Sitzungsdateien
+            // liegen im Klartext auf der Platte; dort hat ein Passwort des
+            // Kunden nichts verloren, auch nicht fuer zwei Minuten.
             Session::set('as24_pending', [
                 'username'  => $username,
-                'password'  => $password,
+                'password'  => \App\Core\Encryption::encrypt($password),
                 'customers' => $customers,
             ]);
             Session::flash('success', t('autoscout.credentials_ok', ['count' => count($customers)]));
@@ -95,10 +98,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw new RuntimeException(t('autoscout.invalid_customer'));
             }
 
+            // Schlaegt die Entschluesselung fehl (etwa nach einem Schluessel-
+            // wechsel), wird nicht mit leerem Passwort weitergemacht.
+            try {
+                $pendingPassword = \App\Core\Encryption::decrypt((string) $pending['password']);
+            } catch (\Throwable $e) {
+                Session::remove('as24_pending');
+                Session::flash('warning', t('autoscout.session_expired'));
+                redirect('dashboard/autoscout.php');
+            }
+
             AutoScoutService::connect(
                 $dealershipId,
                 (string) $pending['username'],
-                (string) $pending['password'],
+                $pendingPassword,
                 $customerId,
                 $sellId,
                 (int) $currentUser['id']

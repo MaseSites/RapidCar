@@ -744,6 +744,114 @@ check('Vorlagen-Endpunkt sichert das Konto ab',
 check('Vorlagen-Tabelle existiert',
     App\Core\Database::scalar('SELECT COUNT(*) FROM post_templates') !== null);
 
+echo "AutoScout24: Uebertragung der Fahrzeugdaten\n";
+// Der Mapper wird ohne Netz geprueft: Referenzabrufe scheitern still und
+// liefern null, alles Uebrige muss trotzdem korrekt im Payload landen.
+$as24Vehicle = [
+    'id' => 4242, 'make' => 'Skoda', 'model' => 'Octavia', 'variant' => 'RS',
+    'year' => 2023, 'first_registration' => '05.2023', 'mileage' => 24500,
+    'price' => 36900.0, 'power_hp' => 245, 'power_kw' => 180,
+    'displacement_ccm' => 1984, 'transmission' => 'automatic',
+    'drivetrain' => 'fwd', 'fuel_type' => 'petrol', 'color' => 'Grau',
+    'doors' => 5, 'seats' => 5, 'vin' => 'TMBJJ7NE8P0123456',
+    'body_type' => 'kombi', 'condition_state' => 'used',
+    'cylinders' => 4, 'gears' => 7, 'previous_owners' => 1,
+    'co2_emission' => 168, 'consumption' => 7.42,
+    'weight_empty_kg' => 1545, 'weight_total_kg' => 2080, 'payload_kg' => 535,
+    'wheelbase_mm' => 2686, 'towing_capacity_kg' => 1600,
+    'length_mm' => 4689, 'width_mm' => 1829, 'height_mm' => 1468,
+    'metallic' => 1, 'is_import' => 0, 'accident_free' => 1,
+    'last_mfk' => '04.2025', 'energy_class' => 'D', 'euro_norm' => 'Euro 6',
+    'interior_color' => 'Schwarz', 'description' => 'Ein Testfahrzeug.',
+];
+$as24Listing = ['description' => 'Beschreibung des Inserats.', 'title' => 'Skoda Octavia RS'];
+$as24Built = App\Integration\AutoScoutMapper::build(
+    0, $as24Vehicle, $as24Listing, ['Sitzheizung', 'Navigationssystem'], ['bild-1'], false, 'CHF'
+);
+$as24Payload = $as24Built['payload'];
+
+check('Kernangaben werden uebertragen',
+    ($as24Payload['mileage'] ?? null) === 24500
+    && ($as24Payload['doorCount'] ?? null) === 5
+    && ($as24Payload['vin'] ?? null) === 'TMBJJ7NE8P0123456');
+check('neue Felder landen im Payload',
+    ($as24Payload['cylinderCount'] ?? null) === 4
+    && ($as24Payload['gearCount'] ?? null) === 7
+    && ($as24Payload['previousOwnerCount'] ?? null) === 1
+    && ($as24Payload['co2Emissions'] ?? null) === 168
+    && ($as24Payload['emptyWeight'] ?? null) === 1545);
+check('Verbrauch auf eine Kommastelle gerundet',
+    ($as24Payload['consumption']['combined'] ?? null) === 7.4);
+check('Metallic und Unfallfreiheit werden gemeldet',
+    ($as24Payload['isMetallic'] ?? null) === true
+    && ($as24Payload['condition']['hadAccident'] ?? null) === false);
+check('letzte Fahrzeugpruefung im Format der Schnittstelle',
+    ($as24Payload['lastTechnicalServiceDate'] ?? null) === '2025-04');
+
+// Fuer Personenwagen verbotene Felder duerfen NIE mitgesendet werden:
+// die Schnittstelle lehnt das Inserat sonst ab.
+$as24Forbidden = ['wheelbase', 'maximumTowingWeight', 'payload', 'grossVehicleWeight',
+    'totalLength', 'totalWidth', 'totalHeight'];
+$as24Sent = array_values(array_intersect($as24Forbidden, array_keys($as24Payload)));
+check('verbotene Felder bleiben draussen (' . implode(', ', $as24Sent) . ')', $as24Sent === []);
+
+$as24Mapper = file_get_contents(BASE_PATH . '/src/Integration/AutoScoutMapper.php');
+check('Ausstattung wird in echte Nummern uebersetzt',
+    str_contains($as24Mapper, "'Equipment'") && str_contains($as24Mapper, "payload['equipment']"));
+check('Angebotsart kommt aus dem Fahrzeugzustand',
+    str_contains($as24Mapper, 'OFFER_TYPE_NEW') && str_contains($as24Mapper, "'OfferType'"));
+
+echo "AutoScout24: Schutz vor doppelten Inseraten\n";
+$as24Pub = file_get_contents(BASE_PATH . '/src/Integration/AutoScoutPublisher.php');
+check('neu angelegt wird nur bei wirklich verschwundenem Inserat',
+    str_contains($as24Pub, 'isGone(') && str_contains($as24Pub, 'HTTP 404'));
+check('Anmeldefehler legt kein zweites Inserat an',
+    str_contains($as24Pub, 'catch (AutoScoutAuthException'));
+check('aktives Inserat bleibt bei Aenderungen aktiv',
+    str_contains($as24Pub, 'isListedActive('));
+check('Inserats-Nummer wird auch als Zahl erkannt',
+    str_contains($as24Pub, 'is_int($response[$key])'));
+check('Pflichtangaben werden vor dem Bild-Upload geprueft',
+    strpos($as24Pub, 'Pflichtangaben zuerst pruefen') < strpos($as24Pub, 'AutoScoutImages::uploadMany'));
+check('Bilderfehler bricht ab statt Bilder online zu loeschen',
+    str_contains($as24Pub, 'Kein einziges Bild konnte übertragen werden'));
+check('bearbeitete Bilder haben Vorrang',
+    str_contains($as24Pub, "image['composed_path']"));
+check('Erfolg und Fehler landen im Kanalstatus',
+    str_contains($as24Pub, 'markListingSynced(') && str_contains($as24Pub, 'markListingError('));
+
+$as24Page = file_get_contents(BASE_PATH . '/dashboard/autoscout.php');
+check('Passwort liegt nie im Klartext in der Sitzung',
+    str_contains($as24Page, 'Encryption::encrypt(' . chr(36) . 'password)')
+    && !str_contains($as24Page, "'password'  => " . chr(36) . "password,"));
+
+echo "AutoScout24: Betreiber-Zugang ohne Serverdatei\n";
+// Der Zugang laesst sich in der Verwaltung eintragen und liegt
+// verschluesselt in der Datenbank, nie im Klartext.
+App\Integration\AutoScoutService::storePlatformCredentials('pruef@example.com', 'PruefPasswort123');
+check('Zugang wird erkannt', App\Integration\AutoScoutService::hasPlatformCredentials() === true);
+check('Benutzername kommt zurueck',
+    App\Integration\AutoScoutService::platformUsername() === 'pruef@example.com');
+check('Zugang stammt aus der Datenbank',
+    App\Integration\AutoScoutService::platformFromDatabase() === true);
+$as24Raw = (string) App\Core\Database::scalar(
+    "SELECT setting_value FROM settings WHERE setting_key = 'autoscout_platform_password'");
+check('Passwort liegt verschluesselt in der Datenbank',
+    $as24Raw !== '' && !str_contains($as24Raw, 'PruefPasswort'));
+$as24Ref = new ReflectionMethod(App\Integration\AutoScoutService::class, 'platformPassword');
+$as24Ref->setAccessible(true);
+check('Passwort laesst sich wieder lesen', $as24Ref->invoke(null) === 'PruefPasswort123');
+App\Integration\AutoScoutService::storePlatformCredentials('', '');
+check('Leeren entfernt den Zugang',
+    App\Integration\AutoScoutService::hasPlatformCredentials() === false);
+App\Core\Database::run("DELETE FROM settings WHERE setting_key LIKE 'autoscout_platform%'");
+$as24Admin = file_get_contents(BASE_PATH . '/admin/settings.php');
+check('Verwaltung bietet ein Formular dafuer',
+    str_contains($as24Admin, 'as24_platform') && str_contains($as24Admin, 'storePlatformCredentials'));
+check('falscher Zugang wird nicht gespeichert',
+    strpos($as24Admin, 'verifyCredentials(' . chr(36) . 'as24User')
+    < strpos($as24Admin, 'storePlatformCredentials(' . chr(36) . 'as24User'));
+
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
     App\AI\OpenAiProvider::DEFAULT_MODEL === 'gpt-4o-mini');

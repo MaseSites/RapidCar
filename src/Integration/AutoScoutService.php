@@ -40,14 +40,53 @@ final class AutoScoutService
         return self::platformUsername() !== '' && self::platformPassword() !== '';
     }
 
+    /**
+     * Benutzername des Betreiber-Zugangs. Die Verwaltung hat Vorrang vor der
+     * Konfigurationsdatei: so laesst sich der Zugang eintragen, ohne je eine
+     * Datei auf dem Server anzufassen.
+     */
     public static function platformUsername(): string
     {
+        $stored = trim((string) (\App\Service\SettingsService::get('autoscout_platform_username') ?? ''));
+        if ($stored !== '') {
+            return $stored;
+        }
         return trim((string) \App\Core\Config::get('autoscout.platform_username', ''));
     }
 
+    /** Passwort des Betreiber-Zugangs, in der Datenbank verschluesselt abgelegt. */
     private static function platformPassword(): string
     {
+        $stored = (string) (\App\Service\SettingsService::get('autoscout_platform_password') ?? '');
+        if ($stored !== '') {
+            try {
+                return \App\Core\Encryption::decrypt($stored);
+            } catch (\Throwable $e) {
+                \App\Core\Logger::warning('Der gespeicherte AutoScout24-Plattformzugang liess sich nicht entschlüsseln.');
+                return '';
+            }
+        }
         return (string) \App\Core\Config::get('autoscout.platform_password', '');
+    }
+
+    /**
+     * Legt den Betreiber-Zugang verschluesselt in der Datenbank ab.
+     * Ein leeres Passwort loescht den gespeicherten Zugang.
+     */
+    public static function storePlatformCredentials(string $username, string $password): void
+    {
+        $username = trim($username);
+        \App\Service\SettingsService::set('autoscout_platform_username', $username);
+        \App\Service\SettingsService::set(
+            'autoscout_platform_password',
+            $password === '' ? '' : \App\Core\Encryption::encrypt($password)
+        );
+    }
+
+    /** Kommt der Zugang aus der Verwaltung oder noch aus der Datei? */
+    public static function platformFromDatabase(): bool
+    {
+        return trim((string) (\App\Service\SettingsService::get('autoscout_platform_username') ?? '')) !== '';
     }
 
     /**

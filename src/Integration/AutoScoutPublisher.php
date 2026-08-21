@@ -44,20 +44,56 @@ final class AutoScoutPublisher
         $features = VehicleRepository::features($vehicleId);
         $images = VehicleRepository::images($vehicleId);
 
+        // Ein Inserat, das online schon laeuft, bleibt laufen. Ohne das haette
+        // jede Aenderung am Fahrzeug es stillschweigend abgeschaltet, weil im
+        // Payload immer "Inactive" stand.
+        if (!$activate && self::isListedActive($dealershipId, (int) $listing['id'])) {
+            $activate = true;
+        }
+
         $dealership = Database::fetch('SELECT currency FROM dealerships WHERE id = :id', ['id' => $dealershipId]);
         $currency = (string) ($dealership['currency'] ?? 'CHF');
 
-        // -------------------------------------------------------- 1. Bilder
+        // ------------------------------------ 1. Pflichtangaben zuerst pruefen
+        //
+        // Vor dem Bild-Upload: sonst liegen bei fehlenden Angaben verwaiste
+        // Bilder im AutoScout24-Konto, die dort niemand mehr zuordnen kann.
+        $check = AutoScoutMapper::build($dealershipId, $vehicle, $listing, $features, [], $activate, $currency);
+        if ($check['missing'] !== []) {
+            throw new RuntimeException(
+                'Für die Übertragung fehlen Pflichtangaben: ' . implode(', ', $check['missing']) . '.'
+            );
+        }
+
+        // -------------------------------------------------------- 2. Bilder
+        //
+        // Bearbeitete Fassung hat Vorrang: wer den Hintergrund ersetzt hat,
+        // will das bearbeitete Bild im Inserat sehen, nicht das Rohfoto.
         $imagePaths = [];
         foreach ($images as $image) {
-            $absolute = BASE_PATH . '/uploads/' . $image['file_path'];
-            if (is_file($absolute)) {
-                $imagePaths[] = $absolute;
+            foreach ([$image['composed_path'] ?? null, $image['file_path'] ?? null] as $candidate) {
+                if ($candidate === null || $candidate === '') {
+                    continue;
+                }
+                $absolute = BASE_PATH . '/uploads/' . $candidate;
+                if (is_file($absolute)) {
+                    $imagePaths[] = $absolute;
+                    break;
+                }
             }
         }
         $uploaded = AutoScoutImages::uploadMany($dealershipId, array_slice($imagePaths, 0, 30));
 
-        // ------------------------------------------------------- 2. Payload
+        // Schlagen ALLE Bilder fehl, obwohl welche vorhanden sind, wird
+        // abgebrochen: ein Update ohne images-Feld wuerde die online
+        // vorhandenen Bilder loeschen.
+        if ($imagePaths !== [] && $uploaded['ids'] === []) {
+            throw new RuntimeException(
+                'Kein einziges Bild konnte übertragen werden: ' . implode(' ', $uploaded['errors'])
+            );
+        }
+
+        // ------------------------------------------------------- 3. Payload
         $mapped = AutoScoutMapper::build(
             $dealershipId,
             $vehicle,
@@ -68,22 +104,26 @@ final class AutoScoutPublisher
             $currency
         );
 
-        if ($mapped['missing'] !== []) {
-            throw new RuntimeException(
-                'Für die Übertragung fehlen Pflichtangaben: ' . implode(', ', $mapped['missing']) . '.'
-            );
-        }
-
-        // -------------------------------------- 3. Anlegen oder aktualisieren
+        // -------------------------------------- 4. Anlegen oder aktualisieren
         $externalId = self::externalListingId($dealershipId, (int) $listing['id']);
         $created = false;
 
         if ($externalId !== null) {
             try {
                 AutoScoutListings::update($dealershipId, $externalId, $mapped['payload']);
+            } catch (AutoScoutAuthException $e) {
+                // Zugangsdaten stimmen nicht mehr: durchreichen, nicht neu anlegen
+                self::markListingError($dealershipId, (int) $listing['id'], $e->getMessage());
+                throw $e;
             } catch (RuntimeException $e) {
-                // Inserat existiert extern nicht mehr: neu anlegen
-                Logger::warning('AutoScout24-Aktualisierung fehlgeschlagen, lege neu an: ' . $e->getMessage());
+                // Nur wenn das Inserat dort WIRKLICH weg ist, wird neu angelegt.
+                // Bei Netzwerk- oder Serverfehlern entstuende sonst bei jedem
+                // Versuch ein zweites Inserat.
+                if (!self::isGone($e)) {
+                    self::markListingError($dealershipId, (int) $listing['id'], $e->getMessage());
+                    throw $e;
+                }
+                Logger::warning('AutoScout24-Inserat existiert nicht mehr, lege neu an: ' . $e->getMessage());
                 $externalId = null;
             }
         }
@@ -98,6 +138,7 @@ final class AutoScoutPublisher
             self::storeExternalListingId($dealershipId, (int) $listing['id'], $externalId);
         }
 
+        self::markListingSynced($dealershipId, (int) $listing['id'], $activate);
         AutoScoutService::touchSync($dealershipId);
         ActivityLogger::log(
             $userId,
@@ -135,6 +176,7 @@ final class AutoScoutPublisher
         }
 
         AutoScoutListings::setPublication($dealershipId, $externalId, $active);
+        self::markListingSynced($dealershipId, (int) $listing['id'], $active);
         ActivityLogger::log(
             $userId,
             $active ? 'autoscout.listing_activated' : 'autoscout.listing_deactivated',
@@ -224,12 +266,69 @@ final class AutoScoutPublisher
         ]);
     }
 
+    /** Laeuft dieses Inserat bei AutoScout24 bereits aktiv? */
+    private static function isListedActive(int $dealershipId, int $listingId): bool
+    {
+        $row = Database::fetch(
+            'SELECT status FROM channel_listings WHERE listing_id = :l AND provider = :p',
+            ['l' => $listingId, 'p' => AutoScoutService::PROVIDER]
+        );
+        return $row !== null && (string) ($row['status'] ?? '') === 'active';
+    }
+
+    /**
+     * Ist das Inserat bei AutoScout24 wirklich verschwunden? Nur dann darf
+     * neu angelegt werden. Alles andere (Zeitueberschreitung, Serverfehler,
+     * Validierung) ist ein vorübergehender Fehler.
+     */
+    private static function isGone(RuntimeException $e): bool
+    {
+        $message = $e->getMessage();
+        return str_contains($message, 'HTTP 404')
+            || str_contains($message, 'nicht gefunden')
+            || str_contains($message, 'not found')
+            || str_contains($message, 'does not exist');
+    }
+
+    /** Haelt fest, dass die Uebertragung geklappt hat. */
+    private static function markListingSynced(int $dealershipId, int $listingId, bool $active): void
+    {
+        Database::run(
+            'UPDATE channel_listings SET status = :s, last_error = NULL, synced_at = :t, updated_at = :t
+             WHERE listing_id = :l AND provider = :p',
+            [
+                's' => $active ? 'active' : 'inactive',
+                't' => Database::now(),
+                'l' => $listingId,
+                'p' => AutoScoutService::PROVIDER,
+            ]
+        );
+    }
+
+    /** Haelt einen Fehler fest, damit er in der Uebersicht sichtbar wird. */
+    private static function markListingError(int $dealershipId, int $listingId, string $message): void
+    {
+        Database::run(
+            'UPDATE channel_listings SET status = :s, last_error = :e, updated_at = :t
+             WHERE listing_id = :l AND provider = :p',
+            [
+                's' => 'error',
+                'e' => mb_substr($message, 0, 500),
+                't' => Database::now(),
+                'l' => $listingId,
+                'p' => AutoScoutService::PROVIDER,
+            ]
+        );
+    }
+
     /** @param array<string, mixed> $response */
     private static function extractListingId(array $response): ?string
     {
         foreach (['id', 'listingId'] as $key) {
-            if (isset($response[$key]) && is_string($response[$key]) && $response[$key] !== '') {
-                return $response[$key];
+            // AutoScout24 liefert die Nummer teils als Zahl, teils als Text
+            if (isset($response[$key]) && (is_string($response[$key]) || is_int($response[$key]))
+                && (string) $response[$key] !== '') {
+                return (string) $response[$key];
             }
         }
         return null;
