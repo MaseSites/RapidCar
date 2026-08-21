@@ -16,6 +16,29 @@ Ergebnis:
 
 ---
 
+## Die Adressen
+
+| Plattform | Adresse | Quelle |
+|---|---|---|
+| Autolina | `service@autolina.ch` | Kontaktseite autolina.ch, selbst nachgesehen |
+| Ricardo | `premiumservice@ricardo.ch` | Team für gewerbliche Verkäufer, Telefon 041 769 33 44 |
+| tutti.ch | `hilfe@tutti.ch` | Support-Adresse; für Gewerbliches gibt es kein eigenes Postfach |
+| car4you | **keine gefunden** | siehe unten |
+| Kleinanzeigen | über das Formular für gewerbliche Anbieter | keine offene Adresse veröffentlicht |
+| Meta | über den Meta Business Support | keine offene Adresse |
+
+**Zu car4you:** Die Seite car4you.ch war von hier aus nicht erreichbar, und
+eine E-Mail-Adresse steht in keiner der geprüften Quellen. Gefunden habe ich
+nur die Firmenanschrift: car4you Schweiz AG, Bürglistrasse 6, 8002 Zürich,
+Telefon 043 499 18 88. Eine Adresse zu raten wäre wertlos, deshalb steht hier
+keine. Am schnellsten kommst du über einen Anruf oder das Kontaktformular auf
+ihrer Seite weiter; nenne dort einfach die Fragen aus der Vorlage unten.
+
+Ein Hinweis dazu: car4you gehörte zu Tamedia. Prüfe im Gespräch kurz, ob die
+Plattform noch eigenständig betrieben wird, bevor du Zeit hineinsteckst.
+
+---
+
 ## Facebook Marketplace: keine Mail nötig
 
 Meta nimmt eine Fahrzeugliste als Datei entgegen. Die Adresse dazu steht im
@@ -90,7 +113,7 @@ Partnerschnittstellen. Dafür diese Mail:
 
 ## car4you (Schweiz)
 
-> **An:** über das Händlerkontaktformular auf car4you.ch
+> **An:** Kontaktformular auf car4you.ch oder telefonisch 043 499 18 88
 > **Betreff:** Schnittstelle für die Übertragung von Fahrzeuginseraten
 >
 > Guten Tag
@@ -119,7 +142,7 @@ Partnerschnittstellen. Dafür diese Mail:
 
 ## Autolina (Schweiz)
 
-> **An:** über das Händlerkontaktformular auf autolina.ch
+> **An:** service@autolina.ch
 > **Betreff:** Schnittstelle für die Übertragung von Fahrzeuginseraten
 
 Gleicher Text wie bei car4you, nur den Namen austauschen.
@@ -132,7 +155,7 @@ Beide gehören zur Swiss Marketplace Group. tutti.ch kann Inserate
 automatisch an Ricardo weiterreichen, das heisst eine Anbindung an tutti
 deckt beide ab.
 
-> **An:** über das Kontaktformular für gewerbliche Anbieter auf tutti.ch
+> **An:** hilfe@tutti.ch, in Kopie premiumservice@ricardo.ch
 > **Betreff:** Schnittstelle für gewerbliche Fahrzeuginserate
 >
 > Guten Tag
