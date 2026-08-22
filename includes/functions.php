@@ -241,6 +241,24 @@ function rating_class(int $score): string
 }
 
 /**
+ * Farbstufe der Inseratsbewertung in sechs Schritten.
+ *
+ * Bewusst getrennt von rating_class(): die Pfeile (§33) arbeiten mit fuenf
+ * Stufen, die Punktzahl in der Liste soll feiner abgestuft sein.
+ */
+function score_tone(int $score): string
+{
+    return match (true) {
+        $score >= 90 => 'tone-6',   // dunkelgruen
+        $score >= 75 => 'tone-5',   // gruen
+        $score >= 60 => 'tone-4',   // gelb
+        $score >= 45 => 'tone-3',   // orange
+        $score >= 30 => 'tone-2',   // hellrot
+        default      => 'tone-1',   // rot
+    };
+}
+
+/**
  * Pfeil-Bewertung (§33) als SVG-Icon mit Farbklasse.
  * Sehr gut: Doppelpfeil hoch, Gut: Pfeil hoch, Mittel: Pfeil rechts,
  * Schlecht: Pfeil runter, Kritisch: Doppelpfeil runter.

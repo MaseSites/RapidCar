@@ -1451,7 +1451,7 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.listing-name:hover { color: var(--primary); text-decoration: none; }
+.listing-name:hover { color: inherit; text-decoration: none; }
 .listing-sub { font-size: 13px; color: var(--text-muted); }
 
 .listing-specs {
@@ -1484,8 +1484,28 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
     text-align: right;
 }
 .listing-price { font-size: 19px; font-weight: 700; letter-spacing: -.4px; white-space: nowrap; }
-.listing-score { font-size: 12px; color: var(--text-muted); }
-.listing-score strong { color: var(--primary); }
+.listing-score { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+/* Bewertung in sechs weichen Stufen: von Rot ueber Gelb bis Dunkelgruen.
+   Gedeckte Toene, damit die Liste ruhig bleibt und trotzdem alles auf
+   einen Blick erkennbar ist. */
+.score-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: -.1px;
+    border: 1px solid transparent;
+}
+.score-chip.tone-1 { background: #fdecec; color: #b42318; border-color: #f8d8d8; }
+.score-chip.tone-2 { background: #fdefe7; color: #c4320a; border-color: #fadfd0; }
+.score-chip.tone-3 { background: #fef4e6; color: #b54708; border-color: #fbe6c8; }
+.score-chip.tone-4 { background: #fcf7e2; color: #8a6a0a; border-color: #f5ecc3; }
+.score-chip.tone-5 { background: #ecf7ef; color: #2f7d4b; border-color: #d6ecdd; }
+.score-chip.tone-6 { background: #ddefe4; color: #14602f; border-color: #c2e2ce; }
 .listing-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .listing-actions form { margin: 0; }
 .listing-actions .btn-sm { border-radius: 999px; }

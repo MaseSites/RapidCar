@@ -230,7 +230,10 @@ require BASE_PATH . '/includes/layout/dash-header.php';
                 <div class="listing-side">
                     <div class="listing-price"><?= format_price($vehicle['price']) ?></div>
                     <?php if ($score !== null): ?>
-                        <div class="listing-score"><?= t('dash.listing_score') ?> <strong><?= $score ?></strong></div>
+                        <div class="listing-score">
+                            <?= t('dash.listing_score') ?>
+                            <span class="score-chip <?= score_tone($score) ?>"><?= $score ?></span>
+                        </div>
                     <?php endif; ?>
 
                     <div class="listing-actions">
