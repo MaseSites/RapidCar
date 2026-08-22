@@ -197,8 +197,8 @@ check('Schweizer Händler sieht AutoScout24 und tutti.ch',
     && isset(ChannelRegistry::forCountry('CH')['tutti']));
 check('deutscher Händler bekommt mobile.de angeboten',
     isset(ChannelRegistry::forCountry('DE')['mobile_de']));
-check('deutscher Händler bekommt Comparis nicht angeboten',
-    !isset(ChannelRegistry::forCountry('DE')['comparis']));
+check('deutscher Händler bekommt Autolina nicht angeboten',
+    !isset(ChannelRegistry::forCountry('DE')['autolina']));
 check('Instagram gilt überall',
     isset(ChannelRegistry::forCountry('CH')['instagram'])
     && isset(ChannelRegistry::forCountry('DE')['instagram'])
@@ -1102,10 +1102,75 @@ check('nicht verbunden fuehrt zum Verbinden',
 check('car4you ist vollstaendig entfernt',
     !isset(App\Integration\ChannelRegistry::all()['car4you'])
     && !str_contains(file_get_contents(BASE_PATH . '/src/Integration/ChannelRegistry.php'), 'car4you'));
-check('Comparis kommt ueber AutoScout24 mit',
-    App\Integration\ChannelRegistry::connectMode('comparis') === 'included');
-check('Comparis wird nicht als eigene Anbindung angeboten',
-    str_contains(file_get_contents(BASE_PATH . '/dashboard/channels.php'), 'Ohne Zutun dabei'));
+check('Ricardo hat eine eigene Anbindung',
+    App\Integration\ChannelRegistry::connectMode('ricardo') === 'api'
+    && App\Integration\ChannelRegistry::CONNECT_PAGES['ricardo'] === 'dashboard/ricardo.php');
+
+echo "Ricardo: Anbindung\n";
+check('Comparis ist vollstaendig entfernt',
+    !isset(App\Integration\ChannelRegistry::all()['comparis'])
+    && !str_contains(file_get_contents(BASE_PATH . '/src/Integration/ChannelRegistry.php'), 'comparis'));
+check('ohne Partnerschluessel gilt Ricardo als nicht eingerichtet',
+    App\Integration\ChannelRegistry::isConfigured('ricardo') === false);
+
+App\Integration\RicardoService::storePartnerCredentials('pruef-partner', 'PruefGeheim123');
+check('mit Partnerschluessel ist Ricardo eingerichtet',
+    App\Integration\ChannelRegistry::isConfigured('ricardo') === true);
+$ricRaw = (string) App\Core\Database::scalar(
+    "SELECT setting_value FROM settings WHERE setting_key = 'ricardo_partner_secret'");
+check('Partner-Passwort liegt verschluesselt in der Datenbank',
+    $ricRaw !== '' && !str_contains($ricRaw, 'PruefGeheim'));
+check('Schluessel laesst sich wieder lesen',
+    App\Integration\RicardoService::partnerKey() === 'pruef-partner');
+App\Integration\RicardoService::storePartnerCredentials('', '');
+
+check('Adresse der Schnittstelle stimmt',
+    App\Integration\RicardoClient::host() === 'ws.ricardo.ch');
+
+echo "Ricardo: Artikel aus dem Fahrzeug\n";
+App\Service\SettingsService::set('ricardo_category_id', '30099');
+$ricVehicle = [
+    'make' => 'Skoda', 'model' => 'Octavia', 'variant' => 'RS', 'price' => 36900.0,
+    'first_registration' => '05.2023', 'mileage' => 24500, 'power_hp' => 245,
+    'fuel_type' => 'petrol', 'transmission' => 'automatic', 'color' => 'Grau',
+];
+$ricListing = ['title' => 'Skoda Octavia RS', 'description' => 'Gepflegt.'];
+$ricMap = new ReflectionMethod(App\Integration\RicardoPublisher::class, 'mapVehicle');
+$ricMap->setAccessible(true);
+$ricArticle = $ricMap->invoke(null, $ricVehicle, $ricListing, 42, [], 1);
+
+check('Kategorie und Titel stehen im Artikel',
+    ($ricArticle['CategoryId'] ?? null) === 30099
+    && ($ricArticle['ArticleTitle'] ?? null) === 'Skoda Octavia RS');
+check('Festpreis statt Auktion',
+    ($ricArticle['StartPrice'] ?? null) === 36900
+    && ($ricArticle['BuyNowPrice'] ?? null) === 36900);
+check('Fahrzeugdaten stehen in der Beschreibung',
+    str_contains((string) $ricArticle['ArticleDescription'], '245 PS')
+    && str_contains((string) $ricArticle['ArticleDescription'], 'Benzin'));
+check('eigene Referenz zum Wiedererkennen',
+    ($ricArticle['InternalReferences'][0]['InternalReferenceValue'] ?? '') === 'RC-42');
+
+$ricMiss = new ReflectionMethod(App\Integration\RicardoPublisher::class, 'missingFields');
+$ricMiss->setAccessible(true);
+check('vollstaendiges Fahrzeug geht durch',
+    $ricMiss->invoke(null, $ricVehicle, $ricListing, 1) === []);
+App\Service\SettingsService::set('ricardo_category_id', '');
+check('ohne Kategorie wird abgebrochen',
+    count($ricMiss->invoke(null, $ricVehicle, $ricListing, 1)) === 1);
+App\Core\Database::run("DELETE FROM settings WHERE setting_key LIKE 'ricardo_%'");
+
+$ricPage = file_get_contents(BASE_PATH . '/dashboard/ricardo.php');
+check('Verbinden laeuft ueber die Freigabe bei Ricardo',
+    str_contains($ricPage, "'begin'") && str_contains($ricPage, "'finish'"));
+check('Kunde gibt kein Passwort heraus',
+    str_contains($ricPage, 'Passwort brauchen wir nie'));
+$ricPub = file_get_contents(BASE_PATH . '/src/Integration/RicardoPublisher.php');
+check('Pflichtangaben werden vor dem Einstellen geprueft',
+    strpos($ricPub, 'missingFields(') < strpos($ricPub, 'InsertArticle'));
+$ricVeh = file_get_contents(BASE_PATH . '/dashboard/vehicle.php');
+check('Ricardo wird beim Veroeffentlichen wirklich bedient',
+    str_contains($ricVeh, 'RicardoPublisher::push'));
 
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
@@ -2237,7 +2302,7 @@ echo "Kanäle (ChannelRegistry)\n";
 $channels = ChannelRegistry::all();
 check('Instagram als einziges soziales Netz', isset($channels['instagram']) && $channels['instagram']['type'] === ChannelRegistry::TYPE_SOCIAL);
 check('AutoScout24 und mobile.de vorhanden', isset($channels['autoscout24'], $channels['mobile_de']));
-check('Schweizer Plattformen vorhanden', isset($channels['comparis'], $channels['tutti'], $channels['ricardo']));
+check('Schweizer Plattformen vorhanden', isset($channels['autolina'], $channels['tutti'], $channels['ricardo']));
 check('mindestens 8 Verkaufsplattformen', count(ChannelRegistry::byType(ChannelRegistry::TYPE_MARKETPLACE)) >= 8);
 check('nur Instagram als soziales Netz', count(ChannelRegistry::byType(ChannelRegistry::TYPE_SOCIAL)) === 1);
 check('ohne Zugangsdaten: nicht konfiguriert', ChannelRegistry::isConfigured('instagram') === false);

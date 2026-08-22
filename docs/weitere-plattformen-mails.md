@@ -8,10 +8,10 @@ Ergebnis:
 | AutoScout24 | ja, dokumentiert | eingebaut, Partneranfrage läuft |
 | mobile.de | ja, dokumentiert (TSP) | eingebaut, Anfrage vorbereitet |
 | Facebook Marketplace | nimmt eine Fahrzeugliste als Datei | **Adresse steht bereit, siehe unten** |
-| Comparis | keine eigene nötig | **kommt über AutoScout24 mit** |
+
 | Autolina | keine öffentliche | Mail |
 | tutti.ch | keine öffentliche | Mail |
-| Ricardo | keine öffentliche | über tutti.ch, Mail |
+| Ricardo | ja, eigene Schnittstelle | **eingebaut**, Partnerschlüssel anfragen |
 | Kleinanzeigen | keine öffentliche | über mobile.de, siehe unten |
 
 ---
@@ -23,20 +23,12 @@ Ergebnis:
 | Autolina | `service@autolina.ch` | Kontaktseite autolina.ch, selbst nachgesehen |
 | Ricardo | `premiumservice@ricardo.ch` | Team für gewerbliche Verkäufer, Telefon 041 769 33 44 |
 | tutti.ch | `hilfe@tutti.ch` | Support-Adresse; für Gewerbliches gibt es kein eigenes Postfach |
-| Comparis | keine nötig | läuft über AutoScout24 |
+
 | Kleinanzeigen | über das Formular für gewerbliche Anbieter | keine offene Adresse veröffentlicht |
 | Meta | über den Meta Business Support | keine offene Adresse |
 
-**Zu Comparis:** Hier ist nichts zu tun. AutoScout24 gibt die Inserate seiner
-Händler automatisch und kostenlos an comparis.ch weiter, über eine feste
-Verbindung zwischen den beiden Plattformen. Wer also über uns bei AutoScout24
-inseriert, erscheint ohne weiteres Zutun auch auf comparis.
-
-Quelle: die Händlerseite von AutoScout24 zur Insertion auf Comparis. Dort
-steht wörtlich, die Inserate würden automatisch und ohne zusätzlichen Aufwand
-veröffentlicht.
-
-**car4you wurde entfernt.** Die Plattform gibt es nicht mehr.
+**Entfernt:** car4you gibt es nicht mehr, und Comparis ist keine eigene
+Plattform, auf der man inserieren kann. Beide sind aus der Anwendung raus.
 
 ---
 
@@ -112,11 +104,47 @@ Partnerschnittstellen. Dafür diese Mail:
 
 ---
 
-## Comparis: keine Mail nötig
+## Ricardo: eingebaut, nur der Partnerschlüssel fehlt
 
-AutoScout24 reicht die Inserate automatisch an comparis.ch weiter, kostenlos
-und ohne Aktivierung. Sobald ein Händler über uns bei AutoScout24 inseriert,
-erscheint das Fahrzeug auch dort.
+Ricardo hat als einzige der übrigen Plattformen eine echte Schnittstelle. Sie
+ist vollständig eingebaut: Verbinden über eine Freigabe auf ricardo.ch, ohne
+dass ein Händler sein Passwort herausgibt, und Fahrzeuge gehen als
+Festpreis-Artikel hinaus.
+
+Was noch fehlt, ist der Partnerschlüssel. Den vergibt Ricardo einmalig an dich
+als Anbieter, kostenlos.
+
+> **An:** premiumservice@ricardo.ch, Telefon 041 769 33 44
+> **Betreff:** Partnerschlüssel für die Ricardo-Schnittstelle
+>
+> Guten Tag
+>
+> Wir entwickeln RapidCar, eine Schweizer Software für Fahrzeuginserate.
+> Autohäuser und private Verkäufer erfassen bei uns ihre Fahrzeuge einmal und
+> veröffentlichen sie anschliessend auf mehreren Plattformen.
+>
+> Wir möchten die Ricardo-Schnittstelle nutzen und im Namen unserer Kunden
+> Fahrzeuge als Festpreis-Artikel einstellen. Dazu unsere Fragen:
+>
+> 1. Wie erhalten wir einen Partnerschlüssel (PartnerKey und Passwort)?
+> 2. Wir haben den Ablauf so umgesetzt: CreateTemporaryCredential, Freigabe
+>    durch den Händler auf ricardo.ch, dann CreateTokenCredential. Ist das
+>    richtig?
+> 3. Welche Kategorienummer ist für Personenwagen vorgesehen?
+> 4. Gibt es eine Testumgebung?
+> 5. Welche Anfragegrenzen gelten, und wie viele Bilder sind je Artikel
+>    zulässig?
+>
+> Wir befinden uns noch in der Entwicklung. Unsere Seite rapid-car.com ist
+> eine vorläufige Fassung. Echte Artikel haben wir zu keinem Zeitpunkt
+> eingestellt.
+>
+> Freundliche Grüsse
+> [Name, Firma, Adresse, Telefon]
+
+Sobald du Schlüssel und Kategorienummer hast, trägst du beides in der
+Verwaltung unter Einstellungen ein. Danach steht bei deinen Kunden unter
+Kanäle der Verbinden-Knopf.
 
 ---
 
@@ -149,13 +177,12 @@ erscheint das Fahrzeug auch dort.
 
 ---
 
-## tutti.ch und Ricardo (Schweiz)
+## tutti.ch (Schweiz)
 
-Beide gehören zur Swiss Marketplace Group. tutti.ch kann Inserate
-automatisch an Ricardo weiterreichen, das heisst eine Anbindung an tutti
-deckt beide ab.
+tutti.ch gehört wie Ricardo zur Swiss Marketplace Group, hat aber keine
+eigene Schnittstelle.
 
-> **An:** hilfe@tutti.ch, in Kopie premiumservice@ricardo.ch
+> **An:** hilfe@tutti.ch
 > **Betreff:** Schnittstelle für gewerbliche Fahrzeuginserate
 >
 > Guten Tag

@@ -123,6 +123,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 Session::flash('warning', 'AutoScout24: ' . $e->getMessage());
             }
         }
+        // Ricardo: eigene Schnittstelle, wird wie AutoScout24 wirklich bedient
+        if (in_array(\App\Integration\RicardoService::PROVIDER, $selectedChannels, true)
+            && \App\Integration\RicardoService::isConnected($dealershipId)) {
+            try {
+                \App\Integration\RicardoPublisher::push($dealershipId, $vehicleId, (int) $currentUser['id']);
+            } catch (\Throwable $e) {
+                Session::flash('warning', 'Ricardo: ' . $e->getMessage());
+            }
+        }
+
         // Im Testbetrieb werden die uebrigen gewaehlten Kanaele nur lokal
         // vermerkt. An eine echte Plattform geht dabei nichts.
         $testRun = \App\Integration\ChannelRegistry::testChannelEnabled()
@@ -131,6 +141,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($chKey === \App\Integration\AutoScoutService::PROVIDER
                 && \App\Integration\AutoScoutService::isConnected($dealershipId)) {
                 continue;   // wurde oben schon wirklich uebertragen
+            }
+            if ($chKey === \App\Integration\RicardoService::PROVIDER
+                && \App\Integration\RicardoService::isConnected($dealershipId)) {
+                continue;   // ebenso
             }
             if (!$testRun && $chKey !== \App\Integration\ChannelRegistry::TEST_PROVIDER) {
                 continue;

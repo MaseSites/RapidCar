@@ -55,13 +55,6 @@ final class ChannelRegistry
                 'region' => 'DE',
                 'note'   => 'Händlerkonto nötig. Wir können auch in deinem Namen inserieren, sobald mobile.de dich unserem Zugang zuordnet.',
             ],
-            'comparis' => [
-                'name'   => 'Comparis',
-                'type'   => self::TYPE_MARKETPLACE,
-                'icon'   => 'car',
-                'region' => 'CH',
-                'note'   => 'Läuft über AutoScout24: wer dort inseriert, erscheint automatisch und kostenlos auch auf comparis.ch.',
-            ],
             'autolina' => [
                 'name'   => 'Autolina',
                 'type'   => self::TYPE_MARKETPLACE,
@@ -81,7 +74,7 @@ final class ChannelRegistry
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'tag',
                 'region' => 'CH',
-                'note'   => 'Keine öffentliche Schnittstelle. Über tutti.ch lassen sich Inserate weiterreichen.',
+                'note'   => 'Eigene Schnittstelle. Fahrzeuge gehen als Festpreis-Artikel hinaus.',
             ],
             'kleinanzeigen' => [
                 'name'   => 'Kleinanzeigen',
@@ -227,10 +220,9 @@ final class ChannelRegistry
         'autoscout24'          => 'api',
         'mobile_de'            => 'api',
         'facebook_marketplace' => 'feed',
-        'comparis'             => 'included',
         'autolina'             => 'request',
         'tutti'                => 'request',
-        'ricardo'              => 'request',
+        'ricardo'              => 'api',
         'kleinanzeigen'        => 'request',
     ];
 
@@ -247,6 +239,7 @@ final class ChannelRegistry
     public const CONNECT_PAGES = [
         'autoscout24' => 'dashboard/autoscout.php',
         'mobile_de'   => 'dashboard/mobilede.php',
+        'ricardo'     => 'dashboard/ricardo.php',
     ];
 
     public static function isConfigured(string $key): bool
@@ -255,6 +248,11 @@ final class ChannelRegistry
         // Es sind keine plattformweiten Client-Credentials erforderlich.
         if (in_array($key, self::SELF_SERVICE, true) || $key === self::TEST_PROVIDER) {
             return true;
+        }
+        // Ricardo arbeitet mit einem Partnerschluessel des Betreibers, nicht
+        // mit den ueblichen OAuth-Zugangsdaten.
+        if ($key === RicardoService::PROVIDER) {
+            return RicardoService::hasPartnerCredentials();
         }
         return self::client($key)->isConfigured();
     }

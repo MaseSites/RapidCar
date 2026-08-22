@@ -153,6 +153,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
     }
 
+    if ($action === 'ricardo_partner') {
+        // Partnerschluessel von Ricardo. Er gehoert dem Betreiber, nicht dem
+        // einzelnen Haendler, und wird verschluesselt abgelegt.
+        $ricKey = trim((string) ($_POST['ricardo_partner_key'] ?? ''));
+        $ricSecret = (string) ($_POST['ricardo_partner_secret'] ?? '');
+        $ricCategory = trim((string) ($_POST['ricardo_category_id'] ?? ''));
+
+        if ($ricCategory !== '' && preg_match('/^\d{1,10}$/', $ricCategory) !== 1) {
+            Session::flash('warning', 'Die Kategorie muss eine Nummer sein.');
+        } else {
+            SettingsService::set('ricardo_category_id', $ricCategory);
+
+            if ($ricKey === '') {
+                \App\Integration\RicardoService::storePartnerCredentials('', '');
+                ActivityLogger::log((int) $currentUser['id'], 'admin.ricardo_partner_cleared', 'Ricardo-Partnerschlüssel entfernt');
+                Session::flash('info', 'Der Partnerschlüssel wurde entfernt.');
+            } elseif ($ricSecret === '' && !\App\Integration\RicardoService::hasPartnerCredentials()) {
+                Session::flash('warning', 'Bitte auch das Partner-Passwort eingeben.');
+            } else {
+                if ($ricSecret !== '') {
+                    \App\Integration\RicardoService::storePartnerCredentials($ricKey, $ricSecret);
+                }
+                ActivityLogger::log((int) $currentUser['id'], 'admin.ricardo_partner_set', 'Ricardo-Partnerschlüssel hinterlegt');
+                Session::flash('success', 'Ricardo-Partnerschlüssel gespeichert.');
+            }
+        }
+    }
+
     if ($action === 'ai_mode') {
         $mode = ($_POST['ai_mode'] ?? 'mock') === 'live' ? 'live' : 'mock';
 
@@ -313,6 +341,51 @@ require BASE_PATH . '/includes/layout/admin-header.php';
                 </form>
             <?php endif; ?>
         </div>
+</div>
+
+<div class="card mb-3" id="ricardopartner">
+    <div class="card-header">
+        <h2>Ricardo: Partnerschlüssel</h2>
+        <?php if (\App\Integration\RicardoService::hasPartnerCredentials()): ?>
+            <span class="badge badge-success"><?= icon('check', 13) ?> Hinterlegt</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <p class="text-sm text-secondary mb-2">
+            Ricardo vergibt den Schlüssel einmalig an dich als Anbieter, nicht an
+            die einzelnen Händler. Damit verbinden sich deine Kunden mit einem
+            Klick: sie geben die Verbindung auf ricardo.ch frei, ihr Passwort
+            bleibt bei ihnen. Den Zugang beantragst du über den Kundendienst für
+            gewerbliche Verkäufer.
+        </p>
+        <form method="post">
+            <?= App\Core\Csrf::field() ?>
+            <input type="hidden" name="action" value="ricardo_partner">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Partnerschlüssel</label>
+                    <input class="form-control" type="text" name="ricardo_partner_key" autocomplete="off"
+                           value="<?= e(\App\Integration\RicardoService::partnerKey()) ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Partner-Passwort</label>
+                    <input class="form-control" type="password" name="ricardo_partner_secret" autocomplete="new-password"
+                           placeholder="<?= \App\Integration\RicardoService::hasPartnerCredentials() ? 'Unverändert lassen oder neu eingeben' : '' ?>">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kategorie für Fahrzeuge</label>
+                <input class="form-control" type="text" name="ricardo_category_id" inputmode="numeric"
+                       value="<?= e((string) (SettingsService::get('ricardo_category_id') ?? '')) ?>"
+                       placeholder="Nummer der Ricardo-Kategorie">
+                <p class="form-hint">
+                    Ricardo vergibt die Nummern selbst. Sie wird hier eingetragen statt
+                    geraten; ohne sie lehnt Ricardo den Artikel ab.
+                </p>
+            </div>
+            <button class="btn btn-primary" type="submit"><?= icon('check', 15) ?> Speichern</button>
+        </form>
+    </div>
 </div>
 
 <div class="card mb-3" id="mdeplatform">
