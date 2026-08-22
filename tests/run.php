@@ -197,8 +197,8 @@ check('Schweizer Händler sieht AutoScout24 und tutti.ch',
     && isset(ChannelRegistry::forCountry('CH')['tutti']));
 check('deutscher Händler bekommt mobile.de angeboten',
     isset(ChannelRegistry::forCountry('DE')['mobile_de']));
-check('deutscher Händler bekommt car4you nicht angeboten',
-    !isset(ChannelRegistry::forCountry('DE')['car4you']));
+check('deutscher Händler bekommt Comparis nicht angeboten',
+    !isset(ChannelRegistry::forCountry('DE')['comparis']));
 check('Instagram gilt überall',
     isset(ChannelRegistry::forCountry('CH')['instagram'])
     && isset(ChannelRegistry::forCountry('DE')['instagram'])
@@ -1024,7 +1024,7 @@ echo "Kanaele ohne Schnittstelle\n";
 check('Anbindungsart ist je Kanal hinterlegt',
     App\Integration\ChannelRegistry::connectMode('autoscout24') === 'api'
     && App\Integration\ChannelRegistry::connectMode('facebook_marketplace') === 'feed'
-    && App\Integration\ChannelRegistry::connectMode('car4you') === 'request');
+    && App\Integration\ChannelRegistry::connectMode('autolina') === 'request');
 check('Kanaele mit eigener Anbindung behalten ihren Knopf',
     App\Integration\ChannelRegistry::connectMode('instagram') === 'api');
 $chanPage = file_get_contents(BASE_PATH . '/dashboard/channels.php');
@@ -1098,6 +1098,14 @@ check('Rueckweg schliesst die Verbindung ab',
 $igSocial = file_get_contents(BASE_PATH . '/dashboard/social.php');
 check('nicht verbunden fuehrt zum Verbinden',
     str_contains($igSocial, 'Instagram verbinden'));
+
+check('car4you ist vollstaendig entfernt',
+    !isset(App\Integration\ChannelRegistry::all()['car4you'])
+    && !str_contains(file_get_contents(BASE_PATH . '/src/Integration/ChannelRegistry.php'), 'car4you'));
+check('Comparis kommt ueber AutoScout24 mit',
+    App\Integration\ChannelRegistry::connectMode('comparis') === 'included');
+check('Comparis wird nicht als eigene Anbindung angeboten',
+    str_contains(file_get_contents(BASE_PATH . '/dashboard/channels.php'), 'Ohne Zutun dabei'));
 
 echo "Kostenbremse der KI\n";
 check('Standardmodell ist das günstige',
@@ -2229,7 +2237,7 @@ echo "Kanäle (ChannelRegistry)\n";
 $channels = ChannelRegistry::all();
 check('Instagram als einziges soziales Netz', isset($channels['instagram']) && $channels['instagram']['type'] === ChannelRegistry::TYPE_SOCIAL);
 check('AutoScout24 und mobile.de vorhanden', isset($channels['autoscout24'], $channels['mobile_de']));
-check('Schweizer Plattformen vorhanden', isset($channels['car4you'], $channels['tutti'], $channels['ricardo']));
+check('Schweizer Plattformen vorhanden', isset($channels['comparis'], $channels['tutti'], $channels['ricardo']));
 check('mindestens 8 Verkaufsplattformen', count(ChannelRegistry::byType(ChannelRegistry::TYPE_MARKETPLACE)) >= 8);
 check('nur Instagram als soziales Netz', count(ChannelRegistry::byType(ChannelRegistry::TYPE_SOCIAL)) === 1);
 check('ohne Zugangsdaten: nicht konfiguriert', ChannelRegistry::isConfigured('instagram') === false);

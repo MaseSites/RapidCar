@@ -145,6 +145,11 @@ function render_channel_card(array $channel): void
                 <a class="btn btn-primary btn-sm" href="<?= e(ChannelRegistry::connectUrl($channel['key'])) ?>">
                     <?= t('channels.connect') ?>
                 </a>
+            <?php elseif (ChannelRegistry::connectMode($channel['key']) === 'included'): ?>
+                <?php // Kommt ueber einen anderen Kanal mit: nichts zu tun ?>
+                <span class="badge badge-neutral">
+                    <?= icon('check', 13) ?> Ohne Zutun dabei
+                </span>
             <?php elseif (ChannelRegistry::connectMode($channel['key']) === 'request'): ?>
                 <?php // Kein oeffentlicher Weg: der Kunde meldet Interesse an ?>
                 <form method="post">

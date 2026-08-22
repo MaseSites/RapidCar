@@ -1485,20 +1485,20 @@ a.kpi-card:hover { box-shadow: var(--shadow-md, var(--shadow-lg)); text-decorati
 }
 .listing-price { font-size: 19px; font-weight: 700; letter-spacing: -.4px; white-space: nowrap; }
 .listing-score { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-/* Bewertung in sechs Stufen: nur die Zahl, ohne Flaeche. Von Rot ueber
-   Gelb bis Dunkelgruen, gedeckt genug, um neben dem Preis nicht zu
-   schreien. */
+/* Bewertung in sechs Stufen: nur die Zahl, ohne Flaeche. Die Farben sind
+   kraeftig genug, um sie sicher auseinanderzuhalten, und etwas groesser
+   gesetzt, damit sie neben dem Preis nicht untergeht. */
 .score-chip {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: -.1px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -.2px;
 }
-.score-chip.tone-1 { color: #b42318; }
-.score-chip.tone-2 { color: #c4320a; }
-.score-chip.tone-3 { color: #b54708; }
-.score-chip.tone-4 { color: #a07908; }
-.score-chip.tone-5 { color: #2f7d4b; }
-.score-chip.tone-6 { color: #14602f; }
+.score-chip.tone-1 { color: #c01048; }   /* Rot */
+.score-chip.tone-2 { color: #e04f16; }   /* Hellrot */
+.score-chip.tone-3 { color: #ef8321; }   /* Orange */
+.score-chip.tone-4 { color: #cfa008; }   /* Gelb */
+.score-chip.tone-5 { color: #3aa35c; }   /* Gruen */
+.score-chip.tone-6 { color: #14713d; }   /* Dunkelgruen */
 .listing-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .listing-actions form { margin: 0; }
 .listing-actions .btn-sm { border-radius: 999px; }

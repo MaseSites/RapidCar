@@ -55,12 +55,12 @@ final class ChannelRegistry
                 'region' => 'DE',
                 'note'   => 'Händlerkonto nötig. Wir können auch in deinem Namen inserieren, sobald mobile.de dich unserem Zugang zuordnet.',
             ],
-            'car4you' => [
-                'name'   => 'car4you',
+            'comparis' => [
+                'name'   => 'Comparis',
                 'type'   => self::TYPE_MARKETPLACE,
                 'icon'   => 'car',
                 'region' => 'CH',
-                'note'   => 'Keine öffentliche Schnittstelle. Wir fragen die Anbindung für dich an.',
+                'note'   => 'Läuft über AutoScout24: wer dort inseriert, erscheint automatisch und kostenlos auch auf comparis.ch.',
             ],
             'autolina' => [
                 'name'   => 'Autolina',
@@ -215,9 +215,10 @@ final class ChannelRegistry
     /**
      * Wie ein Kanal Fahrzeuge entgegennimmt.
      *
-     *   api     eigene Schnittstelle, in der Anwendung gebaut
-     *   feed    holt sich eine Fahrzeugliste als Datei ab
-     *   request kein oeffentlicher Weg; die Anbindung wird angefragt
+     *   api      eigene Schnittstelle, in der Anwendung gebaut
+     *   feed     holt sich eine Fahrzeugliste als Datei ab
+     *   included kommt ueber einen anderen Kanal mit, ohne eigene Anbindung
+     *   request  kein oeffentlicher Weg; die Anbindung wird angefragt
      *
      * Geprueft an den Unterlagen der Anbieter. Was hier nicht als "api"
      * steht, hat auch keine, und das wird nicht vorgetaeuscht.
@@ -226,7 +227,7 @@ final class ChannelRegistry
         'autoscout24'          => 'api',
         'mobile_de'            => 'api',
         'facebook_marketplace' => 'feed',
-        'car4you'              => 'request',
+        'comparis'             => 'included',
         'autolina'             => 'request',
         'tutti'                => 'request',
         'ricardo'              => 'request',

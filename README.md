@@ -4,7 +4,7 @@ Webbasierte SaaS-Plattform für Autohäuser: **Fotos hochladen → Fahrzeug erfa
 
 - **Technik:** PHP 8+ (OOP, PDO), MySQL/MariaDB (oder SQLite für lokale Entwicklung), Vanilla JS, kein Build-System, kein Composer.
 - **KI:** OpenAI-Anbindung mit Bildanalyse (`src/AI/OpenAiProvider.php`). Ohne hinterlegten Schlüssel bleibt die Anwendung im **Demo-Modus** mit regelbasierten, klar gekennzeichneten Ergebnissen. Umschalten unter Admin → Einstellungen → KI-Modus.
-- **Integrationen:** Zwölf Kanäle sind vorbereitet (`src/Integration/ChannelRegistry.php`): AutoScout24, mobile.de, car4you, Autolina, tutti.ch, Ricardo, Kleinanzeigen, Facebook Marketplace sowie Instagram, TikTok, Facebook und YouTube. Ohne Partner-Zugangsdaten zeigt die UI ehrlich „Nicht konfiguriert": nichts wird vorgetäuscht.
+- **Integrationen:** Zwölf Kanäle sind vorbereitet (`src/Integration/ChannelRegistry.php`): AutoScout24, mobile.de, Comparis, Autolina, tutti.ch, Ricardo, Kleinanzeigen, Facebook Marketplace sowie Instagram, TikTok, Facebook und YouTube. Ohne Partner-Zugangsdaten zeigt die UI ehrlich „Nicht konfiguriert": nichts wird vorgetäuscht.
 - **Guthaben:** Abgerechnet wird pro veröffentlichtem Inserat. Anlegen, Bearbeiten und Vorschau sind kostenlos, erst das Veröffentlichen verbraucht ein Guthaben (einmalig pro Inserat). Pakete: 1/CHF 10, 5/CHF 40, 10/CHF 70, 50/CHF 300, 100/CHF 500. Neue Autohäuser erhalten ein Gratis-Inserat.
 - **Sprachen:** Deutsch, Englisch, Französisch, Italienisch. Umschaltbar in der Kopfzeile, in den Einstellungen (Autohaus-Standard) und im Profil (persönlich). Fehlende Übersetzungen fallen automatisch auf Deutsch zurück.
 
@@ -104,7 +104,7 @@ Die Ausstattung wird aus einem Katalog mit rund 90 Merkmalen in fünf Gruppen ge
 
 ## Kanäle nach Region
 
-Ein Schweizer Autohaus bekommt mobile.de und Kleinanzeigen gar nicht erst angeboten, ein deutsches kein car4you oder tutti.ch. Massgeblich ist das Land des Autohauses; soziale Netzwerke gelten überall. Über einen Knopf lassen sich die übrigen Regionen einblenden, und ein bereits verbundener Kanal bleibt immer sichtbar. Dazu gibt es eine Suche über alle Plattformen.
+Ein Schweizer Autohaus bekommt mobile.de und Kleinanzeigen gar nicht erst angeboten, ein deutsches kein Comparis oder tutti.ch. Massgeblich ist das Land des Autohauses; soziale Netzwerke gelten überall. Über einen Knopf lassen sich die übrigen Regionen einblenden, und ein bereits verbundener Kanal bleibt immer sichtbar. Dazu gibt es eine Suche über alle Plattformen.
 
 **Zugangsdaten je Plattform** hinterlegt der Betreiber unter `/admin/channels.php`: Client-ID, Geheimnis, Redirect-URI, Auth- und Token-URL. Die Werte liegen AES-256-GCM-verschlüsselt in der Datenbank, das Geheimnis wird nie zurück ins Formular geschrieben. Steht ein Wert in `config/config.php`, hat die Datei Vorrang. Erst wenn die Zugangsdaten vorhanden sind, wird der Kanal für die Händler freigeschaltet; vorher steht dort ehrlich „Nicht konfiguriert".
 

@@ -262,7 +262,7 @@ return [
     ],
 
     // Weitere Verkaufs- und Social-Kanäle (ChannelRegistry).
-    // Schlüssel entsprechen den Kanal-Keys: mobile_de, car4you, autolina,
+    // Schlüssel entsprechen den Kanal-Keys: mobile_de, comparis, autolina,
     // tutti, ricardo, kleinanzeigen, facebook_marketplace, tiktok, facebook, youtube
     'channels' => [
         'tiktok' => [

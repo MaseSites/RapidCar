@@ -8,7 +8,7 @@ Ergebnis:
 | AutoScout24 | ja, dokumentiert | eingebaut, Partneranfrage läuft |
 | mobile.de | ja, dokumentiert (TSP) | eingebaut, Anfrage vorbereitet |
 | Facebook Marketplace | nimmt eine Fahrzeugliste als Datei | **Adresse steht bereit, siehe unten** |
-| car4you | keine öffentliche | Mail |
+| Comparis | keine eigene nötig | **kommt über AutoScout24 mit** |
 | Autolina | keine öffentliche | Mail |
 | tutti.ch | keine öffentliche | Mail |
 | Ricardo | keine öffentliche | über tutti.ch, Mail |
@@ -23,19 +23,20 @@ Ergebnis:
 | Autolina | `service@autolina.ch` | Kontaktseite autolina.ch, selbst nachgesehen |
 | Ricardo | `premiumservice@ricardo.ch` | Team für gewerbliche Verkäufer, Telefon 041 769 33 44 |
 | tutti.ch | `hilfe@tutti.ch` | Support-Adresse; für Gewerbliches gibt es kein eigenes Postfach |
-| car4you | **keine gefunden** | siehe unten |
+| Comparis | keine nötig | läuft über AutoScout24 |
 | Kleinanzeigen | über das Formular für gewerbliche Anbieter | keine offene Adresse veröffentlicht |
 | Meta | über den Meta Business Support | keine offene Adresse |
 
-**Zu car4you:** Die Seite car4you.ch war von hier aus nicht erreichbar, und
-eine E-Mail-Adresse steht in keiner der geprüften Quellen. Gefunden habe ich
-nur die Firmenanschrift: car4you Schweiz AG, Bürglistrasse 6, 8002 Zürich,
-Telefon 043 499 18 88. Eine Adresse zu raten wäre wertlos, deshalb steht hier
-keine. Am schnellsten kommst du über einen Anruf oder das Kontaktformular auf
-ihrer Seite weiter; nenne dort einfach die Fragen aus der Vorlage unten.
+**Zu Comparis:** Hier ist nichts zu tun. AutoScout24 gibt die Inserate seiner
+Händler automatisch und kostenlos an comparis.ch weiter, über eine feste
+Verbindung zwischen den beiden Plattformen. Wer also über uns bei AutoScout24
+inseriert, erscheint ohne weiteres Zutun auch auf comparis.
 
-Ein Hinweis dazu: car4you gehörte zu Tamedia. Prüfe im Gespräch kurz, ob die
-Plattform noch eigenständig betrieben wird, bevor du Zeit hineinsteckst.
+Quelle: die Händlerseite von AutoScout24 zur Insertion auf Comparis. Dort
+steht wörtlich, die Inserate würden automatisch und ohne zusätzlichen Aufwand
+veröffentlicht.
+
+**car4you wurde entfernt.** Die Plattform gibt es nicht mehr.
 
 ---
 
@@ -111,18 +112,26 @@ Partnerschnittstellen. Dafür diese Mail:
 
 ---
 
-## car4you (Schweiz)
+## Comparis: keine Mail nötig
 
-> **An:** Kontaktformular auf car4you.ch oder telefonisch 043 499 18 88
+AutoScout24 reicht die Inserate automatisch an comparis.ch weiter, kostenlos
+und ohne Aktivierung. Sobald ein Händler über uns bei AutoScout24 inseriert,
+erscheint das Fahrzeug auch dort.
+
+---
+
+## Autolina (Schweiz)
+
+> **An:** service@autolina.ch
 > **Betreff:** Schnittstelle für die Übertragung von Fahrzeuginseraten
->
+
 > Guten Tag
 >
 > Wir entwickeln RapidCar, eine Schweizer Software für Fahrzeuginserate.
 > Autohäuser und private Verkäufer erfassen bei uns ihre Fahrzeuge einmal und
 > veröffentlichen sie anschliessend auf mehreren Plattformen.
 >
-> Wir möchten car4you anbinden und haben dazu drei Fragen:
+> Wir möchten Autolina anbinden und haben dazu drei Fragen:
 >
 > 1. Gibt es eine Schnittstelle, über die wir Fahrzeuge im Namen unserer
 >    Kunden einstellen und aktualisieren können?
@@ -137,15 +146,6 @@ Partnerschnittstellen. Dafür diese Mail:
 >
 > Freundliche Grüsse
 > [Name, Firma, Adresse, Telefon]
-
----
-
-## Autolina (Schweiz)
-
-> **An:** service@autolina.ch
-> **Betreff:** Schnittstelle für die Übertragung von Fahrzeuginseraten
-
-Gleicher Text wie bei car4you, nur den Namen austauschen.
 
 ---
 
